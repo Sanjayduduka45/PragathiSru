@@ -163,7 +163,7 @@ export class RegistrationService {
       paymentStatus: payload.registrationType === 'SRU_STUDENT' ? 'FREE_SRU' : (payload.paymentStatus || 'COMPLETED'),
     };
 
-    // 2. Try Supabase relational insert
+    // 2. Try Supabase relational insert (Primary & Authoritative)
     if (isSupabaseConfigured && supabase) {
       try {
         // A. Insert/Get Institution ID
@@ -176,7 +176,7 @@ export class RegistrationService {
             ? 'university'
             : 'college';
 
-          const { data: instData } = await supabase
+          const { data: instData, error: instError } = await supabase
             .from('institutions')
             .insert([
               {
@@ -191,12 +191,14 @@ export class RegistrationService {
             .select('id')
             .single();
 
-          if (instData?.id) {
+          if (instError) {
+            console.error('Supabase institution insert error:', instError);
+          } else if (instData?.id) {
             institutionId = instData.id;
           }
         }
 
-        // B. Insert Registration Row
+        // B. Insert Registration Row into public.registrations
         const { data: regData, error: regError } = await supabase
           .from('registrations')
           .insert([
@@ -218,75 +220,105 @@ export class RegistrationService {
           .select('id')
           .single();
 
-        if (regError) {
-          console.warn('Supabase registration insert warning:', regError);
-        } else if (regData?.id) {
-          const internalRegUUID = regData.id;
-
-          // C. Insert Team Members
-          const memberRows = payload.members.map((m, idx) => ({
-            registration_id: internalRegUUID,
-            name: m.name,
-            roll_number: m.rollNumber || (m.role === 'Leader' ? payload.members[0]?.rollNumber : null),
-            email: m.email,
-            mobile: m.phone || null,
-            class_or_year: m.classOrYear || null,
-            department: m.department || payload.department || null,
-            is_team_leader: idx === 0 || m.role === 'Leader',
-          }));
-
-          await supabase.from('team_members').insert(memberRows);
-
-          // D. Insert Project Row
-          await supabase.from('projects').insert([
-            {
-              registration_id: internalRegUUID,
-              title: payload.projectTitle,
-              category: payload.category,
-              problem_statement: payload.problemStatement || payload.projectAbstract || null,
-              objective: payload.objective || null,
-              proposed_solution: payload.proposedSolution || null,
-              innovation: payload.innovation || null,
-              applications: payload.applications || null,
-              expected_outcomes: payload.expectedOutcomes || null,
-            },
-          ]);
-
-          // E. Insert Payment Row
-          await supabase.from('payments').insert([
-            {
-              registration_id: internalRegUUID,
-              amount: paymentAmount,
-              currency: 'INR',
-              status: paymentStatusDB,
-              gateway_reference: payload.transactionRef || null,
-              transaction_id: payload.transactionRef ? `TXN-${payload.transactionRef}` : null,
-            },
-          ]);
-
-          // Save copy to LocalStorage as well
-          this.saveToLocalStorage(record);
-
+        if (regError || !regData?.id) {
+          console.error('Supabase registration insert error:', regError);
           return {
-            success: true,
-            registrationId: publicRegistrationId,
-            message: 'Registration submitted successfully to PRAGATHI 2K26 database!',
-            record,
+            success: false,
+            registrationId: '',
+            message: 'Registration could not be completed. Please try again.',
           };
         }
+
+        const internalRegUUID = regData.id;
+
+        // C. Insert Team Members
+        const memberRows = payload.members.map((m, idx) => ({
+          registration_id: internalRegUUID,
+          name: m.name,
+          roll_number: m.rollNumber || (m.role === 'Leader' ? payload.members[0]?.rollNumber : null),
+          email: m.email,
+          mobile: m.phone || null,
+          class_or_year: m.classOrYear || null,
+          department: m.department || payload.department || null,
+          is_team_leader: idx === 0 || m.role === 'Leader',
+        }));
+
+        const { error: membersError } = await supabase.from('team_members').insert(memberRows);
+        if (membersError) {
+          console.error('Supabase team_members insert error:', membersError);
+          return {
+            success: false,
+            registrationId: '',
+            message: 'Registration could not be completed. Please try again.',
+          };
+        }
+
+        // D. Insert Project Row
+        const { error: projectError } = await supabase.from('projects').insert([
+          {
+            registration_id: internalRegUUID,
+            title: payload.projectTitle,
+            category: payload.category,
+            problem_statement: payload.problemStatement || payload.projectAbstract || null,
+            objective: payload.objective || null,
+            proposed_solution: payload.proposedSolution || null,
+            innovation: payload.innovation || null,
+            applications: payload.applications || null,
+            expected_outcomes: payload.expectedOutcomes || null,
+          },
+        ]);
+        if (projectError) {
+          console.error('Supabase projects insert error:', projectError);
+          return {
+            success: false,
+            registrationId: '',
+            message: 'Registration could not be completed. Please try again.',
+          };
+        }
+
+        // E. Insert Payment Row
+        const { error: paymentError } = await supabase.from('payments').insert([
+          {
+            registration_id: internalRegUUID,
+            amount: paymentAmount,
+            currency: 'INR',
+            status: paymentStatusDB,
+            gateway_reference: payload.transactionRef || null,
+            transaction_id: payload.transactionRef ? `TXN-${payload.transactionRef}` : null,
+          },
+        ]);
+        if (paymentError) {
+          console.error('Supabase payments insert error:', paymentError);
+          return {
+            success: false,
+            registrationId: '',
+            message: 'Registration could not be completed. Please try again.',
+          };
+        }
+
+        // Save local copy ONLY AFTER successful database insert of all records
+        this.saveToLocalStorage(record);
+
+        return {
+          success: true,
+          registrationId: publicRegistrationId,
+          message: 'Registration submitted successfully to PRAGATHI 2K26 database!',
+          record,
+        };
       } catch (err) {
-        console.warn('Supabase submission fallback to local storage:', err);
+        console.error('Supabase submission exception:', err);
+        return {
+          success: false,
+          registrationId: '',
+          message: 'Registration could not be completed. Please try again.',
+        };
       }
     }
 
-    // Fallback to LocalStorage
-    this.saveToLocalStorage(record);
-
     return {
-      success: true,
-      registrationId: publicRegistrationId,
-      message: 'Registration confirmed! Details stored successfully for PRAGATHI 2K26.',
-      record,
+      success: false,
+      registrationId: '',
+      message: 'Registration database is offline. Please try again.',
     };
   }
 
