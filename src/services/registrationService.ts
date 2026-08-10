@@ -221,7 +221,12 @@ export class RegistrationService {
           .single();
 
         if (regError || !regData?.id) {
-          console.error('Supabase registration insert error:', regError);
+          console.error('Supabase registration insert error:', {
+            message: regError?.message,
+            details: regError?.details,
+            hint: regError?.hint,
+            code: regError?.code,
+          });
           return {
             success: false,
             registrationId: '',
@@ -245,7 +250,12 @@ export class RegistrationService {
 
         const { error: membersError } = await supabase.from('team_members').insert(memberRows);
         if (membersError) {
-          console.error('Supabase team_members insert error:', membersError);
+          console.error('Supabase team_members insert error:', {
+            message: membersError.message,
+            details: membersError.details,
+            hint: membersError.hint,
+            code: membersError.code,
+          });
           return {
             success: false,
             registrationId: '',
@@ -268,7 +278,12 @@ export class RegistrationService {
           },
         ]);
         if (projectError) {
-          console.error('Supabase projects insert error:', projectError);
+          console.error('Supabase projects insert error:', {
+            message: projectError.message,
+            details: projectError.details,
+            hint: projectError.hint,
+            code: projectError.code,
+          });
           return {
             success: false,
             registrationId: '',
@@ -276,24 +291,31 @@ export class RegistrationService {
           };
         }
 
-        // E. Insert Payment Row
-        const { error: paymentError } = await supabase.from('payments').insert([
-          {
-            registration_id: internalRegUUID,
-            amount: paymentAmount,
-            currency: 'INR',
-            status: paymentStatusDB,
-            gateway_reference: payload.transactionRef || null,
-            transaction_id: payload.transactionRef ? `TXN-${payload.transactionRef}` : null,
-          },
-        ]);
-        if (paymentError) {
-          console.error('Supabase payments insert error:', paymentError);
-          return {
-            success: false,
-            registrationId: '',
-            message: 'Registration could not be completed. Please try again.',
-          };
+        // E. Insert Payment Row (Only for Paid Transactions with amount > 0)
+        if (paymentStatusDB !== 'not_required' && paymentAmount > 0) {
+          const { error: paymentError } = await supabase.from('payments').insert([
+            {
+              registration_id: internalRegUUID,
+              amount: paymentAmount,
+              currency: 'INR',
+              status: paymentStatusDB,
+              gateway_reference: payload.transactionRef || null,
+              transaction_id: payload.transactionRef ? `TXN-${payload.transactionRef}` : null,
+            },
+          ]);
+          if (paymentError) {
+            console.error('Supabase payments insert error:', {
+              message: paymentError.message,
+              details: paymentError.details,
+              hint: paymentError.hint,
+              code: paymentError.code,
+            });
+            return {
+              success: false,
+              registrationId: '',
+              message: 'Registration could not be completed. Please try again.',
+            };
+          }
         }
 
         // Save local copy ONLY AFTER successful database insert of all records
