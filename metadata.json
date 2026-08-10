@@ -1,0 +1,6 @@
+{
+  "name": "PRAGATHI 2K26 Expo",
+  "description": "Official Digital Platform for PRAGATHI 2K26 - National Level Project Expo at SR University, Warangal",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

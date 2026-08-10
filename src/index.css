@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Syne', sans-serif;
+    --font-sans: 'Plus Jakarta Sans', sans-serif;
+    --color-sru-blue: #004182;
+    --color-sru-blue-hover: #003366;
+    --color-sru-deep: #002852;
+    --color-sru-light: #F0F5FA;
+    --color-sru-accent-amber: #D97706;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+/* PRAGATHI 2K26 Design Tokens & Utilities */
+.bg-sru-primary {
+  background-color: #004182;
+}
+
+.bg-sru-primary-hover {
+  background-color: #003366;
+}
+
+.text-sru-primary {
+  color: #004182;
+}
+
+.border-sru-primary {
+  border-color: #004182;
+}
+
+/* Glassmorphism & Depth Layers */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-panel-subtle {
+  background: rgba(240, 245, 250, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(203, 213, 225, 0.6);
+}
+
+.glass-panel-dark {
+  background: rgba(0, 40, 82, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+/* 3D Depth & Shadows */
+.perspective-container {
+  perspective: 1200px;
+}
+
+.sru-depth-shadow-sm {
+  box-shadow: 0 4px 12px -2px rgba(0, 65, 130, 0.05), 0 2px 4px -1px rgba(0, 65, 130, 0.03);
+}
+
+.sru-depth-shadow-md {
+  box-shadow: 0 12px 28px -6px rgba(0, 65, 130, 0.08), 0 4px 10px -2px rgba(0, 65, 130, 0.04);
+}
+
+.sru-depth-shadow-lg {
+  box-shadow: 0 20px 40px -10px rgba(0, 65, 130, 0.12), 0 8px 16px -4px rgba(0, 65, 130, 0.06);
+}
+
+.sru-card-clean {
+  background-color: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 1.5rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sru-card-clean:hover {
+  transform: translateY(-2px);
+  border-color: #e2e8f0;
+  box-shadow: 0 16px 32px -8px rgba(0, 65, 130, 0.09);
+}
+
+/* Focus states for accessibility */
+.sru-focus-ring {
+  outline: none;
+}
+.sru-focus-ring:focus-visible {
+  outline: 2px solid #004182;
+  outline-offset: 2px;
+}
+
+/* Floating animation helper */
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+}
+
+.animate-float {
+  animation: floatGentle 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float {
+    animation: none !important;
+  }
+  .sru-card-clean:hover {
+    transform: none !important;
+  }
+}
+
+
+
