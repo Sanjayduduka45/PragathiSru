@@ -3,8 +3,6 @@ import {
   FileText,
   Search,
   CheckCircle2,
-  XCircle,
-  Clock,
   Eye,
   Building,
   User,
@@ -15,12 +13,10 @@ import {
   AlertTriangle,
   Users,
   Layers,
-  DollarSign,
+  Sparkles,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { Modal } from '../../components/ui/Modal';
-import { ToastContainer } from '../../components/ui/Toast';
-import { useAdminToast } from '../../hooks/useAdminToast';
 
 export interface JoinedRegistrationRecord {
   id: string;
@@ -79,7 +75,6 @@ export const RegistrationsAdmin: React.FC = () => {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
   const [institutionFilter, setInstitutionFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
@@ -90,13 +85,6 @@ export const RegistrationsAdmin: React.FC = () => {
 
   // Selected Detail Modal State
   const [selectedReg, setSelectedReg] = useState<JoinedRegistrationRecord | null>(null);
-
-  // Action Confirmation Modals
-  const [actionReg, setActionReg] = useState<JoinedRegistrationRecord | null>(null);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
-  const [updatingStatus, setUpdatingStatus] = useState<boolean>(false);
-
-  const { toasts, addToast, dismissToast } = useAdminToast();
 
   const fetchRegistrations = async () => {
     setLoading(true);
@@ -138,17 +126,15 @@ export const RegistrationsAdmin: React.FC = () => {
     fetchRegistrations();
   }, []);
 
-  // Compute summary stats from live database registrations
+  // Compute summary stats from live database registrations (Requirement #7)
   const stats = useMemo(() => {
-    const total = registrations.length;
-    const pending = registrations.filter(
-      (r) => r.registration_status === 'submitted' || r.registration_status === 'under_review'
-    ).length;
-    const approved = registrations.filter((r) => r.registration_status === 'approved').length;
-    const rejected = registrations.filter((r) => r.registration_status === 'rejected').length;
-    const paid = registrations.filter((r) => r.payment_status === 'paid').length;
+    const totalRegistrations = registrations.length;
+    const totalTeams = registrations.length;
+    const totalParticipants = registrations.reduce((acc, r) => acc + (r.team_size || 1), 0);
+    const freeRegistrations = registrations.filter((r) => r.payment_status === 'not_required').length;
+    const paidRegistrations = registrations.filter((r) => r.payment_status === 'paid').length;
     const paymentPending = registrations.filter((r) => r.payment_status === 'pending').length;
-    return { total, pending, approved, rejected, paid, paymentPending };
+    return { totalRegistrations, totalTeams, totalParticipants, freeRegistrations, paidRegistrations, paymentPending };
   }, [registrations]);
 
   // Extract unique institutions for filter dropdown
@@ -177,11 +163,6 @@ export const RegistrationsAdmin: React.FC = () => {
         }
       }
 
-      // Status filter
-      if (statusFilter !== 'ALL') {
-        if (r.registration_status !== statusFilter) return false;
-      }
-
       // Payment filter
       if (paymentFilter !== 'ALL') {
         if (r.payment_status !== paymentFilter) return false;
@@ -200,7 +181,7 @@ export const RegistrationsAdmin: React.FC = () => {
 
       return true;
     });
-  }, [registrations, searchQuery, statusFilter, paymentFilter, institutionFilter, typeFilter]);
+  }, [registrations, searchQuery, paymentFilter, institutionFilter, typeFilter]);
 
   // Paginated records
   const totalRecords = filteredRegistrations.length;
@@ -210,76 +191,12 @@ export const RegistrationsAdmin: React.FC = () => {
     return filteredRegistrations.slice(start, start + pageSize);
   }, [filteredRegistrations, currentPage, pageSize]);
 
-  // Update Status handler (Approve / Reject)
-  const handleUpdateStatus = async () => {
-    if (!actionReg || !actionType || !supabase) return;
-
-    setUpdatingStatus(true);
-    const newStatus = actionType === 'approve' ? 'approved' : 'rejected';
-
-    try {
-      const { error: updateErr } = await supabase
-        .from('registrations')
-        .update({
-          registration_status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', actionReg.id);
-
-      if (updateErr) {
-        console.error(`Error updating registration to ${newStatus}:`, updateErr);
-        addToast('error', 'Status Update Failed', updateErr.message || 'Database update error.');
-      } else {
-        addToast(
-          'success',
-          `Registration ${newStatus.toUpperCase()}`,
-          `Registration ${actionReg.registration_id} marked as ${newStatus}.`
-        );
-        // Refresh local state & details modal if open
-        setRegistrations((prev) =>
-          prev.map((r) => (r.id === actionReg.id ? { ...r, registration_status: newStatus } : r))
-        );
-        if (selectedReg?.id === actionReg.id) {
-          setSelectedReg((prev) => (prev ? { ...prev, registration_status: newStatus } : null));
-        }
-      }
-    } catch (err: any) {
-      console.error('Update status exception:', err);
-      addToast('error', 'Update Exception', 'An unexpected error occurred.');
-    } finally {
-      setUpdatingStatus(false);
-      setActionReg(null);
-      setActionType(null);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return (
-          <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            Approved
-          </span>
-        );
-      case 'rejected':
-        return (
-          <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            <XCircle className="w-3 h-3 text-rose-600" />
-            Rejected
-          </span>
-        );
-      case 'submitted':
-      case 'under_review':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            <Clock className="w-3 h-3 text-amber-600" />
-            Pending Review
-          </span>
-        );
-    }
-  };
+  const getStatusBadge = () => (
+    <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+      REGISTERED
+    </span>
+  );
 
   const getPaymentBadge = (status: string, amount: number) => {
     switch (status) {
@@ -323,7 +240,7 @@ export const RegistrationsAdmin: React.FC = () => {
             <h2 className="text-xl font-extrabold text-slate-900">Registrations Management</h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Official PRAGATHI 2K26 database registrations from Supabase.
+            View and manage official PRAGATHI 2K26 registered teams stored in Supabase.
           </p>
         </div>
 
@@ -333,54 +250,54 @@ export const RegistrationsAdmin: React.FC = () => {
           className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50 self-start sm:self-auto"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          Refresh Data
         </button>
       </div>
 
-      {/* Top Dashboard Summary Cards (Requirements #8) */}
+      {/* Top Summary Cards (Requirement #7) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         
         {/* Total Registrations */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
           <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Total Registrations</span>
           <div className="flex items-center justify-between">
-            <span className="text-xl font-extrabold text-slate-900">{stats.total}</span>
+            <span className="text-xl font-extrabold text-[#004182]">{stats.totalRegistrations}</span>
             <FileText className="w-4 h-4 text-[#004182]" />
           </div>
         </div>
 
-        {/* Pending Review */}
+        {/* Total Teams */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Pending Review</span>
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Total Teams</span>
           <div className="flex items-center justify-between">
-            <span className="text-xl font-extrabold text-amber-600">{stats.pending}</span>
-            <Clock className="w-4 h-4 text-amber-600" />
+            <span className="text-xl font-extrabold text-slate-900">{stats.totalTeams}</span>
+            <Users className="w-4 h-4 text-slate-600" />
           </div>
         </div>
 
-        {/* Approved */}
+        {/* Total Participants */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Approved</span>
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Total Participants</span>
           <div className="flex items-center justify-between">
-            <span className="text-xl font-extrabold text-emerald-600">{stats.approved}</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span className="text-xl font-extrabold text-indigo-600">{stats.totalParticipants}</span>
+            <User className="w-4 h-4 text-indigo-600" />
           </div>
         </div>
 
-        {/* Rejected */}
+        {/* Free Registrations */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Rejected</span>
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Free Registrations</span>
           <div className="flex items-center justify-between">
-            <span className="text-xl font-extrabold text-rose-600">{stats.rejected}</span>
-            <XCircle className="w-4 h-4 text-rose-600" />
+            <span className="text-xl font-extrabold text-emerald-600">{stats.freeRegistrations}</span>
+            <Sparkles className="w-4 h-4 text-emerald-600" />
           </div>
         </div>
 
-        {/* Paid */}
+        {/* Paid Registrations */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Paid</span>
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Paid Registrations</span>
           <div className="flex items-center justify-between">
-            <span className="text-xl font-extrabold text-emerald-700">{stats.paid}</span>
+            <span className="text-xl font-extrabold text-emerald-700">{stats.paidRegistrations}</span>
             <CreditCard className="w-4 h-4 text-emerald-700" />
           </div>
         </div>
@@ -389,19 +306,19 @@ export const RegistrationsAdmin: React.FC = () => {
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
           <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Payment Pending</span>
           <div className="flex items-center justify-between">
-            <span className="text-xl font-extrabold text-amber-700">{stats.paymentPending}</span>
-            <DollarSign className="w-4 h-4 text-amber-700" />
+            <span className="text-xl font-extrabold text-amber-600">{stats.paymentPending}</span>
+            <CreditCard className="w-4 h-4 text-amber-600" />
           </div>
         </div>
 
       </div>
 
-      {/* Search & Multi-Filter Bar */}
+      {/* Search & Multi-Filter Control Bar (Requirement #5 & #6) */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-2xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           
           {/* Search Box */}
-          <div className="relative lg:col-span-2">
+          <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <Search className="w-4 h-4" />
             </div>
@@ -417,24 +334,23 @@ export const RegistrationsAdmin: React.FC = () => {
             />
           </div>
 
-          {/* Registration Status Filter */}
+          {/* Participant Type Filter */}
           <div>
             <select
-              value={statusFilter}
+              value={typeFilter}
               onChange={(e) => {
-                setStatusFilter(e.target.value);
+                setTypeFilter(e.target.value);
                 setCurrentPage(1);
               }}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
             >
-              <option value="ALL">All Statuses</option>
-              <option value="submitted">Submitted (Pending Review)</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
+              <option value="ALL">All Participant Types</option>
+              <option value="sru_student">SR University Student</option>
+              <option value="external_student">External Participant</option>
             </select>
           </div>
 
-          {/* Payment Status Filter */}
+          {/* Payment Filter */}
           <div>
             <select
               value={paymentFilter}
@@ -445,10 +361,9 @@ export const RegistrationsAdmin: React.FC = () => {
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
             >
               <option value="ALL">All Payments</option>
-              <option value="not_required">Not Required (₹0)</option>
+              <option value="not_required">Free / Not Required (₹0)</option>
               <option value="paid">Paid</option>
-              <option value="pending">Pending Payment</option>
-              <option value="failed">Failed</option>
+              <option value="pending">Payment Pending</option>
             </select>
           </div>
 
@@ -474,7 +389,7 @@ export const RegistrationsAdmin: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Table / List View */}
+      {/* Main Data Table */}
       {loading ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
           <div className="w-8 h-8 border-2 border-[#004182]/20 border-t-[#004182] rounded-full animate-spin mx-auto" />
@@ -497,7 +412,7 @@ export const RegistrationsAdmin: React.FC = () => {
           <FileText className="w-10 h-10 text-slate-300 mx-auto" />
           <p className="text-sm font-bold text-slate-700">No registrations found.</p>
           <p className="text-xs text-slate-400">
-            {searchQuery || statusFilter !== 'ALL' || paymentFilter !== 'ALL' || institutionFilter !== 'ALL' || typeFilter !== 'ALL'
+            {searchQuery || paymentFilter !== 'ALL' || institutionFilter !== 'ALL' || typeFilter !== 'ALL'
               ? 'Try resetting your search query or filter selections.'
               : 'Public registrations will appear here once submitted.'}
           </p>
@@ -527,7 +442,7 @@ export const RegistrationsAdmin: React.FC = () => {
                     Payment
                   </th>
                   <th className="px-4 py-3.5 font-extrabold uppercase tracking-wider text-slate-400 text-[10px] text-right">
-                    Actions
+                    Action
                   </th>
                 </tr>
               </thead>
@@ -582,9 +497,9 @@ export const RegistrationsAdmin: React.FC = () => {
                       </span>
                     </td>
 
-                    {/* Registration Status */}
+                    {/* Status */}
                     <td className="px-4 py-4 whitespace-nowrap">
-                      {getStatusBadge(r.registration_status)}
+                      {getStatusBadge()}
                     </td>
 
                     {/* Payment Status */}
@@ -592,43 +507,16 @@ export const RegistrationsAdmin: React.FC = () => {
                       {getPaymentBadge(r.payment_status, r.payment_amount)}
                     </td>
 
-                    {/* Action buttons */}
+                    {/* Action Column (Requirement #5) */}
                     <td className="px-4 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        
-                        {/* Detail View */}
-                        <button
-                          onClick={() => setSelectedReg(r)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                          title="View Registration Details"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* Quick Approve (only for submitted) */}
-                        {r.registration_status === 'submitted' && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setActionReg(r);
-                                setActionType('approve');
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => {
-                                setActionReg(r);
-                                setActionType('reject');
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-colors cursor-pointer"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => setSelectedReg(r)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-[#004182] text-slate-700 hover:text-white font-bold text-xs transition-all cursor-pointer"
+                        title="View Registration Details"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View</span>
+                      </button>
                     </td>
 
                   </tr>
@@ -667,11 +555,11 @@ export const RegistrationsAdmin: React.FC = () => {
         </div>
       )}
 
-      {/* DETAIL MODAL / DRAWER */}
+      {/* DETAIL MODAL (Requirement #8) */}
       <Modal
         isOpen={!!selectedReg}
         onClose={() => setSelectedReg(null)}
-        title="Registration Detail Inspector"
+        title="Registration Record Details"
         maxWidth="xl"
       >
         {selectedReg && (
@@ -684,7 +572,7 @@ export const RegistrationsAdmin: React.FC = () => {
                 <span className="font-extrabold text-[#004182] font-mono text-base">{selectedReg.registration_id}</span>
               </div>
               <div>
-                <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Submitted On</span>
+                <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Registration Date</span>
                 <span className="font-bold text-slate-800">
                   {new Date(selectedReg.created_at).toLocaleString('en-IN', {
                     dateStyle: 'medium',
@@ -694,39 +582,33 @@ export const RegistrationsAdmin: React.FC = () => {
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Registration Status</span>
-                <div className="mt-0.5">{getStatusBadge(selectedReg.registration_status)}</div>
+                <div className="mt-0.5">{getStatusBadge()}</div>
               </div>
             </div>
 
-            {/* Action Bar inside detail modal */}
-            {selectedReg.registration_status === 'submitted' && (
-              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-2 text-amber-800 font-bold">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                  <span>Pending Admin Review</span>
+            {/* General Team Info */}
+            <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center gap-2 text-[#004182] font-bold border-b border-slate-100 pb-2">
+                <Users className="w-4 h-4" />
+                <span className="uppercase text-[10px] tracking-wider">Team Overview</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Team Name</span>
+                  <strong className="text-slate-900 text-xs font-bold">{selectedReg.team_name}</strong>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setActionReg(selectedReg);
-                      setActionType('approve');
-                    }}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
-                  >
-                    Approve Registration
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActionReg(selectedReg);
-                      setActionType('reject');
-                    }}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
-                  >
-                    Reject
-                  </button>
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Team Size</span>
+                  <span className="font-semibold text-slate-800">{selectedReg.team_size} Members</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Participant Type</span>
+                  <span className="font-semibold text-slate-800">
+                    {selectedReg.participant_type === 'sru_student' ? 'SR University Student' : 'External Participant'}
+                  </span>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Leader Info */}
             <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
@@ -744,7 +626,7 @@ export const RegistrationsAdmin: React.FC = () => {
                   <span className="font-semibold text-slate-800">{selectedReg.leader_email}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Mobile Phone</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Phone</span>
                   <span className="font-semibold text-slate-800">{selectedReg.leader_mobile || 'N/A'}</span>
                 </div>
               </div>
@@ -762,21 +644,21 @@ export const RegistrationsAdmin: React.FC = () => {
                   <strong className="text-slate-900 text-xs">{selectedReg.institutions?.name || 'SR University, Warangal'}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Type</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Institution Type</span>
                   <span className="font-semibold text-slate-800 uppercase">{selectedReg.institutions?.institution_type || 'University'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Team Roster */}
+            {/* Team Members */}
             <div className="border border-slate-200 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <div className="flex items-center gap-2 text-[#004182] font-bold">
                   <Users className="w-4 h-4" />
-                  <span className="uppercase text-[10px] tracking-wider">Team Roster ({selectedReg.team_name})</span>
+                  <span className="uppercase text-[10px] tracking-wider">Team Members</span>
                 </div>
                 <span className="text-[10px] font-bold bg-blue-50 text-[#004182] px-2 py-0.5 rounded border border-blue-100">
-                  Size: {selectedReg.team_size}
+                  {selectedReg.team_members?.length || selectedReg.team_size} Members
                 </span>
               </div>
 
@@ -822,17 +704,17 @@ export const RegistrationsAdmin: React.FC = () => {
                   <div key={p.id} className="space-y-2">
                     <div>
                       <span className="text-slate-400 text-[10px] uppercase font-bold block">Project Title</span>
-                      <strong className="text-slate-900 text-sm">{p.title}</strong>
+                      <strong className="text-slate-900 text-sm font-bold">{p.title}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-400 text-[10px] uppercase font-bold block">Track Category</span>
+                      <span className="text-slate-400 text-[10px] uppercase font-bold block">Innovation Track / Domain</span>
                       <span className="inline-block bg-blue-50 text-[#004182] font-bold px-2.5 py-0.5 rounded border border-blue-100 mt-0.5">
                         {p.category}
                       </span>
                     </div>
                     {p.problem_statement && (
                       <div>
-                        <span className="text-slate-400 text-[10px] uppercase font-bold block">Abstract / Problem Statement</span>
+                        <span className="text-slate-400 text-[10px] uppercase font-bold block">Problem Statement / Abstract</span>
                         <p className="text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200 mt-1 leading-relaxed">
                           {p.problem_statement}
                         </p>
@@ -849,19 +731,19 @@ export const RegistrationsAdmin: React.FC = () => {
             <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
               <div className="flex items-center gap-2 text-[#004182] font-bold border-b border-slate-100 pb-2">
                 <CreditCard className="w-4 h-4" />
-                <span className="uppercase text-[10px] tracking-wider">Payment Information</span>
+                <span className="uppercase text-[10px] tracking-wider">Payment Details</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Status</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Payment Status</span>
                   <div className="mt-0.5">{getPaymentBadge(selectedReg.payment_status, selectedReg.payment_amount)}</div>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Amount</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Payment Amount</span>
                   <span className="font-extrabold text-slate-900 text-xs">₹{selectedReg.payment_amount}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Reference</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Transaction Reference</span>
                   <span className="font-mono text-slate-700">{selectedReg.payment_reference || 'N/A'}</span>
                 </div>
               </div>
@@ -871,59 +753,6 @@ export const RegistrationsAdmin: React.FC = () => {
         )}
       </Modal>
 
-      {/* APPROVE / REJECT ACTION CONFIRMATION MODAL */}
-      <Modal
-        isOpen={!!actionReg && !!actionType}
-        onClose={() => {
-          setActionReg(null);
-          setActionType(null);
-        }}
-        title={actionType === 'approve' ? 'Approve Registration' : 'Reject Registration'}
-        maxWidth="sm"
-        footer={
-          <>
-            <button
-              onClick={() => {
-                setActionReg(null);
-                setActionType(null);
-              }}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleUpdateStatus}
-              disabled={updatingStatus}
-              className={`px-5 py-2 rounded-xl text-xs font-bold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 ${
-                actionType === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
-              }`}
-            >
-              {updatingStatus ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                `Confirm ${actionType === 'approve' ? 'Approval' : 'Rejection'}`
-              )}
-            </button>
-          </>
-        }
-      >
-        {actionReg && actionType && (
-          <div className="space-y-3 text-xs text-slate-700">
-            <p>
-              Are you sure you want to <strong>{actionType}</strong> registration{' '}
-              <span className="font-mono font-bold text-[#004182]">{actionReg.registration_id}</span> for team{' '}
-              <strong>"{actionReg.team_name}"</strong>?
-            </p>
-            {actionType === 'reject' && (
-              <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-800 text-[11px]">
-                Warning: Rejecting this registration will mark it as rejected in the official database.
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 };

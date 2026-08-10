@@ -62,8 +62,8 @@ export const AdminDashboard: React.FC = () => {
   const { user, isSupabaseReady } = useAdminAuth();
   const [regStats, setRegStats] = useState({
     total: 0,
-    approved: 0,
-    pending: 0,
+    free: 0,
+    paid: 0,
     loading: true,
     error: false,
   });
@@ -79,20 +79,20 @@ export const AdminDashboard: React.FC = () => {
           .from('registrations')
           .select('*', { count: 'exact', head: true });
 
-        const { count: approved } = await supabase!
+        const { count: free } = await supabase!
           .from('registrations')
           .select('*', { count: 'exact', head: true })
-          .eq('registration_status', 'approved');
+          .eq('payment_status', 'not_required');
 
-        const { count: pending } = await supabase!
+        const { count: paid } = await supabase!
           .from('registrations')
           .select('*', { count: 'exact', head: true })
-          .eq('registration_status', 'submitted');
+          .eq('payment_status', 'paid');
 
         setRegStats({
           total: total ?? 0,
-          approved: approved ?? 0,
-          pending: pending ?? 0,
+          free: free ?? 0,
+          paid: paid ?? 0,
           loading: false,
           error: false,
         });
@@ -111,21 +111,21 @@ export const AdminDashboard: React.FC = () => {
     ? 0
     : regStats.total;
 
-  const approvedValue = regStats.loading
+  const freeValue = regStats.loading
     ? '…'
     : !isSupabaseConfigured
     ? 0
     : regStats.error
     ? 0
-    : regStats.approved;
+    : regStats.free;
 
-  const pendingValue = regStats.loading
+  const paidValue = regStats.loading
     ? '…'
     : !isSupabaseConfigured
     ? 0
     : regStats.error
     ? 0
-    : regStats.pending;
+    : regStats.paid;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -154,16 +154,16 @@ export const AdminDashboard: React.FC = () => {
             linkTo="/admin/registrations"
           />
           <StatCard
-            label="Approved"
-            value={approvedValue}
+            label="Free Registrations"
+            value={freeValue}
             icon={<CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />}
             color="bg-emerald-50"
             linkTo="/admin/registrations"
           />
           <StatCard
-            label="Pending Review"
-            value={pendingValue}
-            icon={<Clock className="w-4.5 h-4.5 text-amber-600" />}
+            label="Paid Registrations"
+            value={paidValue}
+            icon={<CreditCard className="w-4.5 h-4.5 text-amber-600" />}
             color="bg-amber-50"
             linkTo="/admin/registrations"
           />
