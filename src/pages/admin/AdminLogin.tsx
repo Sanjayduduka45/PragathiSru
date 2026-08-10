@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, AlertCircle, GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 
 export const AdminLogin: React.FC = () => {
-  const { signIn, isSupabaseReady } = useAdminAuth();
+  const { signIn } = useAdminAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -57,22 +57,6 @@ export const AdminLogin: React.FC = () => {
           </div>
         </div>
 
-        {/* Supabase warning */}
-        {!isSupabaseReady && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-bold text-amber-800">Database Not Connected</p>
-              <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
-                Supabase credentials are not configured. Login requires a connected Supabase project.
-                Add <code className="font-mono bg-amber-100 px-1 rounded">VITE_SUPABASE_URL</code> and{' '}
-                <code className="font-mono bg-amber-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> to your{' '}
-                <code className="font-mono bg-amber-100 px-1 rounded">.env</code> file.
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Login Card */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
           {error && (
@@ -85,7 +69,7 @@ export const AdminLogin: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label htmlFor="admin-email" className="block text-xs font-bold text-slate-700 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
@@ -107,7 +91,7 @@ export const AdminLogin: React.FC = () => {
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label htmlFor="admin-password" className="block text-xs font-bold text-slate-700 mb-1.5">
                 Password
               </label>
               <div className="relative">

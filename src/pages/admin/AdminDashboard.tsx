@@ -7,17 +7,14 @@ import {
   Clock,
   Layers,
   HelpCircle,
-  Star,
-  AlertCircle,
   ArrowRight,
-  Database,
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
-import { PROJECT_CATEGORIES, FAQS, SPONSORS_PARTNERS } from '../../data/eventData';
+import { PROJECT_CATEGORIES, FAQS } from '../../data/eventData';
 import { EVENT_DETAILS } from '../../utils/constants';
 
-interface StatCard {
+interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
@@ -25,8 +22,8 @@ interface StatCard {
   linkTo?: string;
 }
 
-const StatCard: React.FC<StatCard> = ({ label, value, icon, color, linkTo }) => (
-  <div className={`bg-white rounded-2xl border border-slate-200 p-5 space-y-3 hover:shadow-sm transition-shadow`}>
+const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color, linkTo }) => (
+  <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 hover:shadow-sm transition-shadow">
     <div className="flex items-center justify-between">
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
         {icon}
@@ -108,12 +105,27 @@ export const AdminDashboard: React.FC = () => {
 
   const regValue = regStats.loading
     ? '…'
+    : !isSupabaseConfigured
+    ? 0
     : regStats.error
-    ? '—'
+    ? 0
     : regStats.total;
 
-  const approvedValue = regStats.loading ? '…' : regStats.error ? '—' : regStats.approved;
-  const pendingValue = regStats.loading ? '…' : regStats.error ? '—' : regStats.pending;
+  const approvedValue = regStats.loading
+    ? '…'
+    : !isSupabaseConfigured
+    ? 0
+    : regStats.error
+    ? 0
+    : regStats.approved;
+
+  const pendingValue = regStats.loading
+    ? '…'
+    : !isSupabaseConfigured
+    ? 0
+    : regStats.error
+    ? 0
+    : regStats.pending;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -127,23 +139,6 @@ export const AdminDashboard: React.FC = () => {
           PRAGATHI 2K26 Management Dashboard — {EVENT_DETAILS.eventDate}
         </p>
       </div>
-
-      {/* Supabase connection banner */}
-      {!isSupabaseReady && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-          <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-amber-800">Database Not Connected</p>
-            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-              Supabase credentials are not configured. Registration counts and live data will not be
-              available. Content edits made here will not persist across sessions until the database
-              is connected. Add <code className="font-mono bg-amber-100 px-1 rounded text-amber-900">VITE_SUPABASE_URL</code> and{' '}
-              <code className="font-mono bg-amber-100 px-1 rounded text-amber-900">VITE_SUPABASE_ANON_KEY</code> to your{' '}
-              <code className="font-mono bg-amber-100 px-1 rounded text-amber-900">.env</code> file.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Stat Cards */}
       <div>

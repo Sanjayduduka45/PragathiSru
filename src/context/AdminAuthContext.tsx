@@ -19,7 +19,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
+    if (!supabase) {
       setLoading(false);
       return;
     }
@@ -33,19 +33,24 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
-    if (!isSupabaseConfigured || !supabase) {
+    if (!supabase) {
       return {
-        error: 'Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.',
+        error: 'Supabase client is not initialized. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
       };
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { error: error.message };
+    }
+    setSession(data.session);
+    setUser(data.user);
     return { error: null };
   };
 

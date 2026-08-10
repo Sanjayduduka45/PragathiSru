@@ -12,11 +12,11 @@ export const isSupabaseConfigured = Boolean(
 
 let client: SupabaseClient | null = null;
 
-if (isSupabaseConfigured) {
+if (supabaseUrl && supabaseAnonKey) {
   try {
     client = createClient(supabaseUrl, supabaseAnonKey);
   } catch (err) {
-    console.warn('Supabase initialization failed:', err);
+    console.warn('Supabase client initialization failed:', err);
   }
 }
 
