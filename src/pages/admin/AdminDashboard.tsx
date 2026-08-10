@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText,
@@ -8,11 +8,15 @@ import {
   Layers,
   HelpCircle,
   ArrowRight,
+  CreditCard,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { PROJECT_CATEGORIES, FAQS } from '../../data/eventData';
 import { EVENT_DETAILS } from '../../utils/constants';
+import { StatCardSkeleton } from '../../components/admin/AdminSkeleton';
 
 interface StatCardProps {
   label: string;
@@ -68,64 +72,49 @@ export const AdminDashboard: React.FC = () => {
     error: false,
   });
 
-  useEffect(() => {
+  const fetchStats = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
-      setRegStats((s) => ({ ...s, loading: false }));
+      setRegStats({
+        total: 0,
+        free: 0,
+        paid: 0,
+        loading: false,
+        error: false,
+      });
       return;
     }
-    const fetch = async () => {
-      try {
-        const { count: total } = await supabase!
-          .from('registrations')
-          .select('*', { count: 'exact', head: true });
 
-        const { count: free } = await supabase!
-          .from('registrations')
-          .select('*', { count: 'exact', head: true })
-          .eq('payment_status', 'not_required');
+    setRegStats((s) => ({ ...s, loading: true, error: false }));
 
-        const { count: paid } = await supabase!
-          .from('registrations')
-          .select('*', { count: 'exact', head: true })
-          .eq('payment_status', 'paid');
+    try {
+      // Execute all count queries in parallel simultaneously using Promise.all
+      const [totalRes, freeRes, paidRes] = await Promise.all([
+        supabase.from('registrations').select('*', { count: 'exact', head: true }),
+        supabase.from('registrations').select('*', { count: 'exact', head: true }).eq('payment_status', 'not_required'),
+        supabase.from('registrations').select('*', { count: 'exact', head: true }).eq('payment_status', 'paid'),
+      ]);
 
-        setRegStats({
-          total: total ?? 0,
-          free: free ?? 0,
-          paid: paid ?? 0,
-          loading: false,
-          error: false,
-        });
-      } catch {
+      if (totalRes.error || freeRes.error || paidRes.error) {
         setRegStats((s) => ({ ...s, loading: false, error: true }));
+        return;
       }
-    };
-    fetch();
-  }, [isSupabaseReady]);
 
-  const regValue = regStats.loading
-    ? '…'
-    : !isSupabaseConfigured
-    ? 0
-    : regStats.error
-    ? 0
-    : regStats.total;
+      setRegStats({
+        total: totalRes.count ?? 0,
+        free: freeRes.count ?? 0,
+        paid: paidRes.count ?? 0,
+        loading: false,
+        error: false,
+      });
+    } catch (err) {
+      console.error('Failed to fetch admin dashboard stats:', err);
+      setRegStats((s) => ({ ...s, loading: false, error: true }));
+    }
+  }, []);
 
-  const freeValue = regStats.loading
-    ? '…'
-    : !isSupabaseConfigured
-    ? 0
-    : regStats.error
-    ? 0
-    : regStats.free;
-
-  const paidValue = regStats.loading
-    ? '…'
-    : !isSupabaseConfigured
-    ? 0
-    : regStats.error
-    ? 0
-    : regStats.paid;
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats, isSupabaseReady]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -140,48 +129,86 @@ export const AdminDashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* Stat Cards */}
+      {/* Stat Cards Section */}
       <div>
-        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-4">
-          Registration Overview
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <StatCard
-            label="Total Registrations"
-            value={regValue}
-            icon={<FileText className="w-4.5 h-4.5 text-[#004182]" />}
-            color="bg-blue-50"
-            linkTo="/admin/registrations"
-          />
-          <StatCard
-            label="Free Registrations"
-            value={freeValue}
-            icon={<CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />}
-            color="bg-emerald-50"
-            linkTo="/admin/registrations"
-          />
-          <StatCard
-            label="Paid Registrations"
-            value={paidValue}
-            icon={<CreditCard className="w-4.5 h-4.5 text-amber-600" />}
-            color="bg-amber-50"
-            linkTo="/admin/registrations"
-          />
-          <StatCard
-            label="Project Domains"
-            value={PROJECT_CATEGORIES.length}
-            icon={<Layers className="w-4.5 h-4.5 text-indigo-600" />}
-            color="bg-indigo-50"
-            linkTo="/admin/content/domains"
-          />
-          <StatCard
-            label="Active FAQs"
-            value={FAQS.length}
-            icon={<HelpCircle className="w-4.5 h-4.5 text-violet-600" />}
-            color="bg-violet-50"
-            linkTo="/admin/content/faqs"
-          />
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-400">
+            Registration Overview
+          </h3>
+          {regStats.error && (
+            <button
+              onClick={fetchStats}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-lg hover:bg-rose-100 transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          )}
         </div>
+
+        {regStats.error ? (
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span className="font-semibold">Unable to load dashboard data.</span>
+            </div>
+            <button
+              type="button"
+              onClick={fetchStats}
+              className="bg-white hover:bg-slate-100 text-rose-800 border border-rose-300 font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {regStats.loading ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <StatCard
+                  label="Total Registrations"
+                  value={regStats.total}
+                  icon={<FileText className="w-4.5 h-4.5 text-[#004182]" />}
+                  color="bg-blue-50"
+                  linkTo="/admin/registrations"
+                />
+                <StatCard
+                  label="Free Registrations"
+                  value={regStats.free}
+                  icon={<CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />}
+                  color="bg-emerald-50"
+                  linkTo="/admin/registrations"
+                />
+                <StatCard
+                  label="Paid Registrations"
+                  value={regStats.paid}
+                  icon={<CreditCard className="w-4.5 h-4.5 text-amber-600" />}
+                  color="bg-amber-50"
+                  linkTo="/admin/registrations"
+                />
+              </>
+            )}
+            <StatCard
+              label="Project Domains"
+              value={PROJECT_CATEGORIES.length}
+              icon={<Layers className="w-4.5 h-4.5 text-indigo-600" />}
+              color="bg-indigo-50"
+              linkTo="/admin/content/domains"
+            />
+            <StatCard
+              label="Active FAQs"
+              value={FAQS.length}
+              icon={<HelpCircle className="w-4.5 h-4.5 text-violet-600" />}
+              color="bg-violet-50"
+              linkTo="/admin/content/faqs"
+            />
+          </div>
+        )}
       </div>
 
       {/* Content Quick Links */}

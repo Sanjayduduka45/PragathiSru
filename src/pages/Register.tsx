@@ -305,25 +305,12 @@ export const Register: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <div className="flex items-center justify-center pt-2">
             <button
               onClick={() => navigate('/')}
-              className="w-full sm:w-auto bg-[#004182] hover:bg-[#003366] text-white font-bold px-6 py-3 rounded-full text-sm shadow-md transition-all"
+              className="w-full sm:w-auto bg-[#004182] hover:bg-[#003366] text-white font-bold px-8 py-3.5 rounded-full text-sm shadow-md transition-all cursor-pointer"
             >
               Go to Home Page
-            </button>
-            <button
-              onClick={() => {
-                setConfirmedRecord(null);
-                setCurrentStep(1);
-                setPrimaryEmail('');
-                setTeamName('');
-                setProjectTitle('');
-                setProjectAbstract('');
-              }}
-              className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-6 py-3 rounded-full text-sm transition-all"
-            >
-              Register Another Team
             </button>
           </div>
         </div>
