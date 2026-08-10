@@ -188,8 +188,17 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
           </button>
           {opsExpanded && (
             <div className="space-y-0.5 mt-1">
+              <NavLink
+                to="/admin/registrations"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <FileText className="w-4 h-4 shrink-0" />
+                Registrations
+              </NavLink>
               {[
-                { label: 'Registrations', path: '/admin/registrations', icon: <FileText className="w-4 h-4" /> },
                 { label: 'Participants', path: '/admin/participants', icon: <Users className="w-4 h-4" /> },
                 { label: 'Judges', path: '/admin/judges', icon: <GraduationCap className="w-4 h-4" /> },
                 { label: 'Results', path: '/admin/results', icon: <Trophy className="w-4 h-4" /> },

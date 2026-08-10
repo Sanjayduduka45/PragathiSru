@@ -158,12 +158,14 @@ export const AdminDashboard: React.FC = () => {
             value={approvedValue}
             icon={<CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />}
             color="bg-emerald-50"
+            linkTo="/admin/registrations"
           />
           <StatCard
             label="Pending Review"
             value={pendingValue}
             icon={<Clock className="w-4.5 h-4.5 text-amber-600" />}
             color="bg-amber-50"
+            linkTo="/admin/registrations"
           />
           <StatCard
             label="Project Domains"

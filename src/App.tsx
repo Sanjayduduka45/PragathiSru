@@ -22,6 +22,7 @@ import { RulesAdmin } from './pages/admin/content/RulesAdmin';
 import { FAQsAdmin } from './pages/admin/content/FAQsAdmin';
 import { SponsorsAdmin } from './pages/admin/content/SponsorsAdmin';
 import { ContactAdmin } from './pages/admin/content/ContactAdmin';
+import { RegistrationsAdmin } from './pages/admin/RegistrationsAdmin';
 
 export default function App() {
   return (
@@ -66,8 +67,8 @@ export default function App() {
                     <Route path="/content/sponsors" element={<SponsorsAdmin />} />
                     <Route path="/content/contact" element={<ContactAdmin />} />
 
-                    {/* Operational Modules - Coming Soon */}
-                    <Route path="/registrations" element={<AdminComingSoon module="Registrations Management" />} />
+                    {/* Operational Modules */}
+                    <Route path="/registrations" element={<RegistrationsAdmin />} />
                     <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
                     <Route path="/judges" element={<AdminComingSoon module="Judges Portal" />} />
                     <Route path="/results" element={<AdminComingSoon module="Results & Leaders" />} />
