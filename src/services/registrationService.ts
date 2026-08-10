@@ -96,12 +96,15 @@ export class RegistrationService {
     }
 
     if (payload.registrationType === 'SRU_STUDENT') {
-      const leaderEmail = payload.members[0]?.email?.trim().toLowerCase() || payload.verifiedSRUEmail || '';
-      if (!leaderEmail.endsWith('@sru.edu.in')) {
-        return {
-          valid: false,
-          message: 'SR University Student registration requires an official university email ending with @sru.edu.in.',
-        };
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      for (let i = 0; i < payload.members.length; i++) {
+        const mEmail = (payload.members[i]?.email || '').trim().toLowerCase();
+        if (!mEmail || !emailRegex.test(mEmail) || !mEmail.endsWith('@sru.edu.in')) {
+          return {
+            valid: false,
+            message: 'All team members must use an eligible email address for free registration.',
+          };
+        }
       }
     } else {
       if (!payload.institutionName || payload.institutionName.trim().length === 0) {

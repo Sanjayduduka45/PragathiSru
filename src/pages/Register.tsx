@@ -91,7 +91,11 @@ export const Register: React.FC = () => {
   };
 
   const handleMemberChange = (id: string, field: keyof TeamMember, value: string) => {
-    setMembers(members.map((m) => (m.id === id ? { ...m, [field]: value } : m)));
+    let finalValue = value;
+    if (field === 'phone') {
+      finalValue = value.replace(/\D/g, '').slice(0, 10);
+    }
+    setMembers(members.map((m) => (m.id === id ? { ...m, [field]: finalValue } : m)));
     if (id === members[0].id && field === 'email') {
       setPrimaryEmail(value);
     }
@@ -140,8 +144,9 @@ export const Register: React.FC = () => {
       return;
     }
 
-    if (!members[0].phone.trim()) {
-      setFormError('Please enter Team Leader contact phone number.');
+    const leaderPhone = members[0].phone.trim();
+    if (!leaderPhone || leaderPhone.length !== 10 || !/^\d{10}$/.test(leaderPhone)) {
+      setFormError('Please enter a valid 10-digit phone number.');
       return;
     }
 
@@ -153,6 +158,44 @@ export const Register: React.FC = () => {
     if (!institutionName.trim()) {
       setFormError('Please enter your Institution or School / College name.');
       return;
+    }
+
+    // Validate all team members (Team Leader & additional members)
+    for (let i = 0; i < members.length; i++) {
+      const member = members[i];
+      const mName = member.name.trim();
+      const mEmail = member.email.trim().toLowerCase();
+      const mPhone = member.phone.trim();
+
+      if (i === 0) {
+        if (regMode === 'SRU_STUDENT' && !mEmail.endsWith('@sru.edu.in')) {
+          setFormError('All team members must use an eligible email address for free registration.');
+          return;
+        }
+      } else {
+        if (mName || mEmail || mPhone) {
+          if (!mName) {
+            setFormError(`Please enter Name for Member ${i + 1}.`);
+            return;
+          }
+          if (!mEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mEmail)) {
+            if (regMode === 'SRU_STUDENT') {
+              setFormError('All team members must use an eligible email address for free registration.');
+            } else {
+              setFormError(`Please enter a valid Email for Member ${i + 1}.`);
+            }
+            return;
+          }
+          if (regMode === 'SRU_STUDENT' && !mEmail.endsWith('@sru.edu.in')) {
+            setFormError('All team members must use an eligible email address for free registration.');
+            return;
+          }
+          if (!mPhone || mPhone.length !== 10 || !/^\d{10}$/.test(mPhone)) {
+            setFormError('Please enter a valid 10-digit phone number.');
+            return;
+          }
+        }
+      }
     }
 
     setCurrentStep(3);
@@ -456,6 +499,8 @@ export const Register: React.FC = () => {
                       </div>
                       <input
                         type="tel"
+                        maxLength={10}
+                        pattern="[0-9]{10}"
                         value={members[0]?.phone || ''}
                         onChange={(e) => handleMemberChange(members[0].id, 'phone', e.target.value)}
                         placeholder="Phone Number"
@@ -580,6 +625,8 @@ export const Register: React.FC = () => {
                         />
                         <input
                           type="tel"
+                          maxLength={10}
+                          pattern="[0-9]{10}"
                           placeholder="Phone Number *"
                           value={m.phone}
                           onChange={(e) => handleMemberChange(m.id, 'phone', e.target.value)}
