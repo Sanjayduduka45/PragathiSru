@@ -45,7 +45,7 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -53,33 +53,33 @@ export const Modal: React.FC<ModalProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
           />
 
           {/* Modal Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 320 }}
-            className={`relative w-full bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden z-10 ${maxWidthStyles[maxWidth]}`}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 340 }}
+            className={`relative w-[95%] sm:w-full bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl overflow-hidden z-10 flex flex-col max-h-[85vh] ${maxWidthStyles[maxWidth]} mx-auto`}
           >
-            {/* Header */}
+            {/* Sticky Header */}
             {(title || subtitle) && (
-              <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
+              <div className="flex items-center justify-between px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 bg-white shrink-0">
                 <div>
                   {title && (
-                    <h3 className="text-xl font-bold text-[#004182] font-display uppercase tracking-tight">
+                    <h3 className="text-base sm:text-lg font-bold text-[#004182] font-display uppercase tracking-tight">
                       {title}
                     </h3>
                   )}
                   {subtitle && (
-                    <p className="text-xs text-slate-500 font-medium mt-1">{subtitle}</p>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">{subtitle}</p>
                   )}
                 </div>
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer sru-focus-ring"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer sru-focus-ring shrink-0"
                   aria-label="Close modal"
                 >
                   <X className="w-4 h-4" />
@@ -87,12 +87,12 @@ export const Modal: React.FC<ModalProps> = ({
               </div>
             )}
 
-            {/* Content Body */}
-            <div className="p-6 text-slate-700 text-sm leading-relaxed">{children}</div>
+            {/* Scrollable Content Body */}
+            <div className="p-4 sm:p-5 text-slate-700 text-xs leading-normal overflow-y-auto flex-1">{children}</div>
 
             {/* Optional Footer */}
             {footer && (
-              <div className="flex items-center justify-end gap-3 p-4 px-6 bg-slate-50/80 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 p-3.5 px-5 bg-slate-50/80 border-t border-slate-100 shrink-0">
                 {footer}
               </div>
             )}

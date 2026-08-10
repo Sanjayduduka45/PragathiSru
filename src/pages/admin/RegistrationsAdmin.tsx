@@ -563,17 +563,17 @@ export const RegistrationsAdmin: React.FC = () => {
         maxWidth="xl"
       >
         {selectedReg && (
-          <div className="space-y-6 text-xs text-slate-700">
+          <div className="space-y-3 text-xs text-slate-700">
 
             {/* Header info bar */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-2.5">
               <div>
-                <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Registration ID</span>
-                <span className="font-extrabold text-[#004182] font-mono text-base">{selectedReg.registration_id}</span>
+                <span className="text-slate-400 text-[10px] uppercase font-extrabold block leading-tight">Registration ID</span>
+                <span className="font-extrabold text-[#004182] font-mono text-sm sm:text-base">{selectedReg.registration_id}</span>
               </div>
               <div>
-                <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Registration Date</span>
-                <span className="font-bold text-slate-800">
+                <span className="text-slate-400 text-[10px] uppercase font-extrabold block leading-tight">Registration Date</span>
+                <span className="font-bold text-slate-800 text-xs">
                   {new Date(selectedReg.created_at).toLocaleString('en-IN', {
                     dateStyle: 'medium',
                     timeStyle: 'short',
@@ -581,29 +581,29 @@ export const RegistrationsAdmin: React.FC = () => {
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Registration Status</span>
-                <div className="mt-0.5">{getStatusBadge()}</div>
+                <span className="text-slate-400 text-[10px] uppercase font-extrabold block leading-tight mb-0.5">Registration Status</span>
+                <div>{getStatusBadge()}</div>
               </div>
             </div>
 
             {/* General Team Info */}
-            <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-[#004182] font-bold border-b border-slate-100 pb-2">
-                <Users className="w-4 h-4" />
-                <span className="uppercase text-[10px] tracking-wider">Team Overview</span>
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[#004182] font-bold border-b border-slate-100 pb-1 mb-1.5 text-[11px]">
+                <Users className="w-3.5 h-3.5" />
+                <span className="uppercase tracking-wider">Team Overview</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Team Name</span>
-                  <strong className="text-slate-900 text-xs font-bold">{selectedReg.team_name}</strong>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Team Name</span>
+                  <strong className="text-slate-900 text-xs font-bold truncate block">{selectedReg.team_name}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Team Size</span>
-                  <span className="font-semibold text-slate-800">{selectedReg.team_size} Members</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Team Size</span>
+                  <span className="font-semibold text-slate-800 text-xs">{selectedReg.team_size} Members</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Participant Type</span>
-                  <span className="font-semibold text-slate-800">
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Participant Type</span>
+                  <span className="font-semibold text-slate-800 text-xs">
                     {selectedReg.participant_type === 'sru_student' ? 'SR University Student' : 'External Participant'}
                   </span>
                 </div>
@@ -611,68 +611,68 @@ export const RegistrationsAdmin: React.FC = () => {
             </div>
 
             {/* Leader Info */}
-            <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-[#004182] font-bold border-b border-slate-100 pb-2">
-                <User className="w-4 h-4" />
-                <span className="uppercase text-[10px] tracking-wider">Team Leader Contact</span>
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[#004182] font-bold border-b border-slate-100 pb-1 mb-1.5 text-[11px]">
+                <User className="w-3.5 h-3.5" />
+                <span className="uppercase tracking-wider">Team Leader Contact</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Name</span>
-                  <strong className="text-slate-900 text-xs">{selectedReg.leader_name}</strong>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Name</span>
+                  <strong className="text-slate-900 text-xs font-bold truncate block">{selectedReg.leader_name}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Email</span>
-                  <span className="font-semibold text-slate-800">{selectedReg.leader_email}</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Email</span>
+                  <span className="font-semibold text-slate-800 text-xs truncate block">{selectedReg.leader_email}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Phone</span>
-                  <span className="font-semibold text-slate-800">{selectedReg.leader_mobile || 'N/A'}</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Phone</span>
+                  <span className="font-semibold text-slate-800 text-xs">{selectedReg.leader_mobile || 'N/A'}</span>
                 </div>
               </div>
             </div>
 
             {/* Institution Info */}
-            <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-[#004182] font-bold border-b border-slate-100 pb-2">
-                <Building className="w-4 h-4" />
-                <span className="uppercase text-[10px] tracking-wider">Institution Details</span>
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[#004182] font-bold border-b border-slate-100 pb-1 mb-1.5 text-[11px]">
+                <Building className="w-3.5 h-3.5" />
+                <span className="uppercase tracking-wider">Institution Details</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Institution Name</span>
-                  <strong className="text-slate-900 text-xs">{selectedReg.institutions?.name || 'SR University, Warangal'}</strong>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Institution Name</span>
+                  <strong className="text-slate-900 text-xs font-bold truncate block">{selectedReg.institutions?.name || 'SR University, Warangal'}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Institution Type</span>
-                  <span className="font-semibold text-slate-800 uppercase">{selectedReg.institutions?.institution_type || 'University'}</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Institution Type</span>
+                  <span className="font-semibold text-slate-800 uppercase text-xs">{selectedReg.institutions?.institution_type || 'University'}</span>
                 </div>
               </div>
             </div>
 
             {/* Team Members */}
-            <div className="border border-slate-200 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <div className="flex items-center gap-2 text-[#004182] font-bold">
-                  <Users className="w-4 h-4" />
-                  <span className="uppercase text-[10px] tracking-wider">Team Members</span>
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1 mb-1">
+                <div className="flex items-center gap-1.5 text-[#004182] font-bold text-[11px]">
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="uppercase tracking-wider">Team Members</span>
                 </div>
                 <span className="text-[10px] font-bold bg-blue-50 text-[#004182] px-2 py-0.5 rounded border border-blue-100">
                   {selectedReg.team_members?.length || selectedReg.team_size} Members
                 </span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {selectedReg.team_members && selectedReg.team_members.length > 0 ? (
                   selectedReg.team_members.map((m, idx) => (
-                    <div key={m.id || idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <div key={m.id || idx} className="bg-slate-50/80 p-2 rounded-lg border border-slate-200/60 flex flex-wrap items-center justify-between gap-1.5 text-xs">
                       <div>
-                        <span className="font-bold text-slate-900">{m.name}</span>
+                        <span className="font-bold text-slate-900 text-xs">{m.name}</span>
                         <span className="text-[10px] text-slate-500 block">{m.email} {m.mobile ? `• ${m.mobile}` : ''}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {m.roll_number && (
-                          <span className="text-[10px] font-mono bg-white text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                          <span className="text-[10px] font-mono bg-white text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
                             {m.roll_number}
                           </span>
                         )}
@@ -687,35 +687,35 @@ export const RegistrationsAdmin: React.FC = () => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-slate-400 italic text-center py-2">No team member records associated.</p>
+                  <p className="text-slate-400 italic text-center py-1 text-[11px]">No team member records associated.</p>
                 )}
               </div>
             </div>
 
             {/* Project Details */}
-            <div className="border border-slate-200 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-2 text-[#004182] font-bold border-b border-slate-100 pb-2">
-                <Layers className="w-4 h-4" />
-                <span className="uppercase text-[10px] tracking-wider">Project Information</span>
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-2">
+              <div className="flex items-center gap-1.5 text-[#004182] font-bold border-b border-slate-100 pb-1 mb-1 text-[11px]">
+                <Layers className="w-3.5 h-3.5" />
+                <span className="uppercase tracking-wider">Project Information</span>
               </div>
 
               {selectedReg.projects && selectedReg.projects.length > 0 ? (
                 selectedReg.projects.map((p) => (
-                  <div key={p.id} className="space-y-2">
+                  <div key={p.id} className="space-y-1.5">
                     <div>
-                      <span className="text-slate-400 text-[10px] uppercase font-bold block">Project Title</span>
-                      <strong className="text-slate-900 text-sm font-bold">{p.title}</strong>
+                      <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Project Title</span>
+                      <strong className="text-slate-900 text-xs sm:text-sm font-bold block">{p.title}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-400 text-[10px] uppercase font-bold block">Innovation Track / Domain</span>
-                      <span className="inline-block bg-blue-50 text-[#004182] font-bold px-2.5 py-0.5 rounded border border-blue-100 mt-0.5">
+                      <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Innovation Track / Domain</span>
+                      <span className="inline-block bg-blue-50 text-[#004182] font-bold px-2 py-0.5 rounded border border-blue-100 text-[11px] mt-0.5">
                         {p.category}
                       </span>
                     </div>
                     {p.problem_statement && (
                       <div>
-                        <span className="text-slate-400 text-[10px] uppercase font-bold block">Problem Statement / Abstract</span>
-                        <p className="text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200 mt-1 leading-relaxed">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Problem Statement / Abstract</span>
+                        <p className="text-slate-700 bg-slate-50/80 p-2.5 rounded-lg border border-slate-200/80 mt-1 text-xs leading-relaxed max-h-32 overflow-y-auto">
                           {p.problem_statement}
                         </p>
                       </div>
@@ -723,28 +723,28 @@ export const RegistrationsAdmin: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-slate-400 italic text-center py-2">No project details associated.</p>
+                <p className="text-slate-400 italic text-center py-1 text-[11px]">No project details associated.</p>
               )}
             </div>
 
             {/* Payment Details */}
-            <div className="border border-slate-200 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-[#004182] font-bold border-b border-slate-100 pb-2">
-                <CreditCard className="w-4 h-4" />
-                <span className="uppercase text-[10px] tracking-wider">Payment Details</span>
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[#004182] font-bold border-b border-slate-100 pb-1 mb-1.5 text-[11px]">
+                <CreditCard className="w-3.5 h-3.5" />
+                <span className="uppercase tracking-wider">Payment Details</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Payment Status</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Payment Status</span>
                   <div className="mt-0.5">{getPaymentBadge(selectedReg.payment_status, selectedReg.payment_amount)}</div>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Payment Amount</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Payment Amount</span>
                   <span className="font-extrabold text-slate-900 text-xs">₹{selectedReg.payment_amount}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Transaction Reference</span>
-                  <span className="font-mono text-slate-700">{selectedReg.payment_reference || 'N/A'}</span>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block leading-tight">Transaction Reference</span>
+                  <span className="font-mono text-slate-700 text-xs truncate block">{selectedReg.payment_reference || 'N/A'}</span>
                 </div>
               </div>
             </div>
