@@ -2,24 +2,20 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   FileText,
   Search,
-  Filter,
   CheckCircle2,
   XCircle,
   Clock,
   Eye,
   Building,
   User,
-  Mail,
-  Phone,
-  Layers,
   CreditCard,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
   AlertTriangle,
   Users,
-  GraduationCap,
-  Sparkles,
+  Layers,
+  DollarSign,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { Modal } from '../../components/ui/Modal';
@@ -85,6 +81,7 @@ export const RegistrationsAdmin: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
+  const [institutionFilter, setInstitutionFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
 
   // Pagination
@@ -106,7 +103,7 @@ export const RegistrationsAdmin: React.FC = () => {
     setError(null);
 
     if (!isSupabaseConfigured || !supabase) {
-      setError('Supabase is not configured. Please check your environment configuration.');
+      setError('Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to environment variables.');
       setLoading(false);
       return;
     }
@@ -124,14 +121,14 @@ export const RegistrationsAdmin: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (fetchErr) {
-        console.error('Error fetching registrations:', fetchErr);
-        setError('Unable to load registrations from database. Please try again.');
+        console.error('Error fetching registrations from Supabase:', fetchErr);
+        setError(`Database error (${fetchErr.code || 'UNKNOWN'}): ${fetchErr.message}`);
       } else {
         setRegistrations((data as JoinedRegistrationRecord[]) || []);
       }
     } catch (err: any) {
       console.error('Fetch exception:', err);
-      setError('An unexpected error occurred while fetching registrations.');
+      setError(err?.message || 'An unexpected error occurred while fetching registrations.');
     } finally {
       setLoading(false);
     }
@@ -140,6 +137,29 @@ export const RegistrationsAdmin: React.FC = () => {
   useEffect(() => {
     fetchRegistrations();
   }, []);
+
+  // Compute summary stats from live database registrations
+  const stats = useMemo(() => {
+    const total = registrations.length;
+    const pending = registrations.filter(
+      (r) => r.registration_status === 'submitted' || r.registration_status === 'under_review'
+    ).length;
+    const approved = registrations.filter((r) => r.registration_status === 'approved').length;
+    const rejected = registrations.filter((r) => r.registration_status === 'rejected').length;
+    const paid = registrations.filter((r) => r.payment_status === 'paid').length;
+    const paymentPending = registrations.filter((r) => r.payment_status === 'pending').length;
+    return { total, pending, approved, rejected, paid, paymentPending };
+  }, [registrations]);
+
+  // Extract unique institutions for filter dropdown
+  const uniqueInstitutions = useMemo(() => {
+    const set = new Set<string>();
+    registrations.forEach((r) => {
+      const instName = r.institutions?.name || 'SR University';
+      if (instName) set.add(instName);
+    });
+    return Array.from(set).sort();
+  }, [registrations]);
 
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
@@ -167,6 +187,12 @@ export const RegistrationsAdmin: React.FC = () => {
         if (r.payment_status !== paymentFilter) return false;
       }
 
+      // Institution filter
+      if (institutionFilter !== 'ALL') {
+        const instName = r.institutions?.name || 'SR University';
+        if (instName !== institutionFilter) return false;
+      }
+
       // Participant type filter
       if (typeFilter !== 'ALL') {
         if (r.participant_type !== typeFilter) return false;
@@ -174,7 +200,7 @@ export const RegistrationsAdmin: React.FC = () => {
 
       return true;
     });
-  }, [registrations, searchQuery, statusFilter, paymentFilter, typeFilter]);
+  }, [registrations, searchQuery, statusFilter, paymentFilter, institutionFilter, typeFilter]);
 
   // Paginated records
   const totalRecords = filteredRegistrations.length;
@@ -207,7 +233,7 @@ export const RegistrationsAdmin: React.FC = () => {
         addToast(
           'success',
           `Registration ${newStatus.toUpperCase()}`,
-          `Registration ${actionReg.registration_id} has been marked as ${newStatus}.`
+          `Registration ${actionReg.registration_id} marked as ${newStatus}.`
         );
         // Refresh local state & details modal if open
         setRegistrations((prev) =>
@@ -270,6 +296,12 @@ export const RegistrationsAdmin: React.FC = () => {
             Pending (₹{amount})
           </span>
         );
+      case 'failed':
+        return (
+          <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full">
+            Failed (₹{amount})
+          </span>
+        );
       case 'not_required':
       default:
         return (
@@ -283,7 +315,7 @@ export const RegistrationsAdmin: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
 
-      {/* Header */}
+      {/* Header & Refresh */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -291,7 +323,7 @@ export const RegistrationsAdmin: React.FC = () => {
             <h2 className="text-xl font-extrabold text-slate-900">Registrations Management</h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            View, filter, inspect, and manage official PRAGATHI 2K26 team submissions.
+            Official PRAGATHI 2K26 database registrations from Supabase.
           </p>
         </div>
 
@@ -305,12 +337,71 @@ export const RegistrationsAdmin: React.FC = () => {
         </button>
       </div>
 
-      {/* Search & Filter Control Bar */}
+      {/* Top Dashboard Summary Cards (Requirements #8) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        
+        {/* Total Registrations */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Total Registrations</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-extrabold text-slate-900">{stats.total}</span>
+            <FileText className="w-4 h-4 text-[#004182]" />
+          </div>
+        </div>
+
+        {/* Pending Review */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Pending Review</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-extrabold text-amber-600">{stats.pending}</span>
+            <Clock className="w-4 h-4 text-amber-600" />
+          </div>
+        </div>
+
+        {/* Approved */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Approved</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-extrabold text-emerald-600">{stats.approved}</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          </div>
+        </div>
+
+        {/* Rejected */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Rejected</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-extrabold text-rose-600">{stats.rejected}</span>
+            <XCircle className="w-4 h-4 text-rose-600" />
+          </div>
+        </div>
+
+        {/* Paid */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Paid</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-extrabold text-emerald-700">{stats.paid}</span>
+            <CreditCard className="w-4 h-4 text-emerald-700" />
+          </div>
+        </div>
+
+        {/* Payment Pending */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+          <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Payment Pending</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-extrabold text-amber-700">{stats.paymentPending}</span>
+            <DollarSign className="w-4 h-4 text-amber-700" />
+          </div>
+        </div>
+
+      </div>
+
+      {/* Search & Multi-Filter Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-2xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           
           {/* Search Box */}
-          <div className="relative">
+          <div className="relative lg:col-span-2">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <Search className="w-4 h-4" />
             </div>
@@ -321,12 +412,12 @@ export const RegistrationsAdmin: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search ID, Team, Leader, Email, Institution..."
+              placeholder="Search by ID, Team, Leader, Email, Institution..."
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-slate-50/50"
             />
           </div>
 
-          {/* Status Filter */}
+          {/* Registration Status Filter */}
           <div>
             <select
               value={statusFilter}
@@ -336,7 +427,7 @@ export const RegistrationsAdmin: React.FC = () => {
               }}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
             >
-              <option value="ALL">All Registration Statuses</option>
+              <option value="ALL">All Statuses</option>
               <option value="submitted">Submitted (Pending Review)</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
@@ -353,7 +444,7 @@ export const RegistrationsAdmin: React.FC = () => {
               }}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
             >
-              <option value="ALL">All Payment Statuses</option>
+              <option value="ALL">All Payments</option>
               <option value="not_required">Not Required (₹0)</option>
               <option value="paid">Paid</option>
               <option value="pending">Pending Payment</option>
@@ -361,19 +452,22 @@ export const RegistrationsAdmin: React.FC = () => {
             </select>
           </div>
 
-          {/* Participant Type Filter */}
+          {/* Institution Filter */}
           <div>
             <select
-              value={typeFilter}
+              value={institutionFilter}
               onChange={(e) => {
-                setTypeFilter(e.target.value);
+                setInstitutionFilter(e.target.value);
                 setCurrentPage(1);
               }}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
             >
-              <option value="ALL">All Participant Types</option>
-              <option value="sru_student">SR University Student</option>
-              <option value="external_student">External Participant</option>
+              <option value="ALL">All Institutions</option>
+              {uniqueInstitutions.map((inst) => (
+                <option key={inst} value={inst}>
+                  {inst}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -392,9 +486,10 @@ export const RegistrationsAdmin: React.FC = () => {
           <p className="text-xs font-bold text-rose-800">{error}</p>
           <button
             onClick={fetchRegistrations}
-            className="text-xs text-[#004182] font-bold hover:underline"
+            className="inline-flex items-center gap-1.5 bg-[#004182] hover:bg-[#003366] text-white font-bold px-4 py-2 rounded-xl text-xs shadow-2xs transition-colors cursor-pointer"
           >
-            Try Again
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry Connection</span>
           </button>
         </div>
       ) : paginatedRegistrations.length === 0 ? (
@@ -402,7 +497,7 @@ export const RegistrationsAdmin: React.FC = () => {
           <FileText className="w-10 h-10 text-slate-300 mx-auto" />
           <p className="text-sm font-bold text-slate-700">No registrations found.</p>
           <p className="text-xs text-slate-400">
-            {searchQuery || statusFilter !== 'ALL' || paymentFilter !== 'ALL' || typeFilter !== 'ALL'
+            {searchQuery || statusFilter !== 'ALL' || paymentFilter !== 'ALL' || institutionFilter !== 'ALL' || typeFilter !== 'ALL'
               ? 'Try resetting your search query or filter selections.'
               : 'Public registrations will appear here once submitted.'}
           </p>
