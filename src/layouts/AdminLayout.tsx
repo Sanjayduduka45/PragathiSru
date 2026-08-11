@@ -21,6 +21,7 @@ import {
   Phone,
   Star,
   GraduationCap,
+  MessageSquare,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -50,6 +51,7 @@ const NAV_STRUCTURE: Array<NavLinkItem | { group: string; items: NavLinkItem[] }
       { label: 'Domains', path: '/admin/content/domains', icon: <Layers className="w-4 h-4" /> },
       { label: 'Schedule', path: '/admin/content/schedule', icon: <Clock className="w-4 h-4" /> },
       { label: 'Rules & Guidelines', path: '/admin/content/rules', icon: <BookOpen className="w-4 h-4" /> },
+      { label: 'Testimonials / Showcase', path: '/admin/content/testimonials', icon: <MessageSquare className="w-4 h-4" /> },
       { label: 'FAQs', path: '/admin/content/faqs', icon: <HelpCircle className="w-4 h-4" /> },
       { label: 'Sponsors', path: '/admin/content/sponsors', icon: <Star className="w-4 h-4" /> },
       { label: 'Contact', path: '/admin/content/contact', icon: <Phone className="w-4 h-4" /> },

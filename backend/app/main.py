@@ -10,7 +10,8 @@ from app.api import (
     faqs,
     sponsors,
     contact,
-    registrations
+    registrations,
+    testimonials
 )
 
 app = FastAPI(
@@ -46,6 +47,7 @@ app.include_router(faqs.router)
 app.include_router(sponsors.router)
 app.include_router(contact.router)
 app.include_router(registrations.router)
+app.include_router(testimonials.router)
 
 @app.get("/")
 async def root():

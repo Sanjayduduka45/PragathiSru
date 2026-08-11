@@ -21,12 +21,14 @@ import {
   getRulesContent,
   getFaqs,
   getSponsors,
+  getTestimonials,
   type SiteSettings,
   type AboutContent,
   type DomainItem,
   type ScheduleEntry,
   type FAQEntry,
   type SponsorEntry,
+  type TestimonialEntry,
   DEFAULT_SITE_SETTINGS,
   DEFAULT_ABOUT,
 } from '../services/contentService';
@@ -47,6 +49,7 @@ interface ContentContextValue {
   rules: string;
   faqs: FAQEntry[];
   sponsors: SponsorEntry[];
+  testimonials: TestimonialEntry[];
   contentLoading: boolean;
   /** Call after an admin save to force public data to re-fetch */
   refreshContent: () => Promise<void>;
@@ -106,6 +109,7 @@ const ContentContext = createContext<ContentContextValue>({
   rules: '',
   faqs: defaultFaqs,
   sponsors: defaultSponsors,
+  testimonials: [],
   contentLoading: false,
   refreshContent: async () => {},
 });
@@ -122,6 +126,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [rules, setRules] = useState<string>('');
   const [faqs, setFaqs] = useState<FAQEntry[]>(defaultFaqs);
   const [sponsors, setSponsors] = useState<SponsorEntry[]>(defaultSponsors);
+  const [testimonials, setTestimonials] = useState<TestimonialEntry[]>([]);
   const [contentLoading, setContentLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
@@ -135,6 +140,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
         rulesData,
         faqsData,
         sponsorsData,
+        testimonialsData,
       ] = await Promise.all([
         getEventSettings(),
         getAboutContent(),
@@ -143,6 +149,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
         getRulesContent(),
         getFaqs(),
         getSponsors(),
+        getTestimonials(),
       ]);
 
       setEventSettings(settingsData);
@@ -152,6 +159,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
       setRules(rulesData);
       setFaqs(faqsData);
       setSponsors(sponsorsData);
+      setTestimonials(testimonialsData);
     } catch (err) {
       console.error('[ContentContext] Failed to fetch content:', err);
       // Keep defaults on error
@@ -174,6 +182,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
         rules,
         faqs,
         sponsors,
+        testimonials,
         contentLoading,
         refreshContent: fetchAll,
       }}

@@ -26,6 +26,7 @@ const RulesAdmin = React.lazy(() => import('./pages/admin/content/RulesAdmin').t
 const FAQsAdmin = React.lazy(() => import('./pages/admin/content/FAQsAdmin').then((m) => ({ default: m.FAQsAdmin })));
 const SponsorsAdmin = React.lazy(() => import('./pages/admin/content/SponsorsAdmin').then((m) => ({ default: m.SponsorsAdmin })));
 const ContactAdmin = React.lazy(() => import('./pages/admin/content/ContactAdmin').then((m) => ({ default: m.ContactAdmin })));
+const TestimonialsAdmin = React.lazy(() => import('./pages/admin/content/TestimonialsAdmin').then((m) => ({ default: m.TestimonialsAdmin })));
 const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon').then((m) => ({ default: m.AdminComingSoon })));
 
 export default function App() {
@@ -76,6 +77,7 @@ export default function App() {
                       <Route path="/content/domains" element={<DomainsAdmin />} />
                       <Route path="/content/schedule" element={<ScheduleAdmin />} />
                       <Route path="/content/rules" element={<RulesAdmin />} />
+                      <Route path="/content/testimonials" element={<TestimonialsAdmin />} />
                       <Route path="/content/faqs" element={<FAQsAdmin />} />
                       <Route path="/content/sponsors" element={<SponsorsAdmin />} />
                       <Route path="/content/contact" element={<ContactAdmin />} />

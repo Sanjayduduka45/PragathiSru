@@ -38,6 +38,7 @@ import {
 } from '../data/eventData';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { HeroVisual } from '../components/HeroVisual';
+import { TestimonialsSection } from '../components/TestimonialsSection';
 import { useContent } from '../context/ContentContext';
 
 export const Home: React.FC = () => {
@@ -571,9 +572,11 @@ export const Home: React.FC = () => {
                 </p>
               </div>
             ))}
-          </div>
         </div>
       </section>
+
+      {/* PREVIOUS EVENT SHOWCASE & TESTIMONIALS */}
+      <TestimonialsSection />
 
       {/* FAQ SECTION */}
       <section id="faq" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24">

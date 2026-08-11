@@ -130,6 +130,23 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+  testimonials: {
+    get: () => request<{ success: boolean; data: any[] }>('/api/testimonials'),
+    create: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/testimonials', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/testimonials/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/testimonials/${id}`, {
+        method: 'DELETE',
+      }),
+  },
   registrations: {
     list: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),
     get: (id: string) => request<{ success: boolean; data: any }>(`/api/admin/registrations/${id}`),
@@ -237,6 +254,22 @@ export const api = {
       request<{ success: boolean; data: any }>('/api/admin/contact', {
         method: 'PUT',
         body: JSON.stringify(data),
+      }),
+
+    getTestimonials: () => request<{ success: boolean; data: any[] }>('/api/admin/testimonials'),
+    createTestimonial: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/testimonials', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateTestimonial: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/testimonials/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteTestimonial: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/testimonials/${id}`, {
+        method: 'DELETE',
       }),
 
     getRegistrations: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),

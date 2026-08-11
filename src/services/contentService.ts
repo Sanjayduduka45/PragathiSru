@@ -87,6 +87,22 @@ export interface SponsorEntry {
   order: number;
 }
 
+export interface TestimonialEntry {
+  id: string;
+  title: string;
+  description: string;
+  personName: string;
+  designation: string;
+  eventName: string;
+  eventYear: string;
+  imageUrl: string;
+  imageAlt: string;
+  imageAspectRatio: string;
+  imagePosition: string;
+  active: boolean;
+  order: number;
+}
+
 // ─── Hardcoded Fallback Defaults ───────────────────────────────────────────────
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -899,4 +915,224 @@ export async function getDomainCount(): Promise<number> {
 export async function getFaqCount(): Promise<number> {
   const items = await getFaqs();
   return items.filter((i) => i.active).length;
+}
+
+// ─── TESTIMONIALS / SHOWCASE ──────────────────────────────────────────────────
+
+export const DEFAULT_TESTIMONIALS_FALLBACK: TestimonialEntry[] = [
+  {
+    id: 'testim-1',
+    title: 'PRAGATHI 2K25 — Project Expo Showcase',
+    description: 'PRAGATHI gave our team the platform to present our AI Agriculture sensor prototype to industry mentors. The feedback helped us convert our project into a patent-pending startup!',
+    personName: 'Ananya Rao',
+    designation: 'Team Lead, AgriSense IoT',
+    eventName: 'PRAGATHI 2K25',
+    eventYear: '2025',
+    imageUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'PRAGATHI 2K25 Expo Presentation',
+    imageAspectRatio: '16:9',
+    imagePosition: 'center',
+    active: true,
+    order: 1,
+  },
+  {
+    id: 'testim-2',
+    title: 'Hardware & Robotics Exhibition',
+    description: 'Organization and infrastructure at SR University Warangal was top tier. The exhibition stalls, judge interaction, and seamless digital management made it a memorable experience.',
+    personName: 'K. Vikram Reddy',
+    designation: 'Student Researcher, NIT Warangal',
+    eventName: 'PRAGATHI 2K25',
+    eventYear: '2025',
+    imageUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Smart Grid Project Exhibition',
+    imageAspectRatio: '16:9',
+    imagePosition: 'center',
+    active: true,
+    order: 2,
+  },
+  {
+    id: 'testim-3',
+    title: 'Innovation & Entrepreneurship Mentorship',
+    description: 'PRAGATHI is designed to foster a culture of creative problem solving, cross-disciplinary collaboration, and real-world engineering impact among young minds across India.',
+    personName: 'Dr. P. Srinivas',
+    designation: 'Incubation Coordinator, SR University',
+    eventName: 'PRAGATHI 2K25',
+    eventYear: '2025',
+    imageUrl: 'https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'SR University Faculty & Mentor Panel',
+    imageAspectRatio: '16:9',
+    imagePosition: 'center',
+    active: true,
+    order: 3,
+  },
+];
+
+export async function getTestimonials(): Promise<TestimonialEntry[]> {
+  try {
+    const res = await api.testimonials.get();
+    if (res && Array.isArray(res.data) && res.data.length > 0) {
+      return res.data.map((t: any) => ({
+        id: t.id,
+        title: t.title || '',
+        description: t.description || '',
+        personName: t.person_name || t.personName || '',
+        designation: t.designation || '',
+        eventName: t.event_name || t.eventName || '',
+        eventYear: t.event_year || t.eventYear || '',
+        imageUrl: t.image_url || t.imageUrl || '',
+        imageAlt: t.image_alt || t.imageAlt || '',
+        imageAspectRatio: t.image_aspect_ratio || t.imageAspectRatio || '16:9',
+        imagePosition: t.image_position || t.imagePosition || 'center',
+        active: t.active ?? t.is_active ?? true,
+        order: t.order ?? t.display_order ?? 0,
+      }));
+    }
+  } catch (err) {
+    console.warn('[contentService] getTestimonials FastAPI fallback:', err);
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('testimonials').select('*').order('display_order', { ascending: true });
+      if (data && data.length > 0) {
+        return data.map((t: any) => ({
+          id: t.id,
+          title: t.title || '',
+          description: t.description || '',
+          personName: t.person_name || '',
+          designation: t.designation || '',
+          eventName: t.event_name || '',
+          eventYear: t.event_year || '',
+          imageUrl: t.image_url || '',
+          imageAlt: t.image_alt || '',
+          imageAspectRatio: t.image_aspect_ratio || '16:9',
+          imagePosition: t.image_position || 'center',
+          active: t.is_active ?? true,
+          order: t.display_order ?? 0,
+        }));
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getTestimonials Supabase fallback error:', sErr);
+    }
+  }
+
+  return DEFAULT_TESTIMONIALS_FALLBACK;
+}
+
+export async function addTestimonial(t: Omit<TestimonialEntry, 'id'>): Promise<TestimonialEntry> {
+  const payload = {
+    title: t.title,
+    description: t.description,
+    person_name: t.personName,
+    designation: t.designation,
+    event_name: t.eventName,
+    event_year: t.eventYear,
+    image_url: t.imageUrl,
+    image_alt: t.imageAlt,
+    image_aspect_ratio: t.imageAspectRatio,
+    image_position: t.imagePosition,
+    active: t.active,
+    display_order: t.order,
+  };
+
+  try {
+    const res = await api.testimonials.create(payload);
+    const data = res.data;
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description || '',
+      personName: data.person_name || '',
+      designation: data.designation || '',
+      eventName: data.event_name || '',
+      eventYear: data.event_year || '',
+      imageUrl: data.image_url || '',
+      imageAlt: data.image_alt || '',
+      imageAspectRatio: data.image_aspect_ratio || '16:9',
+      imagePosition: data.image_position || 'center',
+      active: data.active ?? true,
+      order: data.display_order ?? 0,
+    };
+  } catch (err) {
+    console.warn('[contentService] addTestimonial FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('testimonials').insert([{
+        title: t.title,
+        description: t.description,
+        person_name: t.personName,
+        designation: t.designation,
+        event_name: t.eventName,
+        event_year: t.eventYear,
+        image_url: t.imageUrl,
+        image_alt: t.imageAlt,
+        image_aspect_ratio: t.imageAspectRatio,
+        image_position: t.imagePosition,
+        is_active: t.active,
+        display_order: t.order,
+      }]).select('*');
+      if (!error && data && data[0]) {
+        return {
+          id: data[0].id,
+          title: data[0].title,
+          description: data[0].description || '',
+          personName: data[0].person_name || '',
+          designation: data[0].designation || '',
+          eventName: data[0].event_name || '',
+          eventYear: data[0].event_year || '',
+          imageUrl: data[0].image_url || '',
+          imageAlt: data[0].image_alt || '',
+          imageAspectRatio: data[0].image_aspect_ratio || '16:9',
+          imagePosition: data[0].image_position || 'center',
+          active: data[0].is_active ?? true,
+          order: data[0].display_order ?? 0,
+        };
+      }
+      throw new Error(`Database error: ${error?.message || 'Failed to insert'}`);
+    }
+    throw err;
+  }
+}
+
+export async function updateTestimonial(id: string, t: Partial<Omit<TestimonialEntry, 'id'>>): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (t.title !== undefined) payload.title = t.title;
+  if (t.description !== undefined) payload.description = t.description;
+  if (t.personName !== undefined) payload.person_name = t.personName;
+  if (t.designation !== undefined) payload.designation = t.designation;
+  if (t.eventName !== undefined) payload.event_name = t.eventName;
+  if (t.eventYear !== undefined) payload.event_year = t.eventYear;
+  if (t.imageUrl !== undefined) payload.image_url = t.imageUrl;
+  if (t.imageAlt !== undefined) payload.image_alt = t.imageAlt;
+  if (t.imageAspectRatio !== undefined) payload.image_aspect_ratio = t.imageAspectRatio;
+  if (t.imagePosition !== undefined) payload.image_position = t.imagePosition;
+  if (t.active !== undefined) payload.is_active = t.active;
+  if (t.order !== undefined) payload.display_order = t.order;
+
+  try {
+    await api.testimonials.update(id, payload);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateTestimonial FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('testimonials').update(payload).eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
+}
+
+export async function deleteTestimonial(id: string): Promise<void> {
+  try {
+    await api.testimonials.delete(id);
+    return;
+  } catch (err) {
+    console.warn('[contentService] deleteTestimonial FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('testimonials').delete().eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }

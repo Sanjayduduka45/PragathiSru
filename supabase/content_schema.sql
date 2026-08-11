@@ -218,3 +218,34 @@ INSERT INTO public.sponsors (name, sponsor_type, role, logo_text, display_order)
 ('Institution''s Innovation Council (IIC)', 'Government Partner', 'Ministry of Education Initiative',   'MIC IIC', 2),
 ('IEEE SRU Student Branch',                 'Technical Partner',  'Technical Quality & Standards',       'IEEE',    3),
 ('SR University R&D Cell',                  'Academic Sponsor',   'Research & Prototyping Support',      'SRU R&D', 4);
+
+-- ─── 8. TESTIMONIALS / PREVIOUS EVENT SHOWCASE ────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.testimonials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  person_name TEXT NOT NULL,
+  designation TEXT DEFAULT '',
+  event_name TEXT DEFAULT '',
+  event_year TEXT DEFAULT '',
+  image_url TEXT DEFAULT '',
+  image_alt TEXT DEFAULT '',
+  image_aspect_ratio TEXT DEFAULT '16:9',
+  image_position TEXT DEFAULT 'center',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select testimonials" ON public.testimonials FOR SELECT USING (true);
+CREATE POLICY "Allow public insert testimonials" ON public.testimonials FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update testimonials" ON public.testimonials FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public delete testimonials" ON public.testimonials FOR DELETE USING (true);
+
+INSERT INTO public.testimonials (title, description, person_name, designation, event_name, event_year, image_url, image_alt, image_aspect_ratio, image_position, display_order) VALUES
+('PRAGATHI 2K25 — Project Expo Showcase', 'PRAGATHI gave our team the platform to present our AI Agriculture sensor prototype to industry mentors. The feedback helped us convert our project into a patent-pending startup!', 'Ananya Rao', 'Team Lead, AgriSense IoT', 'PRAGATHI 2K25', '2025', 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80', 'PRAGATHI 2K25 Presentation', '16:9', 'center', 1),
+('Hardware & Robotics Exhibition', 'Organization and infrastructure at SR University Warangal was top tier. The exhibition stalls, judge interaction, and seamless digital management made it a memorable experience.', 'K. Vikram Reddy', 'Student Researcher, NIT Warangal', 'PRAGATHI 2K25', '2025', 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', 'Smart Grid Exhibition', '16:9', 'center', 2),
+('Innovation & Entrepreneurship Mentorship', 'PRAGATHI is designed to foster a culture of creative problem solving, cross-disciplinary collaboration, and real-world engineering impact among young minds across India.', 'Dr. P. Srinivas', 'Incubation Coordinator, SR University', 'PRAGATHI 2K25', '2025', 'https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?auto=format&fit=crop&w=800&q=80', 'SR University Faculty Panel', '16:9', 'center', 3);
