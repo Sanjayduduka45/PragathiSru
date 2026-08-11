@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Sparkles, ChevronRight, GraduationCap } from 'lucide-react';
-import { NAV_ITEMS, EVENT_DETAILS } from '../utils/constants';
+import { NAV_ITEMS } from '../utils/constants';
+import { useContent } from '../context/ContentContext';
 
 export const Navbar: React.FC = () => {
+  const { eventSettings } = useContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -19,13 +21,13 @@ export const Navbar: React.FC = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <span className="hidden sm:inline-flex items-center gap-1.5">
             <GraduationCap className="w-3.5 h-3.5 text-blue-200" />
-            <span className="font-semibold">{EVENT_DETAILS.institution}</span>, Warangal • National Level Project Expo
+            <span className="font-semibold">{eventSettings.institution}</span>, Warangal • National Level Project Expo
           </span>
           <div className="mx-auto sm:mx-0 flex items-center gap-2">
             <span className="bg-white/15 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-white/20">
-              09 Oct 2026
+              {eventSettings.eventDate}
             </span>
-            <span>Prize Pool: <strong className="text-amber-300">{EVENT_DETAILS.prizePool}</strong></span>
+            <span>Prize Pool: <strong className="text-amber-300">{eventSettings.prizePool}</strong></span>
           </div>
         </div>
       </div>
@@ -41,10 +43,10 @@ export const Navbar: React.FC = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-lg sm:text-xl font-extrabold text-[#004182] uppercase tracking-tight leading-none group-hover:text-blue-900 transition-colors">
-                {EVENT_DETAILS.institution}
+                {eventSettings.institution}
               </span>
               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mt-0.5">
-                {EVENT_DETAILS.name} • Warangal, Telangana
+                {eventSettings.eventName} • Warangal, Telangana
               </span>
             </div>
           </Link>

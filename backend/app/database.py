@@ -335,4 +335,21 @@ class Database:
             print(f"[Supabase] Update error on {table}: {e}")
             return False
 
+    async def insert_supabase(self, table: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        url = f"{settings.supabase_url}/rest/v1/{table}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = self.get_headers()
+                headers["Prefer"] = "return=representation"
+                res = await client.post(url, headers=headers, json=payload)
+                if res.status_code in (200, 201):
+                    data = res.json()
+                    if isinstance(data, list) and len(data) > 0:
+                        return data[0]
+                    elif isinstance(data, dict):
+                        return data
+        except Exception as e:
+            print(f"[Supabase] Insert error on {table}: {e}")
+        return None
+
 db = Database()

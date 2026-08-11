@@ -10,8 +10,8 @@ class DomainService:
         if res is not None and len(res) > 0:
             return [
                 DomainItem(
-                    id=row.get("id"),
-                    title=row.get("title"),
+                    id=str(row.get("id")),
+                    title=row.get("title", ""),
                     description=row.get("description", ""),
                     icon_name=row.get("icon_name", "Cpu"),
                     color=row.get("color", "from-blue-600 to-indigo-600"),
@@ -28,8 +28,20 @@ class DomainService:
 
     @staticmethod
     async def create_domain(data: DomainCreate) -> DomainItem:
+        payload = {
+            "title": data.title,
+            "description": data.description,
+            "icon_name": data.icon_name,
+            "color": data.color,
+            "badge_text": data.badge_text,
+            "is_active": data.active,
+            "display_order": data.display_order
+        }
+        res = await db.insert_supabase("project_domains", payload)
+        row_id = res.get("id") if res else f"domain-{uuid.uuid4().hex[:8]}"
+
         new_item = DomainItem(
-            id=f"domain-{uuid.uuid4().hex[:8]}",
+            id=str(row_id),
             **data.model_dump()
         )
         local = db.load_local()
@@ -39,20 +51,32 @@ class DomainService:
 
     @staticmethod
     async def update_domain(domain_id: str, data: DomainUpdate) -> DomainItem:
+        update_fields = data.model_dump(exclude_unset=True)
+        db_payload = {}
+        if "title" in update_fields: db_payload["title"] = update_fields["title"]
+        if "description" in update_fields: db_payload["description"] = update_fields["description"]
+        if "icon_name" in update_fields: db_payload["icon_name"] = update_fields["icon_name"]
+        if "color" in update_fields: db_payload["color"] = update_fields["color"]
+        if "badge_text" in update_fields: db_payload["badge_text"] = update_fields["badge_text"]
+        if "active" in update_fields: db_payload["is_active"] = update_fields["active"]
+        if "display_order" in update_fields: db_payload["display_order"] = update_fields["display_order"]
+
+        if db_payload:
+            await db.update_supabase("project_domains", "id", domain_id, db_payload)
+
         local = db.load_local()
         items = local.get("project_domains", [])
         updated = None
         for i, item in enumerate(items):
-            if item.get("id") == domain_id:
-                for k, v in data.model_dump(exclude_unset=True).items():
+            if str(item.get("id")) == str(domain_id):
+                for k, v in update_fields.items():
                     item[k] = v
                 items[i] = item
                 updated = DomainItem(**item)
                 break
         
         if updated is None:
-            # If not found in list, append as new
-            updated = DomainItem(id=domain_id, title="Domain", description="", **data.model_dump(exclude_unset=True))
+            updated = DomainItem(id=domain_id, title="Domain", description="", **update_fields)
             items.append(updated.model_dump())
 
         local["project_domains"] = items
@@ -61,12 +85,12 @@ class DomainService:
 
     @staticmethod
     async def delete_domain(domain_id: str) -> bool:
+        await db.delete_supabase("project_domains", "id", domain_id)
         local = db.load_local()
         items = local.get("project_domains", [])
-        filtered = [item for item in items if item.get("id") != domain_id]
+        filtered = [item for item in items if str(item.get("id")) != str(domain_id)]
         local["project_domains"] = filtered
         db.save_local(local)
-        await db.delete_supabase("project_domains", "id", domain_id)
         return True
 
 domain_service = DomainService()

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Mail, Phone, Calendar, Award } from 'lucide-react';
-import { EVENT_DETAILS } from '../utils/constants';
+import { useContent } from '../context/ContentContext';
 
 export const Footer: React.FC = () => {
+  const { eventSettings } = useContent();
+
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -17,19 +19,19 @@ export const Footer: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-white font-display leading-none uppercase">
-                  {EVENT_DETAILS.name}
+                  {eventSettings.eventName}
                 </h3>
                 <span className="text-xs text-blue-300 font-medium">
-                  {EVENT_DETAILS.institution}
+                  {eventSettings.institution}
                 </span>
               </div>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
-              A National Level Project Expo bringing together visionaries, student engineers, researchers, and innovators under the theme <em>“{EVENT_DETAILS.tagline}”</em>.
+              A National Level Project Expo bringing together visionaries, student engineers, researchers, and innovators under the theme <em>“{eventSettings.tagline}”</em>.
             </p>
             <div className="flex items-center gap-2 text-xs text-blue-200 font-semibold bg-[#004182]/40 p-2.5 rounded-full border border-blue-500/20">
               <Award className="w-4 h-4 text-amber-300 shrink-0" />
-              <span>Prize Pool: {EVENT_DETAILS.prizePool}</span>
+              <span>Prize Pool: {eventSettings.prizePool}</span>
             </div>
           </div>
 
@@ -80,11 +82,11 @@ export const Footer: React.FC = () => {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2.5">
                 <Calendar className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
-                <span>Date: <strong className="text-white">{EVENT_DETAILS.eventDate}</strong></span>
+                <span>Date: <strong className="text-white">{eventSettings.eventDate}</strong></span>
               </li>
               <li className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
-                <span className="text-xs leading-snug">{EVENT_DETAILS.venue}</span>
+                <span className="text-xs leading-snug">{eventSettings.venue}</span>
               </li>
             </ul>
           </div>
@@ -96,18 +98,18 @@ export const Footer: React.FC = () => {
             </h4>
             <div className="space-y-3 text-sm">
               <a
-                href={`mailto:${EVENT_DETAILS.contactEmail}`}
+                href={`mailto:${eventSettings.contactEmail}`}
                 className="flex items-center gap-2.5 hover:text-blue-300 transition-colors"
               >
                 <Mail className="w-4 h-4 text-blue-300" />
-                <span>{EVENT_DETAILS.contactEmail}</span>
+                <span>{eventSettings.contactEmail}</span>
               </a>
               <a
-                href={`tel:${EVENT_DETAILS.helpline}`}
+                href={`tel:${eventSettings.helpline}`}
                 className="flex items-center gap-2.5 hover:text-blue-300 transition-colors"
               >
                 <Phone className="w-4 h-4 text-blue-300" />
-                <span>{EVENT_DETAILS.helpline}</span>
+                <span>{eventSettings.helpline}</span>
               </a>
               <div className="pt-2">
                 <p className="text-xs text-slate-400">
@@ -122,10 +124,10 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>
-            © 2026 {EVENT_DETAILS.institution}, Warangal, Telangana. All rights reserved.
+            © 2026 {eventSettings.institution}, Warangal, Telangana. All rights reserved.
           </p>
           <p className="flex items-center gap-1">
-            Official Digital Platform • PRAGATHI 2K26
+            Official Digital Platform • {eventSettings.eventName}
           </p>
         </div>
       </div>

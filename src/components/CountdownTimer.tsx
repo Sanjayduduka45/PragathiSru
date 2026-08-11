@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { EVENT_DETAILS } from '../utils/constants';
+import { useContent } from '../context/ContentContext';
 
 interface TimeLeft {
   days: number;
@@ -9,15 +9,17 @@ interface TimeLeft {
 }
 
 export const CountdownTimer: React.FC = () => {
+  const { eventSettings } = useContent();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
     const calculateTimeLeft = (): TimeLeft => {
-      const targetDate = new Date(EVENT_DETAILS.targetDateISO).getTime();
+      const targetIso = eventSettings.targetDateISO || "2026-10-09T09:00:00+05:30";
+      const targetDate = new Date(targetIso).getTime();
       const now = new Date().getTime();
       const difference = targetDate - now;
 
-      if (difference <= 0) {
+      if (isNaN(targetDate) || difference <= 0) {
         return { days: 0, hours: 0, minutes: 0, seconds: 0 };
       }
 
@@ -36,7 +38,7 @@ export const CountdownTimer: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [eventSettings.targetDateISO]);
 
   const timeBlocks = [
     { label: 'Days', value: timeLeft.days },

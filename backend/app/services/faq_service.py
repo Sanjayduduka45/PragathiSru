@@ -10,9 +10,9 @@ class FAQService:
         if res is not None and len(res) > 0:
             return [
                 FAQItem(
-                    id=row.get("id"),
-                    question=row.get("question"),
-                    answer=row.get("answer"),
+                    id=str(row.get("id")),
+                    question=row.get("question", ""),
+                    answer=row.get("answer", ""),
                     category=row.get("category", "General"),
                     active=row.get("is_active", True),
                     order=row.get("display_order", 0)
@@ -24,8 +24,18 @@ class FAQService:
 
     @staticmethod
     async def create_faq(data: FAQCreate) -> FAQItem:
+        payload = {
+            "question": data.question,
+            "answer": data.answer,
+            "category": data.category,
+            "is_active": data.active,
+            "display_order": data.order
+        }
+        res = await db.insert_supabase("faqs", payload)
+        row_id = res.get("id") if res else f"faq-{uuid.uuid4().hex[:8]}"
+
         new_item = FAQItem(
-            id=f"faq-{uuid.uuid4().hex[:8]}",
+            id=str(row_id),
             **data.model_dump()
         )
         local = db.load_local()
@@ -35,19 +45,30 @@ class FAQService:
 
     @staticmethod
     async def update_faq(faq_id: str, data: FAQUpdate) -> FAQItem:
+        update_fields = data.model_dump(exclude_unset=True)
+        db_payload = {}
+        if "question" in update_fields: db_payload["question"] = update_fields["question"]
+        if "answer" in update_fields: db_payload["answer"] = update_fields["answer"]
+        if "category" in update_fields: db_payload["category"] = update_fields["category"]
+        if "active" in update_fields: db_payload["is_active"] = update_fields["active"]
+        if "order" in update_fields: db_payload["display_order"] = update_fields["order"]
+
+        if db_payload:
+            await db.update_supabase("faqs", "id", faq_id, db_payload)
+
         local = db.load_local()
         items = local.get("faqs", [])
         updated = None
         for i, item in enumerate(items):
-            if item.get("id") == faq_id:
-                for k, v in data.model_dump(exclude_unset=True).items():
+            if str(item.get("id")) == str(faq_id):
+                for k, v in update_fields.items():
                     item[k] = v
                 items[i] = item
                 updated = FAQItem(**item)
                 break
 
         if updated is None:
-            updated = FAQItem(id=faq_id, question="", answer="", **data.model_dump(exclude_unset=True))
+            updated = FAQItem(id=faq_id, question="", answer="", **update_fields)
             items.append(updated.model_dump())
 
         local["faqs"] = items
@@ -56,12 +77,12 @@ class FAQService:
 
     @staticmethod
     async def delete_faq(faq_id: str) -> bool:
+        await db.delete_supabase("faqs", "id", faq_id)
         local = db.load_local()
         items = local.get("faqs", [])
-        filtered = [item for item in items if item.get("id") != faq_id]
+        filtered = [item for item in items if str(item.get("id")) != str(faq_id)]
         local["faqs"] = filtered
         db.save_local(local)
-        await db.delete_supabase("faqs", "id", faq_id)
         return True
 
 faq_service = FAQService()

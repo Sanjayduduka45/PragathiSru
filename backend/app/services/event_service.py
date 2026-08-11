@@ -4,7 +4,6 @@ from app.schemas.event import EventDetails
 class EventService:
     @staticmethod
     async def get_event_details() -> EventDetails:
-        # Try Supabase query first
         res = await db.fetch_supabase("site_settings", "limit=1")
         if res and len(res) > 0:
             row = res[0]
@@ -22,21 +21,37 @@ class EventService:
                 helpline=row.get("helpline", "+91 870 281 8333")
             )
         
-        # Fallback to local store
         local = db.load_local()
         ev = local.get("site_settings", {})
-        return EventDetails(**ev)
+        if ev:
+            return EventDetails(**ev)
+        return EventDetails(
+            event_name="PRAGATHI 2K26",
+            full_title="PRAGATHI 2K26 — National Level Project Expo",
+            tagline="Innovate. Create. Inspire.",
+            event_date="09 October 2026",
+            target_date_iso="2026-10-09T09:00:00+05:30",
+            venue="SR University Campus, Warangal",
+            institution="SR University",
+            location="Warangal, Telangana",
+            prize_pool="₹1,50,000",
+            contact_email="pragathi2k26@sru.edu.in",
+            helpline="+91 870 281 8333"
+        )
 
     @staticmethod
     async def update_event_details(data: EventDetails) -> EventDetails:
         payload = data.model_dump()
-        # Save to local store for guaranteed persistence
+        existing = await db.fetch_supabase("site_settings", "limit=1")
+        if existing and len(existing) > 0:
+            row_id = existing[0].get("id")
+            await db.update_supabase("site_settings", "id", str(row_id), payload)
+        else:
+            await db.insert_supabase("site_settings", payload)
+
         local = db.load_local()
         local["site_settings"] = payload
         db.save_local(local)
-        
-        # Try updating Supabase
-        await db.update_supabase("site_settings", "id", "1", payload)
         return data
 
 event_service = EventService()
