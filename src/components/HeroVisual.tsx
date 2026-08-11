@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Cpu, Zap, Shield, Sparkles, Layers, Award, CheckCircle2 } from 'lucide-react';
+import { useContent } from '../context/ContentContext';
+import { formatPrizeShort } from '../utils/formatters';
 
 export const HeroVisual: React.FC = () => {
+  const { eventSettings } = useContent();
   return (
     <div className="relative w-full max-w-lg lg:max-w-xl mx-auto h-[420px] sm:h-[480px] flex items-center justify-center select-none perspective-1000">
       
@@ -34,10 +37,10 @@ export const HeroVisual: React.FC = () => {
             <div className="w-3 h-3 rounded-full bg-rose-400" />
             <div className="w-3 h-3 rounded-full bg-amber-400" />
             <div className="w-3 h-3 rounded-full bg-emerald-400" />
-            <span className="text-[11px] font-mono font-bold text-slate-400 ml-2">SRU-EXPO-2K26</span>
+            <span className="text-[11px] font-mono font-bold text-slate-400 ml-2">SRU-EXPO</span>
           </div>
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#004182] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-            09 OCT 2026
+            {eventSettings.eventDate}
           </span>
         </div>
 
@@ -53,7 +56,7 @@ export const HeroVisual: React.FC = () => {
 
           <div>
             <h3 className="text-lg font-extrabold text-[#004182] font-display uppercase tracking-tight">
-              PRAGATHI 2K26
+              {eventSettings.eventName}
             </h3>
             <p className="text-xs text-slate-500 font-semibold">
               National Innovation Showcase
@@ -67,14 +70,14 @@ export const HeroVisual: React.FC = () => {
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
               <Award className="w-3 h-3 text-amber-600" />
-              ₹1.5 Lakh Prizes
+              {formatPrizeShort(eventSettings.prizePool)} Prizes
             </span>
           </div>
         </div>
 
         {/* Bottom Specs Bar */}
         <div className="pt-3 border-t border-blue-100 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-          <span>SR University Campus</span>
+          <span>{eventSettings.institution} Campus</span>
           <span className="text-[#004182] font-bold">1–5 Members / Team</span>
         </div>
       </motion.div>

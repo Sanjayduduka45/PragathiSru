@@ -40,6 +40,7 @@ import { CountdownTimer } from '../components/CountdownTimer';
 import { HeroVisual } from '../components/HeroVisual';
 import { TestimonialsSection } from '../components/TestimonialsSection';
 import { useContent } from '../context/ContentContext';
+import { formatPrizeShort } from '../utils/formatters';
 
 export const Home: React.FC = () => {
   const { eventSettings, domains, schedule, faqs, sponsors } = useContent();
@@ -75,24 +76,19 @@ export const Home: React.FC = () => {
         return <HeartPulse className="w-6 h-6" />;
       case 'Building2':
         return <Building2 className="w-6 h-6" />;
-      default:
+      case 'Lightbulb':
         return <Lightbulb className="w-6 h-6" />;
+      default:
+        return <Layers className="w-6 h-6" />;
     }
   };
 
   return (
-    <div className="space-y-20 pb-20 bg-white">
+    <div className="space-y-16 sm:space-y-24 pb-20">
       {/* HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/50 via-white to-white pt-8 pb-16 sm:pt-12 sm:pb-24 border-b border-slate-100">
-        
-        {/* Abstract Background Grid Accent */}
-        <div 
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(#004182 1px, transparent 1px)`,
-            backgroundSize: '24px 24px',
-          }}
-        />
+      <section className="relative overflow-hidden pt-8 pb-16 lg:py-24 bg-gradient-to-b from-blue-50/70 via-white to-white">
+        {/* Background Grid Pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0041820a_1px,transparent_1px),linear-gradient(to_bottom,#0041820a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -100,42 +96,23 @@ export const Home: React.FC = () => {
             {/* Left Content Column */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               
-              {/* Institution Badge */}
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-100 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-xs"
-              >
-                <GraduationCap className="w-4 h-4 text-[#004182]" />
-                <span>{eventSettings.institution}, {eventSettings.location}</span>
-              </motion.div>
+              {/* Event Badge */}
+              <div className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-100 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-xs">
+                <Sparkles className="w-4 h-4 text-[#004182]" />
+                <span>{eventSettings.institution} • Warangal, Telangana</span>
+              </div>
 
-              {/* Title & Tagline */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="space-y-3"
-              >
-                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-[#004182] font-display tracking-tight leading-none uppercase">
+              {/* Main Headline */}
+              <div className="space-y-2">
+                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-[#004182] tracking-tight leading-[1.05] uppercase font-display">
                   {eventSettings.eventName}
                 </h1>
-                <p className="text-xl sm:text-3xl font-extrabold text-slate-900 font-display">
-                  A National Level Project Expo
+                <p className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display">
+                  National Level Project Expo
                 </p>
-                <p className="text-base sm:text-xl text-slate-500 font-medium italic">
+                <p className="text-base sm:text-lg text-slate-500 font-medium max-w-2xl mx-auto lg:mx-0 italic">
                   “{eventSettings.tagline}”
                 </p>
-              </motion.div>
-
-              {/* Event Key Meta Chips */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="flex flex-wrap items-center justify-center lg:justify-start gap-3 text-xs sm:text-sm font-semibold text-slate-700"
-              >
                 <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200">
                   <Calendar className="w-4 h-4 text-[#004182]" />
                   <span>{eventSettings.eventDate}</span>
@@ -148,7 +125,7 @@ export const Home: React.FC = () => {
                   <MapPin className="w-4 h-4 text-[#004182]" />
                   <span>SR University Campus</span>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Live Countdown Timer */}
               <motion.div

@@ -117,11 +117,11 @@ export const About: React.FC = () => {
             </h2>
 
             <p className="text-slate-700 text-sm sm:text-base leading-relaxed">
-              <strong>PRAGATHI 2K26</strong> is SR University's premier premier <strong>National Level Project Expo</strong> bringing together young minds, student researchers, and creative thinkers to demonstrate tangible, working prototypes that address real-world challenges.
+              <strong>{eventSettings.eventName}</strong> is {eventSettings.institution}'s premier <strong>National Level Project Expo</strong> bringing together young minds, student researchers, and creative thinkers to demonstrate tangible, working prototypes that address real-world challenges.
             </p>
 
             <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
-              Hosted at the sprawling <strong>SR University Campus in Warangal, Telangana</strong> on <strong>09 October 2026</strong>, PRAGATHI serves as an open innovation stage where school students (Classes 8–12), diploma scholars, and undergraduate engineering teams present working hardware models, software applications, green technology solutions, and biotech innovations.
+              Hosted at <strong>{eventSettings.venue}</strong> on <strong>{eventSettings.eventDate}</strong>, {eventSettings.eventName} serves as an open innovation stage where school students (Classes 8–12), diploma scholars, and undergraduate engineering teams present working hardware models, software applications, green technology solutions, and biotech innovations.
             </p>
 
             <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-semibold text-slate-800">
@@ -139,7 +139,7 @@ export const About: React.FC = () => {
               </div>
               <div className="flex items-center gap-2.5 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
                 <CheckCircle2 className="w-4 h-4 text-[#004182] shrink-0" />
-                <span>₹1,50,000 Grand Prize Pool</span>
+                <span>{eventSettings.prizePool} Grand Prize Pool</span>
               </div>
             </div>
           </div>
@@ -151,7 +151,7 @@ export const About: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900 font-display">
-                  SR University, Warangal
+                  {eventSettings.institution}, {eventSettings.location}
                 </h3>
                 <p className="text-xs text-[#004182] font-semibold">
                   Host Institution & Venue
@@ -160,7 +160,7 @@ export const About: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-500 leading-relaxed">
-              SR University is a pioneering institution in Telangana renowned for its multidisciplinary research, Center for AI & Robotics, and modern incubation exchange (SRiX).
+              {eventSettings.institution} is a pioneering institution in Telangana renowned for its multidisciplinary research, Center for AI & Robotics, and modern incubation exchange (SRiX).
             </p>
 
             <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-100 space-y-2 text-xs">
@@ -169,12 +169,12 @@ export const About: React.FC = () => {
                 <span>Expo Venue & Location</span>
               </div>
               <p className="text-slate-700">
-                SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371
+                {eventSettings.venue}
               </p>
             </div>
 
             <div className="pt-2 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100">
-              <span>Date: <strong className="text-slate-900">09 October 2026</strong></span>
+              <span>Date: <strong className="text-slate-900">{eventSettings.eventDate}</strong></span>
               <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 Official Venue
               </span>
@@ -368,7 +368,7 @@ export const About: React.FC = () => {
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
               <Trophy className="w-5 h-5 text-amber-600" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">₹1,50,000 Cash Prize Pool</h3>
+            <h3 className="text-base font-bold text-slate-900">{eventSettings.prizePool} Cash Prize Pool</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
               Compete for overall expo championship awards, category trophies, and cash prizes presented at the grand valedictory ceremony.
             </p>
