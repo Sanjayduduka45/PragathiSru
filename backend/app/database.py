@@ -321,6 +321,7 @@ class Database:
                         data = check_res.json()
                         return len(data) == 0
                     return True
+                print(f"[Supabase] Delete failed on {table} HTTP {res.status_code}: {res.text}")
         except Exception as e:
             print(f"[Supabase] Delete error on {table}: {e}")
         return False
@@ -330,7 +331,10 @@ class Database:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.patch(url, headers=self.get_headers(), json=payload)
-                return res.status_code in (200, 204)
+                if res.status_code in (200, 204):
+                    return True
+                print(f"[Supabase] Update failed on {table} HTTP {res.status_code}: {res.text}")
+                return False
         except Exception as e:
             print(f"[Supabase] Update error on {table}: {e}")
             return False
@@ -348,6 +352,7 @@ class Database:
                         return data[0]
                     elif isinstance(data, dict):
                         return data
+                print(f"[Supabase] Insert failed on {table} HTTP {res.status_code}: {res.text}")
         except Exception as e:
             print(f"[Supabase] Insert error on {table}: {e}")
         return None

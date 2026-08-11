@@ -30,11 +30,13 @@ import {
   type TestimonialEntry,
 } from '../../../services/contentService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useContent } from '../../../context/ContentContext';
 import { ImageCropperModal } from '../../../components/admin/ImageCropperModal';
 
 export const TestimonialsAdmin: React.FC = () => {
   const [items, setItems] = useState<TestimonialEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const { refreshContent } = useContent();
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -132,7 +134,8 @@ export const TestimonialsAdmin: React.FC = () => {
       formData.append('file', file, filename);
 
       const adminSecret = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
-      const response = await fetch('/api/admin/testimonials/upload', {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiBaseUrl}/api/admin/testimonials/upload`, {
         method: 'POST',
         headers: {
           'X-Admin-Secret': adminSecret,
@@ -217,6 +220,7 @@ export const TestimonialsAdmin: React.FC = () => {
 
       closeModal();
       await loadData();
+      await refreshContent();
     } catch (err: any) {
       addToast('error', 'Save Failed', err?.message || 'Unable to save testimonial item.');
     } finally {
@@ -233,6 +237,7 @@ export const TestimonialsAdmin: React.FC = () => {
         `Item "${item.title || 'Showcase'}" is now ${!item.active ? 'Active' : 'Inactive'}.`
       );
       await loadData();
+      await refreshContent();
     } catch (err: any) {
       addToast('error', 'Update Failed', err?.message || 'Unable to update active status.');
     }
@@ -246,6 +251,7 @@ export const TestimonialsAdmin: React.FC = () => {
       addToast('success', 'Deleted', 'Testimonial item deleted successfully.');
       setDeleteTarget(null);
       await loadData();
+      await refreshContent();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err?.message || 'Unable to delete item.');
     } finally {

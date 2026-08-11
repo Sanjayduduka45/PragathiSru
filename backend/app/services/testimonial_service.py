@@ -143,16 +143,28 @@ class TestimonialService:
             "display_order": data.display_order
         }
         res = await db.insert_supabase("testimonials", payload)
-        row_id = res.get("id") if res else f"testim-{uuid.uuid4().hex[:8]}"
+        if not res:
+            raise HTTPException(status_code=500, detail="Failed to insert testimonial into Supabase database.")
 
-        new_item = TestimonialItem(
-            id=str(row_id),
-            **data.model_dump()
+        row_id = str(res.get("id"))
+        return TestimonialItem(
+            id=row_id,
+            title=res.get("title") or data.title,
+            description=res.get("description") or data.description,
+            person_name=res.get("person_name") or data.person_name or "",
+            designation=res.get("designation") or data.designation,
+            event_name=res.get("event_name") or data.event_name,
+            event_year=res.get("event_year") or data.event_year,
+            image_url=res.get("image_url") or data.image_url or data.media_url,
+            image_alt=data.image_alt,
+            image_aspect_ratio=data.image_aspect_ratio,
+            image_position=data.image_position,
+            media_type=res.get("media_type") or data.media_type or "image",
+            media_url=res.get("media_url") or data.media_url or data.image_url,
+            thumbnail_url=res.get("thumbnail_url") or data.thumbnail_url or data.image_url,
+            is_active=res.get("is_active") if res.get("is_active") is not None else data.is_active,
+            display_order=res.get("display_order") if res.get("display_order") is not None else data.display_order
         )
-        local = db.load_local()
-        local.setdefault("testimonials", []).append(new_item.model_dump())
-        db.save_local(local)
-        return new_item
 
     @staticmethod
     async def update_testimonial(testimonial_id: str, data: TestimonialUpdate) -> TestimonialItem:
@@ -163,35 +175,39 @@ class TestimonialService:
                 db_payload[k] = update_fields[k]
 
         if db_payload:
-            await db.update_supabase("testimonials", "id", testimonial_id, db_payload)
+            success = await db.update_supabase("testimonials", "id", testimonial_id, db_payload)
+            if not success:
+                raise HTTPException(status_code=500, detail=f"Failed to update testimonial '{testimonial_id}' in Supabase database.")
 
-        local = db.load_local()
-        items = local.get("testimonials", DEFAULT_TESTIMONIALS)
-        updated = None
-        for i, item in enumerate(items):
-            if str(item.get("id")) == str(testimonial_id):
-                for k, v in update_fields.items():
-                    item[k] = v
-                items[i] = item
-                updated = TestimonialItem(**item)
-                break
+        updated_rows = await db.fetch_supabase("testimonials", f"id=eq.{testimonial_id}")
+        if updated_rows and len(updated_rows) > 0:
+            row = updated_rows[0]
+            return TestimonialItem(
+                id=str(row.get("id")),
+                title=row.get("title", ""),
+                description=row.get("description", ""),
+                person_name=row.get("person_name", ""),
+                designation=row.get("designation", ""),
+                event_name=row.get("event_name", ""),
+                event_year=row.get("event_year", ""),
+                image_url=row.get("image_url", "") or row.get("media_url", ""),
+                image_alt=row.get("image_alt", ""),
+                image_aspect_ratio=row.get("image_aspect_ratio", "16:9"),
+                image_position=row.get("image_position", "center"),
+                media_type=row.get("media_type", "image"),
+                media_url=row.get("media_url", "") or row.get("image_url", ""),
+                thumbnail_url=row.get("thumbnail_url", "") or row.get("image_url", ""),
+                is_active=row.get("is_active", True),
+                display_order=row.get("display_order", 0)
+            )
 
-        if updated is None:
-            updated = TestimonialItem(id=testimonial_id, title="", **update_fields)
-            items.append(updated.model_dump())
-
-        local["testimonials"] = items
-        db.save_local(local)
-        return updated
+        return TestimonialItem(id=testimonial_id, title="", **update_fields)
 
     @staticmethod
     async def delete_testimonial(testimonial_id: str) -> bool:
-        await db.delete_supabase("testimonials", "id", testimonial_id)
-        local = db.load_local()
-        items = local.get("testimonials", [])
-        filtered = [item for item in items if str(item.get("id")) != str(testimonial_id)]
-        local["testimonials"] = filtered
-        db.save_local(local)
+        success = await db.delete_supabase("testimonials", "id", testimonial_id)
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Failed to delete testimonial '{testimonial_id}' from Supabase database.")
         return True
 
 testimonial_service = TestimonialService()
