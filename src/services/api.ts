@@ -29,16 +29,15 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  // Event Details
+  // Public Endpoint Accessors
   event: {
-    get: () => request<{ success: boolean; data: any }>('/api/event'),
+    get: () => request<{ success: boolean; data: any }>('/api/event-details'),
     update: (data: any) =>
-      request<{ success: boolean; data: any }>('/api/admin/event', {
+      request<{ success: boolean; data: any }>('/api/admin/event-details', {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
   },
-  // About Content
   about: {
     get: () => request<{ success: boolean; data: any }>('/api/about'),
     update: (data: any) =>
@@ -47,7 +46,6 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
-  // Project Domains
   domains: {
     get: () => request<{ success: boolean; data: any[] }>('/api/domains'),
     create: (data: any) =>
@@ -65,7 +63,6 @@ export const api = {
         method: 'DELETE',
       }),
   },
-  // Schedule Items
   schedule: {
     get: () => request<{ success: boolean; data: any[] }>('/api/schedule'),
     create: (data: any) =>
@@ -83,7 +80,6 @@ export const api = {
         method: 'DELETE',
       }),
   },
-  // Rules & Guidelines
   rules: {
     get: () => request<{ success: boolean; data: { content: string } }>('/api/rules'),
     update: (data: { content: string }) =>
@@ -92,7 +88,6 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
-  // FAQs
   faqs: {
     get: () => request<{ success: boolean; data: any[] }>('/api/faqs'),
     create: (data: any) =>
@@ -110,7 +105,6 @@ export const api = {
         method: 'DELETE',
       }),
   },
-  // Sponsors
   sponsors: {
     get: () => request<{ success: boolean; data: any[] }>('/api/sponsors'),
     create: (data: any) =>
@@ -128,7 +122,6 @@ export const api = {
         method: 'DELETE',
       }),
   },
-  // Contact
   contact: {
     get: () => request<{ success: boolean; data: any }>('/api/contact'),
     update: (data: any) =>
@@ -137,7 +130,6 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
-  // Registrations Management
   registrations: {
     list: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),
     get: (id: string) => request<{ success: boolean; data: any }>(`/api/admin/registrations/${id}`),
@@ -147,9 +139,117 @@ export const api = {
         body: JSON.stringify(data),
       }),
     delete: (id: string) =>
-      request<{ success: boolean; message: string }>(`/api/admin/registrations/${id}`, {
+      request<{ success: boolean; message: string; registration_id?: string }>(`/api/admin/registrations/${id}`, {
         method: 'DELETE',
       }),
     stats: () => request<{ success: boolean; data: any }>('/api/admin/stats'),
+  },
+
+  // Named Admin API Namespace
+  admin: {
+    getEventDetails: () => request<{ success: boolean; data: any }>('/api/admin/event-details'),
+    updateEventDetails: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/event-details', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    getAbout: () => request<{ success: boolean; data: any }>('/api/admin/about'),
+    updateAbout: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/about', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    getDomains: () => request<{ success: boolean; data: any[] }>('/api/admin/domains'),
+    createDomain: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/domains', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateDomain: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/domains/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteDomain: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/domains/${id}`, {
+        method: 'DELETE',
+      }),
+
+    getSchedule: () => request<{ success: boolean; data: any[] }>('/api/admin/schedule'),
+    createSchedule: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/schedule', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateSchedule: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/schedule/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteSchedule: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/schedule/${id}`, {
+        method: 'DELETE',
+      }),
+
+    getRules: () => request<{ success: boolean; data: { content: string } }>('/api/admin/rules'),
+    updateRules: (data: { content: string }) =>
+      request<{ success: boolean; data: { content: string } }>('/api/admin/rules', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    getFaqs: () => request<{ success: boolean; data: any[] }>('/api/admin/faqs'),
+    createFaq: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/faqs', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateFaq: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/faqs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteFaq: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/faqs/${id}`, {
+        method: 'DELETE',
+      }),
+
+    getSponsors: () => request<{ success: boolean; data: any[] }>('/api/admin/sponsors'),
+    createSponsor: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/sponsors', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateSponsor: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/sponsors/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteSponsor: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/sponsors/${id}`, {
+        method: 'DELETE',
+      }),
+
+    getContact: () => request<{ success: boolean; data: any }>('/api/admin/contact'),
+    updateContact: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/contact', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    getRegistrations: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),
+    getRegistration: (id: string) => request<{ success: boolean; data: any }>(`/api/admin/registrations/${id}`),
+    updateRegistration: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/registrations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteRegistration: (id: string) =>
+      request<{ success: boolean; message: string; registration_id?: string }>(`/api/admin/registrations/${id}`, {
+        method: 'DELETE',
+      }),
+    getStats: () => request<{ success: boolean; data: any }>('/api/admin/stats'),
   },
 };

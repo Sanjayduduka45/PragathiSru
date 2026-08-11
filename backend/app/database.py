@@ -304,10 +304,17 @@ class Database:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.delete(url, headers=self.get_headers())
-                return res.status_code in (200, 204)
+                # Verify deletion by querying table again
+                if res.status_code in (200, 204):
+                    check_url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
+                    check_res = await client.get(check_url, headers=self.get_headers())
+                    if check_res.status_code == 200:
+                        data = check_res.json()
+                        return len(data) == 0
+                    return True
         except Exception as e:
             print(f"[Supabase] Delete error on {table}: {e}")
-            return False
+        return False
 
     async def update_supabase(self, table: str, eq_column: str, eq_value: str, payload: Dict[str, Any]) -> bool:
         url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
