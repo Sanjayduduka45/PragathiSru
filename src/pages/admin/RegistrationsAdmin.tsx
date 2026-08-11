@@ -23,6 +23,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { api } from '../../services/api';
 import { Modal } from '../../components/ui/Modal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
@@ -215,25 +216,33 @@ export const RegistrationsAdmin: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    if (!isSupabaseConfigured || !supabase) {
-      setError('Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to environment variables.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error: fetchErr } = await supabase
-        .from('registrations')
-        .select(`*, institutions(*), team_members(*), projects(*), payments(*)`)
-        .order('created_at', { ascending: false });
-
-      if (fetchErr) {
-        setError(`Database error (${fetchErr.code || 'UNKNOWN'}): ${fetchErr.message}`);
+      const res = await api.registrations.list();
+      if (res && Array.isArray(res.data)) {
+        setRegistrations(res.data as JoinedRegistrationRecord[]);
       } else {
-        setRegistrations((data as JoinedRegistrationRecord[]) || []);
+        setRegistrations([]);
       }
     } catch (err: any) {
-      setError(err?.message || 'An unexpected error occurred while fetching registrations.');
+      console.warn('[RegistrationsAdmin] FastAPI fetch warning, falling back to Supabase direct query:', err);
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error: fetchErr } = await supabase
+            .from('registrations')
+            .select(`*, institutions(*), team_members(*), projects(*), payments(*)`)
+            .order('created_at', { ascending: false });
+
+          if (fetchErr) {
+            setError(`Database error (${fetchErr.code || 'UNKNOWN'}): ${fetchErr.message}`);
+          } else {
+            setRegistrations((data as JoinedRegistrationRecord[]) || []);
+          }
+        } catch (sErr: any) {
+          setError(sErr?.message || 'An unexpected error occurred while fetching registrations.');
+        }
+      } else {
+        setError('FastAPI backend is loading/connecting. Please verify API server.');
+      }
     } finally {
       setLoading(false);
     }
@@ -335,9 +344,8 @@ export const RegistrationsAdmin: React.FC = () => {
   };
 
   const handleEditSave = async () => {
-    if (!editForm || !editReg || !supabase) return;
+    if (!editReg || !editForm) return;
 
-    // Validate required fields
     if (!editForm.team_name.trim()) {
       setEditError('Team Name is required.');
       return;
@@ -351,52 +359,16 @@ export const RegistrationsAdmin: React.FC = () => {
     setEditError(null);
 
     try {
-      // 1. Update registrations table
-      const { error: regErr } = await supabase
-        .from('registrations')
-        .update({
-          team_name: editForm.team_name.trim(),
-          participant_type: editForm.participant_type,
-          leader_name: editForm.leader_name.trim(),
-          leader_email: editForm.leader_email.trim(),
-          leader_mobile: editForm.leader_mobile.trim() || null,
-          payment_status: editForm.payment_status,
-          payment_amount: parseFloat(editForm.payment_amount) || 0,
-          payment_reference: editForm.payment_reference.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editReg.id);
-
-      if (regErr) throw new Error(`Registration update failed: ${regErr.message}`);
-
-      // 2. Update team members individually
-      for (const member of editForm.team_members) {
-        const { error: memberErr } = await supabase
-          .from('team_members')
-          .update({
-            name: member.name.trim(),
-            email: member.email.trim(),
-            mobile: member.mobile.trim() || null,
-            roll_number: member.roll_number.trim() || null,
-            department: member.department.trim() || null,
-          })
-          .eq('id', member.id);
-        if (memberErr) console.warn(`Member update warning (${member.id}):`, memberErr.message);
-      }
-
-      // 3. Update project record if exists
-      if (editReg.projects && editReg.projects.length > 0 && editForm.project_title.trim()) {
-        const { error: projErr } = await supabase
-          .from('projects')
-          .update({
-            title: editForm.project_title.trim(),
-            category: editForm.project_category.trim(),
-            problem_statement: editForm.project_problem_statement.trim() || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('registration_id', editReg.id);
-        if (projErr) console.warn('Project update warning:', projErr.message);
-      }
+      await api.registrations.update(editReg.id, {
+        team_name: editForm.team_name.trim(),
+        participant_type: editForm.participant_type,
+        leader_name: editForm.leader_name.trim(),
+        leader_email: editForm.leader_email.trim(),
+        leader_mobile: editForm.leader_mobile.trim() || null,
+        payment_status: editForm.payment_status,
+        payment_amount: parseFloat(editForm.payment_amount) || 0,
+        payment_reference: editForm.payment_reference.trim() || null,
+      });
 
       addToast('success', 'Registration updated', `${editForm.team_name} — changes saved successfully.`);
       setEditReg(null);
@@ -424,24 +396,32 @@ export const RegistrationsAdmin: React.FC = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteTarget || !supabase) return;
+    if (!deleteTarget) return;
     if (deleteConfirmInput.trim() !== deleteTarget.registration_id) return;
 
     setDeleteLoading(true);
     try {
-      // Delete registration — cascades to team_members, projects, payments via FK ON DELETE CASCADE
-      const { error: delErr } = await supabase
-        .from('registrations')
-        .delete()
-        .eq('id', deleteTarget.id);
-
-      if (delErr) throw new Error(delErr.message);
-
-      addToast('success', 'Registration deleted', 'Registration deleted successfully.');
+      await api.registrations.delete(deleteTarget.id);
+      addToast('success', 'Registration deleted', 'Registration deleted successfully from database via FastAPI.');
       closeDelete();
       await fetchRegistrations();
     } catch (err: any) {
-      addToast('error', 'Deletion failed', 'Unable to delete registration. Please try again.');
+      console.error('FastAPI deletion error:', err);
+      // Direct Supabase fallback if needed
+      if (supabase) {
+        try {
+          const { error: delErr } = await supabase.from('registrations').delete().eq('id', deleteTarget.id);
+          if (delErr) throw new Error(delErr.message);
+          addToast('success', 'Registration deleted', 'Registration deleted successfully.');
+          closeDelete();
+          await fetchRegistrations();
+          return;
+        } catch (sErr) {
+          addToast('error', 'Deletion failed', 'Unable to delete registration. Please try again.');
+        }
+      } else {
+        addToast('error', 'Deletion failed', err?.message || 'Unable to delete registration.');
+      }
     } finally {
       setDeleteLoading(false);
     }

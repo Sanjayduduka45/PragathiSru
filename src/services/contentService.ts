@@ -1,18 +1,12 @@
 /**
  * contentService.ts
  *
- * Single source of truth for ALL content CRUD operations.
- * Every admin page and every public page goes through this service.
- *
- * Flow:
- *   Admin Page → contentService → Supabase DB → return updated data
- *   Public Page → contentService (read-only) → Supabase DB → display
- *
- * If Supabase is not configured, read functions return hardcoded fallback
- * data so the app still works in development without a live DB.
+ * Single source of truth for ALL content CRUD operations in React.
+ * Every admin page and every public page goes through this service,
+ * which routes calls to the FastAPI Python Backend (`api.*` from `./api.ts`).
  */
 
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { api } from './api';
 import { EVENT_DETAILS } from '../utils/constants';
 import {
   PROJECT_CATEGORIES,
@@ -46,7 +40,6 @@ export interface AboutContent {
   objectives: string;
 }
 
-/** Compatible with existing ProjectCategory from eventData.ts */
 export interface DomainItem {
   id: string;
   title: string;
@@ -58,7 +51,6 @@ export interface DomainItem {
   displayOrder: number;
 }
 
-/** Compatible with existing ScheduleItem from eventData.ts */
 export interface ScheduleEntry {
   id: string;
   time: string;
@@ -70,7 +62,6 @@ export interface ScheduleEntry {
   displayOrder: number;
 }
 
-/** Compatible with existing FAQItem from eventData.ts */
 export interface FAQEntry {
   id: string;
   question: string;
@@ -80,7 +71,6 @@ export interface FAQEntry {
   order: number;
 }
 
-/** Compatible with existing SponsorPartner from eventData.ts */
 export interface SponsorEntry {
   id: string;
   name: string;
@@ -93,7 +83,6 @@ export interface SponsorEntry {
 }
 
 // ─── Hardcoded Fallback Defaults ───────────────────────────────────────────────
-// Used when Supabase is not configured. Matches existing eventData.ts values.
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   eventName: EVENT_DETAILS.name,
@@ -154,625 +143,381 @@ const DEFAULT_RULES = `PARTICIPATION RULES & GUIDELINES
 • All registered participants presenting their project will receive official Certificates of Participation.
 • Category winners will receive Merit Certificates.`;
 
-// ─── Row Mappers (DB snake_case → TS camelCase) ────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToSiteSettings(row: any): SiteSettings {
-  return {
-    id: row.id,
-    eventName: row.event_name,
-    fullTitle: row.full_title,
-    tagline: row.tagline,
-    eventDate: row.event_date,
-    targetDateISO: row.target_date_iso,
-    venue: row.venue,
-    institution: row.institution,
-    location: row.location,
-    prizePool: row.prize_pool,
-    contactEmail: row.contact_email,
-    helpline: row.helpline,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToAboutContent(row: any): AboutContent {
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    vision: row.vision ?? '',
-    objectives: row.objectives ?? '',
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToDomainItem(row: any): DomainItem {
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description ?? '',
-    iconName: row.icon_name ?? 'Cpu',
-    color: row.color ?? 'from-blue-600 to-indigo-600',
-    badgeText: row.badge_text ?? '',
-    active: row.is_active ?? true,
-    displayOrder: row.display_order ?? 0,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToScheduleEntry(row: any): ScheduleEntry {
-  return {
-    id: row.id,
-    time: row.time_slot,
-    event: row.event_title,
-    location: row.location ?? '',
-    description: row.description ?? '',
-    badge: row.badge ?? '',
-    active: row.is_active ?? true,
-    displayOrder: row.display_order ?? 0,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToFAQEntry(row: any): FAQEntry {
-  return {
-    id: row.id,
-    question: row.question,
-    answer: row.answer,
-    category: row.category ?? 'General',
-    active: row.is_active ?? true,
-    order: row.display_order ?? 0,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToSponsorEntry(row: any): SponsorEntry {
-  return {
-    id: row.id,
-    name: row.name,
-    type: row.sponsor_type ?? 'Partner',
-    role: row.role ?? '',
-    logoText: row.logo_text ?? '',
-    website: row.website ?? '',
-    active: row.is_active ?? true,
-    order: row.display_order ?? 0,
-  };
-}
-
 // ─── SITE SETTINGS ────────────────────────────────────────────────────────────
 
 export async function getEventSettings(): Promise<SiteSettings> {
-  if (!isSupabaseConfigured || !supabase) return DEFAULT_SITE_SETTINGS;
-
-  const { data, error } = await supabase
-    .from('site_settings')
-    .select('*')
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error('[contentService] getEventSettings error:', error.message);
-    return DEFAULT_SITE_SETTINGS;
+  try {
+    const res = await api.event.get();
+    if (res && res.data) {
+      const d = res.data;
+      return {
+        eventName: d.event_name ?? DEFAULT_SITE_SETTINGS.eventName,
+        fullTitle: d.full_title ?? DEFAULT_SITE_SETTINGS.fullTitle,
+        tagline: d.tagline ?? DEFAULT_SITE_SETTINGS.tagline,
+        eventDate: d.event_date ?? DEFAULT_SITE_SETTINGS.eventDate,
+        targetDateISO: d.target_date_iso ?? DEFAULT_SITE_SETTINGS.targetDateISO,
+        venue: d.venue ?? DEFAULT_SITE_SETTINGS.venue,
+        institution: d.institution ?? DEFAULT_SITE_SETTINGS.institution,
+        location: d.location ?? DEFAULT_SITE_SETTINGS.location,
+        prizePool: d.prize_pool ?? DEFAULT_SITE_SETTINGS.prizePool,
+        contactEmail: d.contact_email ?? DEFAULT_SITE_SETTINGS.contactEmail,
+        helpline: d.helpline ?? DEFAULT_SITE_SETTINGS.helpline,
+      };
+    }
+  } catch (err) {
+    console.warn('[contentService] getEventSettings backend fallback:', err);
   }
-  if (!data) return DEFAULT_SITE_SETTINGS;
-  return rowToSiteSettings(data);
+  return DEFAULT_SITE_SETTINGS;
 }
 
-export async function updateEventSettings(
-  settings: Partial<SiteSettings>
-): Promise<void> {
-  if (!isSupabaseConfigured || !supabase) {
-    throw new Error('Supabase is not configured. Changes cannot be persisted.');
-  }
-
-  // Check if a row exists
-  const { data: existing, error: fetchErr } = await supabase
-    .from('site_settings')
-    .select('id')
-    .limit(1)
-    .maybeSingle();
-
-  if (fetchErr) throw new Error(fetchErr.message);
-
-  const payload: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
+export async function updateEventSettings(settings: Partial<SiteSettings>): Promise<void> {
+  const payload = {
+    event_name: settings.eventName,
+    full_title: settings.fullTitle,
+    tagline: settings.tagline,
+    event_date: settings.eventDate,
+    target_date_iso: settings.targetDateISO,
+    venue: settings.venue,
+    institution: settings.institution,
+    location: settings.location,
+    prize_pool: settings.prizePool,
+    contact_email: settings.contactEmail,
+    helpline: settings.helpline,
   };
-  if (settings.eventName   !== undefined) payload.event_name     = settings.eventName;
-  if (settings.fullTitle   !== undefined) payload.full_title     = settings.fullTitle;
-  if (settings.tagline     !== undefined) payload.tagline        = settings.tagline;
-  if (settings.eventDate   !== undefined) payload.event_date     = settings.eventDate;
-  if (settings.targetDateISO !== undefined) payload.target_date_iso = settings.targetDateISO;
-  if (settings.venue       !== undefined) payload.venue          = settings.venue;
-  if (settings.institution !== undefined) payload.institution    = settings.institution;
-  if (settings.location    !== undefined) payload.location       = settings.location;
-  if (settings.prizePool   !== undefined) payload.prize_pool     = settings.prizePool;
-  if (settings.contactEmail !== undefined) payload.contact_email = settings.contactEmail;
-  if (settings.helpline    !== undefined) payload.helpline       = settings.helpline;
-
-  if (existing) {
-    const { error } = await supabase
-      .from('site_settings')
-      .update(payload)
-      .eq('id', existing.id);
-    if (error) throw new Error(error.message);
-  } else {
-    const { error } = await supabase.from('site_settings').insert(payload);
-    if (error) throw new Error(error.message);
-  }
+  await api.event.update(payload);
 }
 
 // ─── ABOUT CONTENT ────────────────────────────────────────────────────────────
 
 export async function getAboutContent(): Promise<AboutContent> {
-  if (!isSupabaseConfigured || !supabase) return DEFAULT_ABOUT;
-
-  const { data, error } = await supabase
-    .from('about_content')
-    .select('*')
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error('[contentService] getAboutContent error:', error.message);
-    return DEFAULT_ABOUT;
+  try {
+    const res = await api.about.get();
+    if (res && res.data) {
+      return {
+        title: res.data.title ?? DEFAULT_ABOUT.title,
+        description: res.data.description ?? DEFAULT_ABOUT.description,
+        vision: res.data.vision ?? DEFAULT_ABOUT.vision,
+        objectives: res.data.objectives ?? DEFAULT_ABOUT.objectives,
+      };
+    }
+  } catch (err) {
+    console.warn('[contentService] getAboutContent backend fallback:', err);
   }
-  if (!data) return DEFAULT_ABOUT;
-  return rowToAboutContent(data);
+  return DEFAULT_ABOUT;
 }
 
 export async function updateAboutContent(content: AboutContent): Promise<void> {
-  if (!isSupabaseConfigured || !supabase) {
-    throw new Error('Supabase is not configured. Changes cannot be persisted.');
-  }
-
-  const { data: existing, error: fetchErr } = await supabase
-    .from('about_content')
-    .select('id')
-    .limit(1)
-    .maybeSingle();
-
-  if (fetchErr) throw new Error(fetchErr.message);
-
-  const payload = {
-    title: content.title,
-    description: content.description,
-    vision: content.vision,
-    objectives: content.objectives,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (existing) {
-    const { error } = await supabase
-      .from('about_content')
-      .update(payload)
-      .eq('id', existing.id);
-    if (error) throw new Error(error.message);
-  } else {
-    const { error } = await supabase.from('about_content').insert(payload);
-    if (error) throw new Error(error.message);
-  }
+  await api.about.update(content);
 }
 
 // ─── PROJECT DOMAINS ──────────────────────────────────────────────────────────
 
 export async function getDomains(): Promise<DomainItem[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    // Return hardcoded fallback with required DomainItem fields
-    return PROJECT_CATEGORIES.map((c, i) => ({
-      id: c.id,
-      title: c.title,
-      description: c.description,
-      iconName: c.iconName,
-      color: c.color,
-      badgeText: c.badgeText,
-      active: true,
-      displayOrder: i + 1,
-    }));
+  try {
+    const res = await api.domains.get();
+    if (res && Array.isArray(res.data)) {
+      return res.data.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        description: d.description || '',
+        iconName: d.icon_name || 'Cpu',
+        color: d.color || 'from-blue-600 to-indigo-600',
+        badgeText: d.badge_text || '',
+        active: d.active ?? true,
+        displayOrder: d.display_order ?? 0,
+      }));
+    }
+  } catch (err) {
+    console.warn('[contentService] getDomains backend fallback:', err);
   }
-
-  const { data, error } = await supabase
-    .from('project_domains')
-    .select('*')
-    .order('display_order', { ascending: true });
-
-  if (error) {
-    console.error('[contentService] getDomains error:', error.message);
-    return PROJECT_CATEGORIES.map((c, i) => ({
-      id: c.id,
-      title: c.title,
-      description: c.description,
-      iconName: c.iconName,
-      color: c.color,
-      badgeText: c.badgeText,
-      active: true,
-      displayOrder: i + 1,
-    }));
-  }
-  return (data ?? []).map(rowToDomainItem);
+  return PROJECT_CATEGORIES.map((c, i) => ({
+    id: c.id,
+    title: c.title,
+    description: c.description,
+    iconName: c.iconName,
+    color: c.color,
+    badgeText: c.badgeText,
+    active: true,
+    displayOrder: i + 1,
+  }));
 }
 
-export async function addDomain(
-  d: Omit<DomainItem, 'id'>
-): Promise<DomainItem> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { data, error } = await supabase
-    .from('project_domains')
-    .insert({
-      title: d.title,
-      description: d.description,
-      icon_name: d.iconName,
-      color: d.color,
-      badge_text: d.badgeText,
-      is_active: d.active,
-      display_order: d.displayOrder,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return rowToDomainItem(data);
+export async function addDomain(d: Omit<DomainItem, 'id'>): Promise<DomainItem> {
+  const payload = {
+    title: d.title,
+    description: d.description,
+    icon_name: d.iconName,
+    color: d.color,
+    badge_text: d.badgeText,
+    active: d.active,
+    display_order: d.displayOrder,
+  };
+  const res = await api.domains.create(payload);
+  const data = res.data;
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description || '',
+    iconName: data.icon_name || 'Cpu',
+    color: data.color || 'from-blue-600 to-indigo-600',
+    badgeText: data.badge_text || '',
+    active: data.active ?? true,
+    displayOrder: data.display_order ?? 0,
+  };
 }
 
-export async function updateDomain(
-  id: string,
-  d: Partial<Omit<DomainItem, 'id'>>
-): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (d.title       !== undefined) payload.title         = d.title;
-  if (d.description !== undefined) payload.description   = d.description;
-  if (d.iconName    !== undefined) payload.icon_name     = d.iconName;
-  if (d.color       !== undefined) payload.color         = d.color;
-  if (d.badgeText   !== undefined) payload.badge_text    = d.badgeText;
-  if (d.active      !== undefined) payload.is_active     = d.active;
+export async function updateDomain(id: string, d: Partial<Omit<DomainItem, 'id'>>): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (d.title !== undefined) payload.title = d.title;
+  if (d.description !== undefined) payload.description = d.description;
+  if (d.iconName !== undefined) payload.icon_name = d.iconName;
+  if (d.color !== undefined) payload.color = d.color;
+  if (d.badgeText !== undefined) payload.badge_text = d.badgeText;
+  if (d.active !== undefined) payload.active = d.active;
   if (d.displayOrder !== undefined) payload.display_order = d.displayOrder;
 
-  const { error } = await supabase
-    .from('project_domains')
-    .update(payload)
-    .eq('id', id);
-
-  if (error) throw new Error(error.message);
+  await api.domains.update(id, payload);
 }
 
 export async function deleteDomain(id: string): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { error } = await supabase.from('project_domains').delete().eq('id', id);
-  if (error) throw new Error(error.message);
+  await api.domains.delete(id);
 }
 
 // ─── SCHEDULE ITEMS ───────────────────────────────────────────────────────────
 
 export async function getScheduleItems(): Promise<ScheduleEntry[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return SCHEDULE_PREVIEW.map((s, i) => ({
-      id: `sch-${i}`,
-      time: s.time,
-      event: s.event,
-      location: s.location,
-      description: s.description,
-      badge: s.badge,
-      active: true,
-      displayOrder: i + 1,
-    }));
+  try {
+    const res = await api.schedule.get();
+    if (res && Array.isArray(res.data)) {
+      return res.data.map((s: any) => ({
+        id: s.id,
+        time: s.time || s.time_slot || '',
+        event: s.event || s.event_title || '',
+        location: s.location || '',
+        description: s.description || '',
+        badge: s.badge || '',
+        active: s.active ?? true,
+        displayOrder: s.display_order ?? 0,
+      }));
+    }
+  } catch (err) {
+    console.warn('[contentService] getScheduleItems backend fallback:', err);
   }
-
-  const { data, error } = await supabase
-    .from('schedule_items')
-    .select('*')
-    .order('display_order', { ascending: true });
-
-  if (error) {
-    console.error('[contentService] getScheduleItems error:', error.message);
-    return SCHEDULE_PREVIEW.map((s, i) => ({
-      id: `sch-${i}`,
-      time: s.time,
-      event: s.event,
-      location: s.location,
-      description: s.description,
-      badge: s.badge,
-      active: true,
-      displayOrder: i + 1,
-    }));
-  }
-  return (data ?? []).map(rowToScheduleEntry);
+  return SCHEDULE_PREVIEW.map((s, i) => ({
+    id: `sch-${i}`,
+    time: s.time,
+    event: s.event,
+    location: s.location,
+    description: s.description,
+    badge: s.badge,
+    active: true,
+    displayOrder: i + 1,
+  }));
 }
 
-export async function addScheduleItem(
-  s: Omit<ScheduleEntry, 'id'>
-): Promise<ScheduleEntry> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { data, error } = await supabase
-    .from('schedule_items')
-    .insert({
-      time_slot: s.time,
-      event_title: s.event,
-      location: s.location,
-      description: s.description,
-      badge: s.badge,
-      is_active: s.active,
-      display_order: s.displayOrder,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return rowToScheduleEntry(data);
+export async function addScheduleItem(s: Omit<ScheduleEntry, 'id'>): Promise<ScheduleEntry> {
+  const payload = {
+    time: s.time,
+    event: s.event,
+    location: s.location,
+    description: s.description,
+    badge: s.badge,
+    active: s.active,
+    display_order: s.displayOrder,
+  };
+  const res = await api.schedule.create(payload);
+  const data = res.data;
+  return {
+    id: data.id,
+    time: data.time || data.time_slot || '',
+    event: data.event || data.event_title || '',
+    location: data.location || '',
+    description: data.description || '',
+    badge: data.badge || '',
+    active: data.active ?? true,
+    displayOrder: data.display_order ?? 0,
+  };
 }
 
-export async function updateScheduleItem(
-  id: string,
-  s: Partial<Omit<ScheduleEntry, 'id'>>
-): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (s.time        !== undefined) payload.time_slot    = s.time;
-  if (s.event       !== undefined) payload.event_title  = s.event;
-  if (s.location    !== undefined) payload.location     = s.location;
-  if (s.description !== undefined) payload.description  = s.description;
-  if (s.badge       !== undefined) payload.badge        = s.badge;
-  if (s.active      !== undefined) payload.is_active    = s.active;
+export async function updateScheduleItem(id: string, s: Partial<Omit<ScheduleEntry, 'id'>>): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (s.time !== undefined) payload.time = s.time;
+  if (s.event !== undefined) payload.event = s.event;
+  if (s.location !== undefined) payload.location = s.location;
+  if (s.description !== undefined) payload.description = s.description;
+  if (s.badge !== undefined) payload.badge = s.badge;
+  if (s.active !== undefined) payload.active = s.active;
   if (s.displayOrder !== undefined) payload.display_order = s.displayOrder;
 
-  const { error } = await supabase
-    .from('schedule_items')
-    .update(payload)
-    .eq('id', id);
-
-  if (error) throw new Error(error.message);
+  await api.schedule.update(id, payload);
 }
 
 export async function deleteScheduleItem(id: string): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { error } = await supabase.from('schedule_items').delete().eq('id', id);
-  if (error) throw new Error(error.message);
+  await api.schedule.delete(id);
 }
 
 // ─── RULES CONTENT ────────────────────────────────────────────────────────────
 
 export async function getRulesContent(): Promise<string> {
-  if (!isSupabaseConfigured || !supabase) return DEFAULT_RULES;
-
-  const { data, error } = await supabase
-    .from('rules_content')
-    .select('*')
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error('[contentService] getRulesContent error:', error.message);
-    return DEFAULT_RULES;
+  try {
+    const res = await api.rules.get();
+    if (res && res.data && res.data.content) {
+      return res.data.content;
+    }
+  } catch (err) {
+    console.warn('[contentService] getRulesContent backend fallback:', err);
   }
-  if (!data) return DEFAULT_RULES;
-  return data.content ?? DEFAULT_RULES;
+  return DEFAULT_RULES;
 }
 
 export async function updateRulesContent(content: string): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { data: existing, error: fetchErr } = await supabase
-    .from('rules_content')
-    .select('id')
-    .limit(1)
-    .maybeSingle();
-
-  if (fetchErr) throw new Error(fetchErr.message);
-
-  if (existing) {
-    const { error } = await supabase
-      .from('rules_content')
-      .update({ content, updated_at: new Date().toISOString() })
-      .eq('id', existing.id);
-    if (error) throw new Error(error.message);
-  } else {
-    const { error } = await supabase.from('rules_content').insert({ content });
-    if (error) throw new Error(error.message);
-  }
+  await api.rules.update({ content });
 }
 
 // ─── FAQS ─────────────────────────────────────────────────────────────────────
 
 export async function getFaqs(): Promise<FAQEntry[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return FAQS.map((f, i) => ({
-      id: f.id,
-      question: f.question,
-      answer: f.answer,
-      category: f.category,
-      active: true,
-      order: i + 1,
-    }));
+  try {
+    const res = await api.faqs.get();
+    if (res && Array.isArray(res.data)) {
+      return res.data.map((f: any) => ({
+        id: f.id,
+        question: f.question,
+        answer: f.answer,
+        category: f.category || 'General',
+        active: f.active ?? true,
+        order: f.order ?? f.display_order ?? 0,
+      }));
+    }
+  } catch (err) {
+    console.warn('[contentService] getFaqs backend fallback:', err);
   }
-
-  const { data, error } = await supabase
-    .from('faqs')
-    .select('*')
-    .order('display_order', { ascending: true });
-
-  if (error) {
-    console.error('[contentService] getFaqs error:', error.message);
-    return FAQS.map((f, i) => ({
-      id: f.id,
-      question: f.question,
-      answer: f.answer,
-      category: f.category,
-      active: true,
-      order: i + 1,
-    }));
-  }
-  return (data ?? []).map(rowToFAQEntry);
+  return FAQS.map((f, i) => ({
+    id: f.id,
+    question: f.question,
+    answer: f.answer,
+    category: f.category,
+    active: true,
+    order: i + 1,
+  }));
 }
 
 export async function addFaq(f: Omit<FAQEntry, 'id'>): Promise<FAQEntry> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { data, error } = await supabase
-    .from('faqs')
-    .insert({
-      question: f.question,
-      answer: f.answer,
-      category: f.category,
-      is_active: f.active,
-      display_order: f.order,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return rowToFAQEntry(data);
+  const payload = {
+    question: f.question,
+    answer: f.answer,
+    category: f.category,
+    active: f.active,
+    order: f.order,
+  };
+  const res = await api.faqs.create(payload);
+  const data = res.data;
+  return {
+    id: data.id,
+    question: data.question,
+    answer: data.answer,
+    category: data.category || 'General',
+    active: data.active ?? true,
+    order: data.order ?? 0,
+  };
 }
 
-export async function updateFaq(
-  id: string,
-  f: Partial<Omit<FAQEntry, 'id'>>
-): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
+export async function updateFaq(id: string, f: Partial<Omit<FAQEntry, 'id'>>): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (f.question !== undefined) payload.question = f.question;
+  if (f.answer !== undefined) payload.answer = f.answer;
+  if (f.category !== undefined) payload.category = f.category;
+  if (f.active !== undefined) payload.active = f.active;
+  if (f.order !== undefined) payload.order = f.order;
 
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (f.question  !== undefined) payload.question      = f.question;
-  if (f.answer    !== undefined) payload.answer        = f.answer;
-  if (f.category  !== undefined) payload.category      = f.category;
-  if (f.active    !== undefined) payload.is_active     = f.active;
-  if (f.order     !== undefined) payload.display_order = f.order;
-
-  const { error } = await supabase.from('faqs').update(payload).eq('id', id);
-  if (error) throw new Error(error.message);
+  await api.faqs.update(id, payload);
 }
 
 export async function deleteFaq(id: string): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { error } = await supabase.from('faqs').delete().eq('id', id);
-  if (error) throw new Error(error.message);
+  await api.faqs.delete(id);
 }
 
 // ─── SPONSORS ─────────────────────────────────────────────────────────────────
 
 export async function getSponsors(): Promise<SponsorEntry[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return SPONSORS_PARTNERS.map((s, i) => ({
-      id: `sponsor-${i}`,
-      name: s.name,
-      type: s.type,
-      role: s.role,
-      logoText: s.logoText,
-      website: '',
-      active: true,
-      order: i + 1,
-    }));
+  try {
+    const res = await api.sponsors.get();
+    if (res && Array.isArray(res.data)) {
+      return res.data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        type: s.type || s.sponsor_type || 'Partner',
+        role: s.role || '',
+        logoText: s.logo_text || s.logoText || '',
+        website: s.website || '',
+        active: s.active ?? true,
+        order: s.order ?? s.display_order ?? 0,
+      }));
+    }
+  } catch (err) {
+    console.warn('[contentService] getSponsors backend fallback:', err);
   }
-
-  const { data, error } = await supabase
-    .from('sponsors')
-    .select('*')
-    .order('display_order', { ascending: true });
-
-  if (error) {
-    console.error('[contentService] getSponsors error:', error.message);
-    return SPONSORS_PARTNERS.map((s, i) => ({
-      id: `sponsor-${i}`,
-      name: s.name,
-      type: s.type,
-      role: s.role,
-      logoText: s.logoText,
-      website: '',
-      active: true,
-      order: i + 1,
-    }));
-  }
-  return (data ?? []).map(rowToSponsorEntry);
+  return SPONSORS_PARTNERS.map((s, i) => ({
+    id: `sponsor-${i}`,
+    name: s.name,
+    type: s.type,
+    role: s.role,
+    logoText: s.logoText,
+    website: '',
+    active: true,
+    order: i + 1,
+  }));
 }
 
-export async function addSponsor(
-  s: Omit<SponsorEntry, 'id'>
-): Promise<SponsorEntry> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { data, error } = await supabase
-    .from('sponsors')
-    .insert({
-      name: s.name,
-      sponsor_type: s.type,
-      role: s.role,
-      logo_text: s.logoText,
-      website: s.website,
-      is_active: s.active,
-      display_order: s.order,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return rowToSponsorEntry(data);
+export async function addSponsor(s: Omit<SponsorEntry, 'id'>): Promise<SponsorEntry> {
+  const payload = {
+    name: s.name,
+    type: s.type,
+    role: s.role,
+    logo_text: s.logoText,
+    website: s.website,
+    active: s.active,
+    order: s.order,
+  };
+  const res = await api.sponsors.create(payload);
+  const data = res.data;
+  return {
+    id: data.id,
+    name: data.name,
+    type: data.type || data.sponsor_type || 'Partner',
+    role: data.role || '',
+    logoText: data.logo_text || data.logoText || '',
+    website: data.website || '',
+    active: data.active ?? true,
+    order: data.order ?? 0,
+  };
 }
 
-export async function updateSponsor(
-  id: string,
-  s: Partial<Omit<SponsorEntry, 'id'>>
-): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
+export async function updateSponsor(id: string, s: Partial<Omit<SponsorEntry, 'id'>>): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (s.name !== undefined) payload.name = s.name;
+  if (s.type !== undefined) payload.type = s.type;
+  if (s.role !== undefined) payload.role = s.role;
+  if (s.logoText !== undefined) payload.logo_text = s.logoText;
+  if (s.website !== undefined) payload.website = s.website;
+  if (s.active !== undefined) payload.active = s.active;
+  if (s.order !== undefined) payload.order = s.order;
 
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (s.name    !== undefined) payload.name         = s.name;
-  if (s.type    !== undefined) payload.sponsor_type = s.type;
-  if (s.role    !== undefined) payload.role         = s.role;
-  if (s.logoText !== undefined) payload.logo_text   = s.logoText;
-  if (s.website !== undefined) payload.website      = s.website;
-  if (s.active  !== undefined) payload.is_active    = s.active;
-  if (s.order   !== undefined) payload.display_order = s.order;
-
-  const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
-  if (error) throw new Error(error.message);
+  await api.sponsors.update(id, payload);
 }
 
 export async function deleteSponsor(id: string): Promise<void> {
-  if (!isSupabaseConfigured || !supabase)
-    throw new Error('Supabase is not configured.');
-
-  const { error } = await supabase.from('sponsors').delete().eq('id', id);
-  if (error) throw new Error(error.message);
+  await api.sponsors.delete(id);
 }
 
-// ─── Live Count Helpers (for AdminDashboard stats) ─────────────────────────────
+// ─── Live Count Helpers ────────────────────────────────────────────────────────
 
 export async function getDomainCount(): Promise<number> {
-  if (!isSupabaseConfigured || !supabase) return PROJECT_CATEGORIES.length;
-  const { count, error } = await supabase
-    .from('project_domains')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true);
-  if (error) return PROJECT_CATEGORIES.length;
-  return count ?? 0;
+  const items = await getDomains();
+  return items.filter((i) => i.active).length;
 }
 
 export async function getFaqCount(): Promise<number> {
-  if (!isSupabaseConfigured || !supabase) return FAQS.length;
-  const { count, error } = await supabase
-    .from('faqs')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true);
-  if (error) return FAQS.length;
-  return count ?? 0;
+  const items = await getFaqs();
+  return items.filter((i) => i.active).length;
 }
