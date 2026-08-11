@@ -401,34 +401,13 @@ export const RegistrationsAdmin: React.FC = () => {
 
     setDeleteLoading(true);
     try {
-      try {
-        await api.registrations.delete(deleteTarget.id);
-      } catch (fastApiErr) {
-        console.warn('[RegistrationsAdmin] FastAPI delete unavailable, executing verified direct Supabase delete:', fastApiErr);
-        if (supabase) {
-          const { data: delData, error: delErr } = await supabase
-            .from('registrations')
-            .delete()
-            .or(`id.eq.${deleteTarget.id},registration_id.eq.${deleteTarget.registration_id}`)
-            .select();
-
-          if (delErr) {
-            throw new Error(`Supabase deletion error: ${delErr.message}`);
-          }
-          if (!delData || delData.length === 0) {
-            throw new Error(`Record verification failed: 0 rows deleted from database.`);
-          }
-        } else {
-          throw fastApiErr;
-        }
-      }
-
+      await api.registrations.delete(deleteTarget.id);
       addToast('success', 'Registration deleted', 'Registration deleted successfully from database.');
       closeDelete();
       await fetchRegistrations();
     } catch (err: any) {
       console.error('Registration deletion error:', err);
-      addToast('error', 'Deletion failed', err?.message || 'Unable to delete registration.');
+      addToast('error', 'Deletion failed', err?.message || 'Unable to delete registration via FastAPI backend.');
     } finally {
       setDeleteLoading(false);
     }
