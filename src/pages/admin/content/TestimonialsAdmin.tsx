@@ -70,11 +70,14 @@ export const TestimonialsAdmin: React.FC = () => {
   const { addToast } = useAdminToast();
 
   const loadData = async () => {
+    console.debug('[Testimonials] loadData start');
     setLoading(true);
     try {
       const data = await getTestimonials();
+      console.debug('[Testimonials] loadData received items:', data.length, data);
       setItems(data);
     } catch (err: any) {
+      console.error('[Testimonials] loadData failed:', err);
       addToast('error', 'Load failed', err?.message || 'Failed to load testimonials.');
     } finally {
       setLoading(false);
@@ -135,6 +138,7 @@ export const TestimonialsAdmin: React.FC = () => {
 
       const adminSecret = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
       const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+      console.debug('[Testimonials] UPLOAD start, url:', `${apiBaseUrl}/api/admin/testimonials/upload`);
       const response = await fetch(`${apiBaseUrl}/api/admin/testimonials/upload`, {
         method: 'POST',
         headers: {
@@ -149,6 +153,7 @@ export const TestimonialsAdmin: React.FC = () => {
       }
 
       const resData = await response.json();
+      console.debug('[Testimonials] UPLOAD response:', resData);
       if (resData.url) {
         setFormMediaUrl(resData.url);
         if (resData.media_type === 'video') {
@@ -160,6 +165,7 @@ export const TestimonialsAdmin: React.FC = () => {
         return resData.url;
       }
     } catch (err: any) {
+      console.error('[Testimonials] UPLOAD failed:', err);
       addToast('error', 'Upload Failed', err?.message || 'Failed to upload media file.');
     } finally {
       setUploading(false);
@@ -211,17 +217,23 @@ export const TestimonialsAdmin: React.FC = () => {
       };
 
       if (editingItem) {
-        await updateTestimonial(editingItem.id, payload);
+        console.debug('[Testimonials] UPDATE start', editingItem.id, payload);
+        const result = await updateTestimonial(editingItem.id, payload);
+        console.debug('[Testimonials] UPDATE response', result);
         addToast('success', 'Showcase Saved', 'Testimonial item updated successfully.');
       } else {
-        await addTestimonial(payload);
+        console.debug('[Testimonials] CREATE start', payload);
+        const result = await addTestimonial(payload);
+        console.debug('[Testimonials] CREATE response', result);
         addToast('success', 'Showcase Created', 'New testimonial item added successfully.');
       }
 
       closeModal();
+      console.debug('[Testimonials] loadData & refreshContent calling after save');
       await loadData();
       await refreshContent();
     } catch (err: any) {
+      console.error('[Testimonials] SAVE failed:', err);
       addToast('error', 'Save Failed', err?.message || 'Unable to save testimonial item.');
     } finally {
       setSaving(false);
@@ -229,30 +241,38 @@ export const TestimonialsAdmin: React.FC = () => {
   };
 
   const handleToggleActive = async (item: TestimonialEntry) => {
+    console.debug('[Testimonials] TOGGLE start', item.id, item.active);
     try {
-      await updateTestimonial(item.id, { active: !item.active });
+      const result = await updateTestimonial(item.id, { active: !item.active });
+      console.debug('[Testimonials] TOGGLE response', result);
       addToast(
         'info',
         'Status Updated',
         `Item "${item.title || 'Showcase'}" is now ${!item.active ? 'Active' : 'Inactive'}.`
       );
+      console.debug('[Testimonials] loadData & refreshContent calling after toggle');
       await loadData();
       await refreshContent();
     } catch (err: any) {
+      console.error('[Testimonials] TOGGLE failed:', err);
       addToast('error', 'Update Failed', err?.message || 'Unable to update active status.');
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
+    console.debug('[Testimonials] DELETE start', deleteTarget.id);
     setDeleting(true);
     try {
-      await deleteTestimonial(deleteTarget.id);
+      const result = await deleteTestimonial(deleteTarget.id);
+      console.debug('[Testimonials] DELETE response', result);
       addToast('success', 'Deleted', 'Testimonial item deleted successfully.');
       setDeleteTarget(null);
+      console.debug('[Testimonials] loadData & refreshContent calling after delete');
       await loadData();
       await refreshContent();
     } catch (err: any) {
+      console.error('[Testimonials] DELETE failed:', err);
       addToast('error', 'Delete Failed', err?.message || 'Unable to delete item.');
     } finally {
       setDeleting(false);

@@ -75,7 +75,7 @@ async def upload_testimonial_media(
     unique_name = f"{uuid.uuid4().hex[:12]}.{safe_ext}"
     media_type = "video" if is_video else "image"
 
-    public_url = await db.upload_supabase_storage("testimonial-media", unique_name, contents, content_type or ("video/mp4" if is_video else "image/png"))
+    public_url = await testimonial_service.upload_testimonial_media("testimonial-media", unique_name, contents, content_type or ("video/mp4" if is_video else "image/png"))
     if not public_url:
         raise HTTPException(status_code=500, detail="Failed to persist file to Supabase Storage bucket 'testimonial-media'.")
 

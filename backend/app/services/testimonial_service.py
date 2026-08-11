@@ -1,6 +1,8 @@
 import uuid
-from typing import List
+import httpx
+from typing import List, Optional
 from app.database import db
+from app.config import settings
 from app.schemas.testimonial import TestimonialItem, TestimonialCreate, TestimonialUpdate
 
 DEFAULT_TESTIMONIALS = [
@@ -209,5 +211,34 @@ class TestimonialService:
         if not success:
             raise HTTPException(status_code=500, detail=f"Failed to delete testimonial '{testimonial_id}' from Supabase database.")
         return True
+
+    @staticmethod
+    async def upload_testimonial_media(bucket: str, path: str, content: bytes, content_type: str) -> Optional[str]:
+        if not settings.supabase_url or not settings.supabase_key:
+            return None
+        bucket_url = f"{settings.supabase_url}/storage/v1/bucket"
+        upload_url = f"{settings.supabase_url}/storage/v1/object/{bucket}/{path}"
+        headers = {
+            "apikey": settings.supabase_key,
+            "Authorization": f"Bearer {settings.supabase_key}",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                await client.post(
+                    bucket_url,
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={"id": bucket, "name": bucket, "public": True}
+                )
+                file_headers = {
+                    **headers,
+                    "Content-Type": content_type,
+                    "x-upsert": "true"
+                }
+                res = await client.post(upload_url, headers=file_headers, content=content)
+                if res.status_code in (200, 201):
+                    return f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
+        except Exception as e:
+            print(f"[Testimonial Storage] Error uploading: {e}")
+        return None
 
 testimonial_service = TestimonialService()
