@@ -338,7 +338,7 @@ export const Home: React.FC = () => {
 
             <div className="space-y-1">
               <div className="text-4xl sm:text-5xl font-black font-display text-amber-300">
-                ₹1.5L
+                {formatPrizeShort(eventSettings.prizePool)}
               </div>
               <div className="text-xs sm:text-sm font-bold text-blue-200 uppercase tracking-wider">
                 Total Cash Pool
