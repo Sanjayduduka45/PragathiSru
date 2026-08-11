@@ -2,9 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Mail, Phone, Building2, ArrowLeft, ArrowRight, ShieldCheck, Headphones } from 'lucide-react';
-import { EVENT_DETAILS } from '../utils/constants';
+import { useContent } from '../context/ContentContext';
 
 export const Contact: React.FC = () => {
+  const { eventSettings } = useContent();
   return (
     <div className="py-8 pb-20 space-y-12 bg-white min-h-[70vh]">
       {/* Header Banner */}
@@ -87,10 +88,10 @@ export const Contact: React.FC = () => {
 
             <div className="pt-4 border-t border-slate-100">
               <a
-                href={`mailto:${EVENT_DETAILS.contactEmail}`}
+                href={`mailto:${eventSettings.contactEmail}`}
                 className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-[#004182] hover:text-blue-900 transition-colors break-all"
               >
-                <span>{EVENT_DETAILS.contactEmail}</span>
+                <span>{eventSettings.contactEmail}</span>
                 <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
               </a>
             </div>
@@ -117,10 +118,10 @@ export const Contact: React.FC = () => {
 
             <div className="pt-4 border-t border-slate-100">
               <a
-                href={`tel:${EVENT_DETAILS.helpline.replace(/\s+/g, '')}`}
+                href={`tel:${eventSettings.helpline.replace(/\s+/g, '')}`}
                 className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-[#004182] hover:text-blue-900 transition-colors"
               >
-                <span>{EVENT_DETAILS.helpline}</span>
+                <span>{eventSettings.helpline}</span>
                 <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
               </a>
             </div>
@@ -142,7 +143,7 @@ export const Contact: React.FC = () => {
               Host Organization
             </span>
             <p className="text-base sm:text-lg font-bold text-slate-900">
-              Organized by SR University, Warangal, Telangana.
+              Organized by {eventSettings.institution}, {eventSettings.location}.
             </p>
           </div>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-3">

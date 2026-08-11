@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit3, Trash2, Star, Save, ToggleLeft, ToggleRight } from 'lucide-react';
-import { SPONSORS_PARTNERS, type SponsorPartner } from '../../../data/eventData';
+import { SPONSORS_PARTNERS } from '../../../data/eventData';
 import { Modal } from '../../../components/ui/Modal';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
-
-interface SponsorEntry extends SponsorPartner {
-  id: string;
-  website?: string;
-  active: boolean;
-  order: number;
-}
+import {
+  getSponsors,
+  addSponsor,
+  updateSponsor,
+  deleteSponsor,
+  type SponsorEntry,
+} from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
 const seed: SponsorEntry[] = SPONSORS_PARTNERS.map((s, i) => ({
-  ...s,
   id: `sponsor-${i}`,
+  name: s.name,
+  type: s.type,
+  role: s.role,
+  logoText: s.logoText,
   website: '',
   active: true,
   order: i + 1,
@@ -39,6 +43,20 @@ export const SponsorsAdmin: React.FC = () => {
   const [form, setForm] = useState<Omit<SponsorEntry, 'id'>>(EMPTY);
   const [saving, setSaving] = useState(false);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
+
+  const loadData = useCallback(async () => {
+    try {
+      const data = await getSponsors();
+      setSponsors(data);
+    } catch (err) {
+      console.error('Failed to fetch sponsors:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -66,29 +84,52 @@ export const SponsorsAdmin: React.FC = () => {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-    if (editingId) {
-      setSponsors((prev) => prev.map((s) => (s.id === editingId ? { ...s, ...form } : s)));
-    } else {
-      setSponsors((prev) => [...prev, { id: `sponsor-${Date.now()}`, ...form }]);
+    try {
+      if (editingId) {
+        await updateSponsor(editingId, form);
+        addToast('success', 'Sponsor updated', 'Saved to Supabase database.');
+      } else {
+        await addSponsor(form);
+        addToast('success', 'Sponsor added', 'New sponsor saved to Supabase database.');
+      }
+      await loadData();
+      await refreshContent();
+      setModalOpen(false);
+    } catch (err: unknown) {
+      console.error('Save sponsor error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save sponsor', msg);
+    } finally {
+      setSaving(false);
     }
-    addToast(
-      isSupabaseConfigured ? 'success' : 'warning',
-      editingId ? 'Sponsor updated' : 'Sponsor added',
-      isSupabaseConfigured ? undefined : 'Local only — DB not connected.'
-    );
-    setModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setSponsors((prev) => prev.filter((s) => s.id !== id));
-    setDeleteTarget(null);
-    addToast('info', 'Sponsor removed', 'The sponsor item has been deleted.');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteSponsor(id);
+      await loadData();
+      await refreshContent();
+      setDeleteTarget(null);
+      addToast('info', 'Sponsor removed', 'Sponsor deleted from Supabase.');
+    } catch (err: unknown) {
+      console.error('Delete sponsor error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to delete sponsor', msg);
+    }
   };
 
-  const toggleActive = (id: string) =>
-    setSponsors((prev) => prev.map((s) => (s.id === id ? { ...s, active: !s.active } : s)));
+  const toggleActive = async (id: string) => {
+    const target = sponsors.find((s) => s.id === id);
+    if (!target) return;
+    try {
+      await updateSponsor(id, { active: !target.active });
+      await loadData();
+      await refreshContent();
+    } catch (err: unknown) {
+      console.error('Toggle active error:', err);
+      addToast('error', 'Failed to update sponsor status', 'Database error.');
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

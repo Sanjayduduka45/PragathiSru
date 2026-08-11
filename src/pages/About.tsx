@@ -23,9 +23,10 @@ import {
   Clock,
   Send,
 } from 'lucide-react';
-import { EVENT_DETAILS } from '../utils/constants';
+import { useContent } from '../context/ContentContext';
 
 export const About: React.FC = () => {
+  const { eventSettings, aboutContent, rules } = useContent();
   const location = useLocation();
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export const About: React.FC = () => {
               className="inline-flex items-center gap-2 bg-blue-50 text-[#004182] border border-blue-100 px-4 py-1.5 rounded-full text-xs font-bold shadow-xs"
             >
               <GraduationCap className="w-4 h-4 text-[#004182]" />
-              <span>{EVENT_DETAILS.institution}, Warangal, Telangana</span>
+              <span>{eventSettings.institution}, {eventSettings.location}</span>
             </motion.div>
 
             <motion.h1
@@ -77,7 +78,7 @@ export const About: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-4xl sm:text-6xl font-extrabold text-[#004182] font-display uppercase tracking-tight"
             >
-              ABOUT PRAGATHI 2K26
+              {aboutContent.title || `ABOUT ${eventSettings.eventName}`}
             </motion.h1>
 
             <motion.p
@@ -86,7 +87,7 @@ export const About: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-lg sm:text-2xl text-slate-900 font-extrabold font-display"
             >
-              A National Level Project Expo • 09 October 2026
+              A National Level Project Expo • {eventSettings.eventDate}
             </motion.p>
 
             <motion.p
@@ -95,7 +96,7 @@ export const About: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="text-sm sm:text-base text-slate-500 font-medium italic"
             >
-              “{EVENT_DETAILS.tagline}”
+              “{eventSettings.tagline}”
             </motion.p>
           </div>
         </div>

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, RotateCcw, Phone } from 'lucide-react';
 import { EVENT_DETAILS } from '../../../utils/constants';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
+import { getEventSettings, updateEventSettings } from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
 interface ContactFormData {
   contactEmail: string;
@@ -23,6 +25,20 @@ export const ContactAdmin: React.FC = () => {
   const [form, setForm] = useState<ContactFormData>(INITIAL);
   const [saving, setSaving] = useState(false);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
+
+  useEffect(() => {
+    getEventSettings()
+      .then((s) => {
+        setForm({
+          contactEmail: s.contactEmail,
+          helpline: s.helpline,
+          institution: s.institution,
+          venue: s.venue,
+        });
+      })
+      .catch((err) => console.error('Failed to load contact settings:', err));
+  }, []);
 
   const set = (key: keyof ContactFormData) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -34,15 +50,22 @@ export const ContactAdmin: React.FC = () => {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    addToast(
-      isSupabaseConfigured ? 'success' : 'warning',
-      isSupabaseConfigured ? 'Contact details saved' : 'Changes not persisted',
-      isSupabaseConfigured
-        ? 'Contact information updated on the public website.'
-        : 'Supabase is not connected. Changes are local only.'
-    );
+    try {
+      await updateEventSettings({
+        contactEmail: form.contactEmail,
+        helpline: form.helpline,
+        institution: form.institution,
+        venue: form.venue,
+      });
+      await refreshContent();
+      addToast('success', 'Contact details saved', 'Changes saved to Supabase database.');
+    } catch (err: unknown) {
+      console.error('Save contact error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save contact details', msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

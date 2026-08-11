@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, RotateCcw, Building2 } from 'lucide-react';
 import { EVENT_DETAILS } from '../../../utils/constants';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
+import { getEventSettings, updateEventSettings } from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
 interface EventFormData {
   name: string;
@@ -62,7 +64,29 @@ const Field: React.FC<{
 export const EventDetailsAdmin: React.FC = () => {
   const [form, setForm] = useState<EventFormData>(INITIAL);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
+
+  useEffect(() => {
+    getEventSettings()
+      .then((s) => {
+        setForm({
+          name: s.eventName,
+          fullTitle: s.fullTitle,
+          tagline: s.tagline,
+          eventDate: s.eventDate,
+          venue: s.venue,
+          institution: s.institution,
+          location: s.location,
+          prizePool: s.prizePool,
+          contactEmail: s.contactEmail,
+          helpline: s.helpline,
+        });
+      })
+      .catch((err) => console.error('Failed to load event settings:', err))
+      .finally(() => setLoading(false));
+  }, []);
 
   const set = (key: keyof EventFormData) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -70,22 +94,47 @@ export const EventDetailsAdmin: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    if (!isSupabaseConfigured) {
-      addToast(
-        'warning',
-        'Changes not persisted',
-        'Supabase is not connected. Changes are local only and will be lost on page refresh.'
-      );
-    } else {
-      addToast('success', 'Event details saved', 'Changes will reflect on the public website.');
+    try {
+      await updateEventSettings({
+        eventName: form.name,
+        fullTitle: form.fullTitle,
+        tagline: form.tagline,
+        eventDate: form.eventDate,
+        venue: form.venue,
+        institution: form.institution,
+        location: form.location,
+        prizePool: form.prizePool,
+        contactEmail: form.contactEmail,
+        helpline: form.helpline,
+      });
+      await refreshContent();
+      addToast('success', 'Event details saved', 'Changes saved to Supabase database.');
+    } catch (err: unknown) {
+      console.error('Save event details error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save changes', msg);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleReset = () => {
-    setForm(INITIAL);
-    addToast('info', 'Reset to current values', 'All fields restored to their original values.');
+  const handleReset = async () => {
+    setLoading(true);
+    const s = await getEventSettings();
+    setForm({
+      name: s.eventName,
+      fullTitle: s.fullTitle,
+      tagline: s.tagline,
+      eventDate: s.eventDate,
+      venue: s.venue,
+      institution: s.institution,
+      location: s.location,
+      prizePool: s.prizePool,
+      contactEmail: s.contactEmail,
+      helpline: s.helpline,
+    });
+    setLoading(false);
+    addToast('info', 'Reset to current values', 'All fields restored to database values.');
   };
 
   return (

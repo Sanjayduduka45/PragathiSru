@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, RotateCcw, BookOpen } from 'lucide-react';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
+import { getRulesContent, updateRulesContent } from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
 const INITIAL_RULES = `PARTICIPATION RULES & GUIDELINES
 
@@ -43,6 +45,13 @@ export const RulesAdmin: React.FC = () => {
   const [content, setContent] = useState(INITIAL_RULES);
   const [saving, setSaving] = useState(false);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
+
+  useEffect(() => {
+    getRulesContent()
+      .then((res) => setContent(res))
+      .catch((err) => console.error('Failed to load rules:', err));
+  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,15 +60,17 @@ export const RulesAdmin: React.FC = () => {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    addToast(
-      isSupabaseConfigured ? 'success' : 'warning',
-      isSupabaseConfigured ? 'Rules saved' : 'Changes not persisted',
-      isSupabaseConfigured
-        ? 'Rules & Guidelines updated on the public website.'
-        : 'Supabase is not connected. Changes are local only.'
-    );
+    try {
+      await updateRulesContent(content);
+      await refreshContent();
+      addToast('success', 'Rules saved', 'Rules & Guidelines saved to Supabase database.');
+    } catch (err: unknown) {
+      console.error('Save rules error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save rules', msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

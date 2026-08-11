@@ -17,6 +17,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { PROJECT_CATEGORIES, FAQS } from '../../data/eventData';
 import { EVENT_DETAILS } from '../../utils/constants';
 import { StatCardSkeleton } from '../../components/admin/AdminSkeleton';
+import { getDomainCount, getFaqCount, getEventSettings, type SiteSettings, DEFAULT_SITE_SETTINGS } from '../../services/contentService';
 
 interface StatCardProps {
   label: string;
@@ -71,6 +72,9 @@ export const AdminDashboard: React.FC = () => {
     loading: true,
     error: false,
   });
+  const [domainCount, setDomainCount] = useState<number>(PROJECT_CATEGORIES.length);
+  const [faqCount, setFaqCount] = useState<number>(FAQS.length);
+  const [eventSettings, setEventSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
 
   const fetchStats = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
@@ -87,11 +91,13 @@ export const AdminDashboard: React.FC = () => {
     setRegStats((s) => ({ ...s, loading: true, error: false }));
 
     try {
-      // Execute all count queries in parallel simultaneously using Promise.all
-      const [totalRes, freeRes, paidRes] = await Promise.all([
+      const [totalRes, freeRes, paidRes, dCount, fCount, eSettings] = await Promise.all([
         supabase.from('registrations').select('*', { count: 'exact', head: true }),
         supabase.from('registrations').select('*', { count: 'exact', head: true }).eq('payment_status', 'not_required'),
         supabase.from('registrations').select('*', { count: 'exact', head: true }).eq('payment_status', 'paid'),
+        getDomainCount(),
+        getFaqCount(),
+        getEventSettings(),
       ]);
 
       if (totalRes.error || freeRes.error || paidRes.error) {
@@ -106,6 +112,9 @@ export const AdminDashboard: React.FC = () => {
         loading: false,
         error: false,
       });
+      setDomainCount(dCount);
+      setFaqCount(fCount);
+      setEventSettings(eSettings);
     } catch (err) {
       console.error('Failed to fetch admin dashboard stats:', err);
       setRegStats((s) => ({ ...s, loading: false, error: true }));
@@ -125,7 +134,7 @@ export const AdminDashboard: React.FC = () => {
           Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}
         </h2>
         <p className="text-sm text-slate-500">
-          PRAGATHI 2K26 Management Dashboard — {EVENT_DETAILS.eventDate}
+          {eventSettings.eventName} Management Dashboard — {eventSettings.eventDate}
         </p>
       </div>
 
@@ -195,14 +204,14 @@ export const AdminDashboard: React.FC = () => {
             )}
             <StatCard
               label="Project Domains"
-              value={PROJECT_CATEGORIES.length}
+              value={domainCount}
               icon={<Layers className="w-4.5 h-4.5 text-indigo-600" />}
               color="bg-indigo-50"
               linkTo="/admin/content/domains"
             />
             <StatCard
               label="Active FAQs"
-              value={FAQS.length}
+              value={faqCount}
               icon={<HelpCircle className="w-4.5 h-4.5 text-violet-600" />}
               color="bg-violet-50"
               linkTo="/admin/content/faqs"
@@ -268,10 +277,10 @@ export const AdminDashboard: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             {[
-              { label: 'Event Name', value: EVENT_DETAILS.name },
-              { label: 'Date', value: EVENT_DETAILS.eventDate },
-              { label: 'Prize Pool', value: EVENT_DETAILS.prizePool },
-              { label: 'Institution', value: EVENT_DETAILS.institution },
+              { label: 'Event Name', value: eventSettings.eventName },
+              { label: 'Date', value: eventSettings.eventDate },
+              { label: 'Prize Pool', value: eventSettings.prizePool },
+              { label: 'Institution', value: eventSettings.institution },
             ].map((item) => (
               <div key={item.label}>
                 <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">

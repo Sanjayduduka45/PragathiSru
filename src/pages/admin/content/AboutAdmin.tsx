@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, RotateCcw, Info } from 'lucide-react';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
+import { getAboutContent, updateAboutContent } from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
 interface AboutFormData {
   title: string;
@@ -48,6 +50,20 @@ export const AboutAdmin: React.FC = () => {
   const [form, setForm] = useState<AboutFormData>(INITIAL);
   const [saving, setSaving] = useState(false);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
+
+  useEffect(() => {
+    getAboutContent()
+      .then((a) => {
+        setForm({
+          title: a.title,
+          description: a.description,
+          vision: a.vision,
+          objectives: a.objectives,
+        });
+      })
+      .catch((err) => console.error('Failed to load about content:', err));
+  }, []);
 
   const set = (key: keyof AboutFormData) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -59,15 +75,17 @@ export const AboutAdmin: React.FC = () => {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    addToast(
-      isSupabaseConfigured ? 'success' : 'warning',
-      isSupabaseConfigured ? 'About section saved' : 'Changes not persisted',
-      isSupabaseConfigured
-        ? 'Changes will reflect on the public About page.'
-        : 'Supabase is not connected. Changes are local only.'
-    );
+    try {
+      await updateAboutContent(form);
+      await refreshContent();
+      addToast('success', 'About section saved', 'Changes saved to Supabase database.');
+    } catch (err: unknown) {
+      console.error('Save about content error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save changes', msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

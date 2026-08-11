@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
-import { Plus, Edit3, Trash2, HelpCircle, Save, ToggleLeft, ToggleRight, GripVertical } from 'lucide-react';
-import { FAQS, type FAQItem } from '../../../data/eventData';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Edit3, Trash2, HelpCircle, Save, ToggleLeft, ToggleRight } from 'lucide-react';
+import { FAQS } from '../../../data/eventData';
 import { Modal } from '../../../components/ui/Modal';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
+import {
+  getFaqs,
+  addFaq,
+  updateFaq,
+  deleteFaq,
+  type FAQEntry,
+} from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
-interface FAQEntry extends FAQItem {
-  active: boolean;
-  order: number;
-}
-
-const seed: FAQEntry[] = FAQS.map((f, i) => ({ ...f, active: true, order: i + 1 }));
+const seed: FAQEntry[] = FAQS.map((f, i) => ({
+  id: f.id,
+  question: f.question,
+  answer: f.answer,
+  category: f.category,
+  active: true,
+  order: i + 1,
+}));
 
 const EMPTY: Omit<FAQEntry, 'id'> = {
   question: '',
@@ -29,6 +39,20 @@ export const FAQsAdmin: React.FC = () => {
   const [form, setForm] = useState<Omit<FAQEntry, 'id'>>(EMPTY);
   const [saving, setSaving] = useState(false);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
+
+  const loadData = useCallback(async () => {
+    try {
+      const data = await getFaqs();
+      setFaqs(data);
+    } catch (err) {
+      console.error('Failed to fetch FAQs:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -38,7 +62,13 @@ export const FAQsAdmin: React.FC = () => {
 
   const openEdit = (f: FAQEntry) => {
     setEditingId(f.id);
-    setForm({ question: f.question, answer: f.answer, category: f.category, active: f.active, order: f.order });
+    setForm({
+      question: f.question,
+      answer: f.answer,
+      category: f.category,
+      active: f.active,
+      order: f.order,
+    });
     setModalOpen(true);
   };
 
@@ -48,51 +78,84 @@ export const FAQsAdmin: React.FC = () => {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-    if (editingId) {
-      setFaqs((prev) => prev.map((f) => (f.id === editingId ? { ...f, ...form } : f)));
-    } else {
-      setFaqs((prev) => [...prev, { id: `faq-${Date.now()}`, ...form }]);
+    try {
+      if (editingId) {
+        await updateFaq(editingId, form);
+        addToast('success', 'FAQ updated', 'Saved to Supabase database.');
+      } else {
+        await addFaq(form);
+        addToast('success', 'FAQ added', 'New FAQ saved to Supabase database.');
+      }
+      await loadData();
+      await refreshContent();
+      setModalOpen(false);
+    } catch (err: unknown) {
+      console.error('Save FAQ error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save FAQ', msg);
+    } finally {
+      setSaving(false);
     }
-    addToast(
-      isSupabaseConfigured ? 'success' : 'warning',
-      editingId ? 'FAQ updated' : 'FAQ added',
-      isSupabaseConfigured ? undefined : 'Local only — DB not connected.'
-    );
-    setModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setFaqs((prev) => prev.filter((f) => f.id !== id));
-    setDeleteTarget(null);
-    addToast('info', 'FAQ removed', 'The FAQ item has been deleted.');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteFaq(id);
+      await loadData();
+      await refreshContent();
+      setDeleteTarget(null);
+      addToast('info', 'FAQ removed', 'FAQ deleted from Supabase.');
+    } catch (err: unknown) {
+      console.error('Delete FAQ error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to delete FAQ', msg);
+    }
   };
 
-  const toggleActive = (id: string) =>
-    setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, active: !f.active } : f)));
-
-  const moveUp = (id: string) => {
-    setFaqs((prev) => {
-      const idx = prev.findIndex((f) => f.id === id);
-      if (idx <= 0) return prev;
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next.map((f, i) => ({ ...f, order: i + 1 }));
-    });
+  const toggleActive = async (id: string) => {
+    const target = faqs.find((f) => f.id === id);
+    if (!target) return;
+    try {
+      await updateFaq(id, { active: !target.active });
+      await loadData();
+      await refreshContent();
+    } catch (err: unknown) {
+      console.error('Toggle active error:', err);
+      addToast('error', 'Failed to update FAQ status', 'Database error.');
+    }
   };
 
-  const moveDown = (id: string) => {
-    setFaqs((prev) => {
-      const idx = prev.findIndex((f) => f.id === id);
-      if (idx < 0 || idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      return next.map((f, i) => ({ ...f, order: i + 1 }));
-    });
+  const moveUp = async (id: string) => {
+    const idx = faqs.findIndex((f) => f.id === id);
+    if (idx <= 0) return;
+    const current = faqs[idx];
+    const prev = faqs[idx - 1];
+    try {
+      await updateFaq(current.id, { order: prev.order });
+      await updateFaq(prev.id, { order: current.order });
+      await loadData();
+      await refreshContent();
+    } catch (err) {
+      console.error('Move up error:', err);
+    }
   };
 
-  const categories: FAQItem['category'][] = ['Registration', 'General', 'Expo Rules'];
+  const moveDown = async (id: string) => {
+    const idx = faqs.findIndex((f) => f.id === id);
+    if (idx < 0 || idx >= faqs.length - 1) return;
+    const current = faqs[idx];
+    const next = faqs[idx + 1];
+    try {
+      await updateFaq(current.id, { order: next.order });
+      await updateFaq(next.id, { order: current.order });
+      await loadData();
+      await refreshContent();
+    } catch (err) {
+      console.error('Move down error:', err);
+    }
+  };
+
+  const categories = ['Registration', 'General', 'Expo Rules'];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

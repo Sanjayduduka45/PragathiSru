@@ -1,20 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit3, Trash2, Clock, Save, ToggleLeft, ToggleRight } from 'lucide-react';
-import { SCHEDULE_PREVIEW, type ScheduleItem } from '../../../data/eventData';
+import { SCHEDULE_PREVIEW } from '../../../data/eventData';
 import { Modal } from '../../../components/ui/Modal';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
-
-interface ScheduleEntry extends ScheduleItem {
-  id: string;
-  active: boolean;
-}
+import {
+  getScheduleItems,
+  addScheduleItem,
+  updateScheduleItem,
+  deleteScheduleItem,
+  type ScheduleEntry,
+} from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
 const seed: ScheduleEntry[] = SCHEDULE_PREVIEW.map((s, i) => ({
-  ...s,
   id: `sch-${i}`,
+  time: s.time,
+  event: s.event,
+  location: s.location,
+  description: s.description,
+  badge: s.badge,
   active: true,
+  displayOrder: i + 1,
 }));
 
 const EMPTY: Omit<ScheduleEntry, 'id'> = {
@@ -24,6 +32,7 @@ const EMPTY: Omit<ScheduleEntry, 'id'> = {
   description: '',
   badge: '',
   active: true,
+  displayOrder: 0,
 };
 
 export const ScheduleAdmin: React.FC = () => {
@@ -34,11 +43,38 @@ export const ScheduleAdmin: React.FC = () => {
   const [form, setForm] = useState<Omit<ScheduleEntry, 'id'>>(EMPTY);
   const [saving, setSaving] = useState(false);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
 
-  const openAdd = () => { setEditingId(null); setForm(EMPTY); setModalOpen(true); };
+  const loadData = useCallback(async () => {
+    try {
+      const data = await getScheduleItems();
+      setItems(data);
+    } catch (err) {
+      console.error('Failed to fetch schedule items:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm({ ...EMPTY, displayOrder: items.length + 1 });
+    setModalOpen(true);
+  };
+
   const openEdit = (s: ScheduleEntry) => {
     setEditingId(s.id);
-    setForm({ time: s.time, event: s.event, location: s.location, description: s.description, badge: s.badge, active: s.active });
+    setForm({
+      time: s.time,
+      event: s.event,
+      location: s.location,
+      description: s.description,
+      badge: s.badge,
+      active: s.active,
+      displayOrder: s.displayOrder,
+    });
     setModalOpen(true);
   };
 
@@ -48,26 +84,54 @@ export const ScheduleAdmin: React.FC = () => {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-    if (editingId) {
-      setItems((prev) => prev.map((s) => (s.id === editingId ? { ...s, ...form } : s)));
-    } else {
-      setItems((prev) => [...prev, { id: `sch-${Date.now()}`, ...form }]);
+    try {
+      if (editingId) {
+        await updateScheduleItem(editingId, form);
+        addToast('success', 'Schedule item updated', 'Saved to Supabase database.');
+      } else {
+        await addScheduleItem(form);
+        addToast('success', 'Schedule item added', 'New item saved to Supabase database.');
+      }
+      await loadData();
+      await refreshContent();
+      setModalOpen(false);
+    } catch (err: unknown) {
+      console.error('Save schedule item error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save item', msg);
+    } finally {
+      setSaving(false);
     }
-    addToast(isSupabaseConfigured ? 'success' : 'warning', editingId ? 'Schedule item updated' : 'Schedule item added', isSupabaseConfigured ? undefined : 'Local only — DB not connected.');
-    setModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setItems((prev) => prev.filter((s) => s.id !== id));
-    setDeleteTarget(null);
-    addToast('info', 'Item removed', 'Schedule item deleted.');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteScheduleItem(id);
+      await loadData();
+      await refreshContent();
+      setDeleteTarget(null);
+      addToast('info', 'Item removed', 'Schedule item deleted from Supabase.');
+    } catch (err: unknown) {
+      console.error('Delete schedule item error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to delete item', msg);
+    }
   };
 
-  const toggleActive = (id: string) => setItems((prev) => prev.map((s) => (s.id === id ? { ...s, active: !s.active } : s)));
+  const toggleActive = async (id: string) => {
+    const target = items.find((s) => s.id === id);
+    if (!target) return;
+    try {
+      await updateScheduleItem(id, { active: !target.active });
+      await loadData();
+      await refreshContent();
+    } catch (err: unknown) {
+      console.error('Toggle active error:', err);
+      addToast('error', 'Failed to update schedule status', 'Database error.');
+    }
+  };
 
-  const setF = (key: keyof Omit<ScheduleEntry, 'id'>) => (value: string | boolean) =>
+  const setF = (key: keyof Omit<ScheduleEntry, 'id'>) => (value: string | boolean | number) =>
     setForm((f) => ({ ...f, [key]: value }));
 
   return (

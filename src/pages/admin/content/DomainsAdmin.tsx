@@ -1,16 +1,29 @@
-import React, { useState } from 'react';
-import { Plus, Edit3, Trash2, Layers, X, Save, ToggleLeft, ToggleRight } from 'lucide-react';
-import { PROJECT_CATEGORIES, type ProjectCategory } from '../../../data/eventData';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Edit3, Trash2, Layers, Save, ToggleLeft, ToggleRight } from 'lucide-react';
+import { PROJECT_CATEGORIES } from '../../../data/eventData';
 import { Modal } from '../../../components/ui/Modal';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
+import {
+  getDomains,
+  addDomain,
+  updateDomain,
+  deleteDomain,
+  type DomainItem,
+} from '../../../services/contentService';
+import { useContent } from '../../../context/ContentContext';
 
-interface DomainItem extends ProjectCategory {
-  active: boolean;
-}
-
-const seed: DomainItem[] = PROJECT_CATEGORIES.map((c) => ({ ...c, active: true }));
+const seed: DomainItem[] = PROJECT_CATEGORIES.map((c, i) => ({
+  id: c.id,
+  title: c.title,
+  description: c.description,
+  iconName: c.iconName,
+  color: c.color,
+  badgeText: c.badgeText,
+  active: true,
+  displayOrder: i + 1,
+}));
 
 const EMPTY_DOMAIN: Omit<DomainItem, 'id'> = {
   title: '',
@@ -19,6 +32,7 @@ const EMPTY_DOMAIN: Omit<DomainItem, 'id'> = {
   color: 'from-blue-600 to-indigo-600',
   badgeText: '',
   active: true,
+  displayOrder: 0,
 };
 
 export const DomainsAdmin: React.FC = () => {
@@ -28,17 +42,43 @@ export const DomainsAdmin: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<DomainItem, 'id'>>(EMPTY_DOMAIN);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toasts, addToast, dismissToast } = useAdminToast();
+  const { refreshContent } = useContent();
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getDomains();
+      setDomains(data);
+    } catch (err) {
+      console.error('Failed to fetch domains:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const openAdd = () => {
     setEditingId(null);
-    setForm(EMPTY_DOMAIN);
+    setForm({ ...EMPTY_DOMAIN, displayOrder: domains.length + 1 });
     setModalOpen(true);
   };
 
   const openEdit = (d: DomainItem) => {
     setEditingId(d.id);
-    setForm({ title: d.title, description: d.description, iconName: d.iconName, color: d.color, badgeText: d.badgeText, active: d.active });
+    setForm({
+      title: d.title,
+      description: d.description,
+      iconName: d.iconName,
+      color: d.color,
+      badgeText: d.badgeText,
+      active: d.active,
+      displayOrder: d.displayOrder,
+    });
     setModalOpen(true);
   };
 
@@ -48,28 +88,51 @@ export const DomainsAdmin: React.FC = () => {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-
-    if (editingId) {
-      setDomains((prev) => prev.map((d) => (d.id === editingId ? { ...d, ...form } : d)));
-      addToast(isSupabaseConfigured ? 'success' : 'warning', 'Domain updated', isSupabaseConfigured ? 'Saved to database.' : 'Local only — DB not connected.');
-    } else {
-      const newDomain: DomainItem = { id: `domain-${Date.now()}`, ...form };
-      setDomains((prev) => [...prev, newDomain]);
-      addToast(isSupabaseConfigured ? 'success' : 'warning', 'Domain added', isSupabaseConfigured ? 'Saved to database.' : 'Local only — DB not connected.');
+    try {
+      if (editingId) {
+        await updateDomain(editingId, form);
+        addToast('success', 'Domain updated', 'Changes saved to Supabase database.');
+      } else {
+        await addDomain(form);
+        addToast('success', 'Domain added', 'New domain saved to Supabase database.');
+      }
+      await loadData();
+      await refreshContent();
+      setModalOpen(false);
+    } catch (err: unknown) {
+      console.error('Save domain error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to save domain', msg);
+    } finally {
+      setSaving(false);
     }
-    setModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setDomains((prev) => prev.filter((d) => d.id !== id));
-    setDeleteTarget(null);
-    addToast('info', 'Domain removed', 'The domain has been deleted.');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDomain(id);
+      await loadData();
+      await refreshContent();
+      setDeleteTarget(null);
+      addToast('info', 'Domain removed', 'The domain has been deleted from Supabase.');
+    } catch (err: unknown) {
+      console.error('Delete domain error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to delete domain', msg);
+    }
   };
 
-  const toggleActive = (id: string) => {
-    setDomains((prev) => prev.map((d) => (d.id === id ? { ...d, active: !d.active } : d)));
+  const toggleActive = async (id: string) => {
+    const target = domains.find((d) => d.id === id);
+    if (!target) return;
+    try {
+      await updateDomain(id, { active: !target.active });
+      await loadData();
+      await refreshContent();
+    } catch (err: unknown) {
+      console.error('Toggle active error:', err);
+      addToast('error', 'Failed to update domain status', 'Database error.');
+    }
   };
 
   return (

@@ -38,10 +38,17 @@ import {
 } from '../data/eventData';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { HeroVisual } from '../components/HeroVisual';
+import { useContent } from '../context/ContentContext';
 
 export const Home: React.FC = () => {
-  const [openFaqId, setOpenFaqId] = useState<string | null>('faq-1');
+  const { eventSettings, domains, schedule, faqs, sponsors } = useContent();
+  const [openFaqId, setOpenFaqId] = useState<string | null>(faqs[0]?.id || 'faq-1');
   const location = useLocation();
+
+  const activeDomains = domains.filter((d) => d.active);
+  const activeSchedule = schedule.filter((s) => s.active);
+  const activeFaqs = faqs.filter((f) => f.active);
+  const activeSponsors = sponsors.filter((sp) => sp.active);
 
   // Scroll to anchor on load or hash change
   useEffect(() => {
@@ -100,7 +107,7 @@ export const Home: React.FC = () => {
                 className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-100 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-xs"
               >
                 <GraduationCap className="w-4 h-4 text-[#004182]" />
-                <span>{EVENT_DETAILS.institution}, Warangal, Telangana</span>
+                <span>{eventSettings.institution}, {eventSettings.location}</span>
               </motion.div>
 
               {/* Title & Tagline */}
@@ -111,13 +118,13 @@ export const Home: React.FC = () => {
                 className="space-y-3"
               >
                 <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-[#004182] font-display tracking-tight leading-none uppercase">
-                  PRAGATHI 2K26
+                  {eventSettings.eventName}
                 </h1>
                 <p className="text-xl sm:text-3xl font-extrabold text-slate-900 font-display">
                   A National Level Project Expo
                 </p>
                 <p className="text-base sm:text-xl text-slate-500 font-medium italic">
-                  “{EVENT_DETAILS.tagline}”
+                  “{eventSettings.tagline}”
                 </p>
               </motion.div>
 
@@ -130,11 +137,11 @@ export const Home: React.FC = () => {
               >
                 <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200">
                   <Calendar className="w-4 h-4 text-[#004182]" />
-                  <span>{EVENT_DETAILS.eventDate}</span>
+                  <span>{eventSettings.eventDate}</span>
                 </div>
                 <div className="flex items-center gap-2 bg-[#004182] text-white px-3.5 py-2 rounded-full shadow-md">
                   <Award className="w-4 h-4 text-amber-300" />
-                  <span>Prize Pool: <strong className="text-amber-300">{EVENT_DETAILS.prizePool}</strong></span>
+                  <span>Prize Pool: <strong className="text-amber-300">{eventSettings.prizePool}</strong></span>
                 </div>
                 <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200">
                   <MapPin className="w-4 h-4 text-[#004182]" />
@@ -200,13 +207,13 @@ export const Home: React.FC = () => {
               <Trophy className="w-5 h-5 text-amber-600" />
             </div>
             <div className="text-3xl font-extrabold text-[#004182] font-display mb-1">
-              ₹1,50,000
+              {eventSettings.prizePool}
             </div>
             <h3 className="text-base font-bold text-slate-900 mb-1">
               Prize Pool
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Grand cash awards for top teams across all six innovation tracks.
+              Grand cash awards for top teams across all innovation tracks.
             </p>
           </div>
 
@@ -245,13 +252,13 @@ export const Home: React.FC = () => {
               <Calendar className="w-5 h-5 text-indigo-600" />
             </div>
             <div className="text-3xl font-extrabold text-[#004182] font-display mb-1">
-              09 Oct 2026
+              {eventSettings.eventDate}
             </div>
             <h3 className="text-base font-bold text-slate-900 mb-1">
               Expo Day
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Live working model demonstration & judging at SR University campus.
+              Live working model demonstration & judging at {eventSettings.institution} campus.
             </p>
           </div>
         </div>
@@ -267,10 +274,10 @@ export const Home: React.FC = () => {
               <span>About The Expo</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#004182] font-display uppercase leading-tight">
-              About PRAGATHI 2K26
+              About {eventSettings.eventName}
             </h2>
             <p className="text-slate-700 text-sm sm:text-base leading-relaxed">
-              <strong>PRAGATHI 2K26</strong> is SR University’s flagship National Level Project Expo, designed to ignite youth innovation, foster interdisciplinary engineering solutions, and provide a stage for high-impact prototypes.
+              <strong>{eventSettings.eventName}</strong> is {eventSettings.institution}’s flagship National Level Project Expo, designed to ignite youth innovation, foster interdisciplinary engineering solutions, and provide a stage for high-impact prototypes.
             </p>
             <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
               Over 500 student teams from across India showcase hardware models, software applications, renewable energy solutions, and biotech inventions evaluated by senior academicians, scientists, and incubation mentors from the <strong>SRiX (SR Innovation Exchange)</strong> ecosystem.
@@ -310,17 +317,17 @@ export const Home: React.FC = () => {
             </h3>
             <div className="space-y-3 text-xs text-slate-600">
               <p className="font-semibold text-slate-900">
-                SR University Campus, Warangal
+                {eventSettings.institution} Campus, {eventSettings.location}
               </p>
               <p>
-                Ananthasagar, Hasanparthy, Warangal, Telangana - 506371
+                {eventSettings.venue}
               </p>
               <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100 text-[#004182] font-semibold flex items-center justify-between">
                 <span>Helpline / Query Cell:</span>
-                <span className="font-mono">{EVENT_DETAILS.helpline}</span>
+                <span className="font-mono">{eventSettings.helpline}</span>
               </div>
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600 text-[11px]">
-                Support Email: <strong className="text-slate-900">{EVENT_DETAILS.contactEmail}</strong>
+                Support Email: <strong className="text-slate-900">{eventSettings.contactEmail}</strong>
               </div>
             </div>
           </div>
@@ -400,7 +407,7 @@ export const Home: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {PROJECT_CATEGORIES.map((cat) => (
+          {activeDomains.map((cat) => (
             <div
               key={cat.id}
               className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
@@ -488,19 +495,19 @@ export const Home: React.FC = () => {
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
             <Clock className="w-3.5 h-3.5" />
-            <span>09 October 2026 Timetable</span>
+            <span>{eventSettings.eventDate} Timetable</span>
           </div>
           <h2 className="text-3xl font-extrabold text-[#004182] font-display uppercase">
             Expo Day Schedule
           </h2>
           <p className="text-sm text-slate-500">
-            Agenda for registered participants on October 09 at SR University campus
+            Agenda for registered participants on {eventSettings.eventDate} at {eventSettings.institution} campus
           </p>
         </div>
 
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
-          {SCHEDULE_PREVIEW.map((item, idx) => (
-            <div key={idx} className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors">
+          {activeSchedule.map((item, idx) => (
+            <div key={item.id || idx} className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors">
               <div className="md:w-1/4 shrink-0 space-y-1">
                 <span className="text-xs font-bold text-[#004182] bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 inline-block font-mono">
                   {item.time}
@@ -540,18 +547,18 @@ export const Home: React.FC = () => {
               Supported By Leading Ecosystems
             </h2>
             <p className="text-xs sm:text-sm text-slate-500">
-              Mentorship, technical standards, and incubation backed by SR University bodies
+              Mentorship, technical standards, and incubation backed by {eventSettings.institution} bodies
             </p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {SPONSORS_PARTNERS.map((partner, idx) => (
+            {activeSponsors.map((partner, idx) => (
               <div
-                key={idx}
+                key={partner.id || idx}
                 className="bg-white rounded-2xl p-6 border border-slate-200 text-center space-y-2 shadow-xs hover:border-blue-300 transition-all"
               >
                 <div className="w-14 h-14 mx-auto rounded-xl bg-blue-50 border border-blue-100 text-[#004182] font-extrabold font-display text-lg flex items-center justify-center">
-                  {partner.logoText}
+                  {partner.logoText || partner.name.substring(0, 2).toUpperCase()}
                 </div>
                 <h3 className="text-sm font-bold text-slate-900 leading-snug">
                   {partner.name}
@@ -584,7 +591,7 @@ export const Home: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          {FAQS.map((faq) => {
+          {activeFaqs.map((faq) => {
             const isOpen = openFaqId === faq.id;
             return (
               <div

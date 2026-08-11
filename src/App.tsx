@@ -9,6 +9,7 @@ import { ComingSoon } from './pages/ComingSoon';
 import { DesignSystemShowcase } from './components/ui/DesignSystemShowcase';
 
 import { AdminAuthProvider } from './context/AdminAuthContext';
+import { ContentProvider } from './context/ContentContext';
 import { ProtectedAdminRoute } from './pages/admin/ProtectedAdminRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminPageSkeleton, AuthLoadingScreen } from './components/admin/AdminSkeleton';
@@ -30,7 +31,8 @@ const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon')
 export default function App() {
   return (
     <AdminAuthProvider>
-      <BrowserRouter>
+      <ContentProvider>
+        <BrowserRouter>
         <Routes>
           {/* Public Routes wrapped in MainLayout */}
           <Route
@@ -94,6 +96,7 @@ export default function App() {
           />
         </Routes>
       </BrowserRouter>
-    </AdminAuthProvider>
-  );
+    </ContentProvider>
+  </AdminAuthProvider>
+);
 }
