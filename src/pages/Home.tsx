@@ -1181,67 +1181,6 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* IMPORTANT DATES / TIMELINE */}
-      <section className="bg-slate-50/80 py-16 border-y border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-white px-3 py-1 rounded-full border border-slate-200">
-              <Clock className="w-3.5 h-3.5 text-[#004182]" />
-              <span>Timeline</span>
-            </div>
-
-            <h2 className="text-3xl font-extrabold text-[#004182] font-display uppercase">
-              Important Event Dates
-            </h2>
-
-            <p className="text-sm text-slate-500">
-              Mark your calendar for key registration milestones and expo day
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-            {IMPORTANT_DATES.map((item, idx) => (
-              <div
-                key={idx}
-                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs relative flex flex-col justify-between"
-              >
-                <div className="space-y-3">
-
-                  <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#004182] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-                    <Calendar className="w-3 h-3 text-[#004182]" />
-                    <span>{item.date}</span>
-                  </div>
-
-                  <h3 className="text-base font-bold text-slate-900 leading-snug">
-                    {item.title}
-                  </h3>
-
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    {item.subtitle}
-                  </p>
-
-                </div>
-
-                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-400">
-                  <span>Step {idx + 1} of 4</span>
-
-                  {item.status === 'active' ? (
-                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">
-                      Active Now
-                    </span>
-                  ) : (
-                    <span>Upcoming</span>
-                  )}
-                </div>
-              </div>
-            ))}
-
-          </div>
-        </div>
-      </section>
-
       {/* SCHEDULE PREVIEW */}
       <section
         id="schedule"
