@@ -12,8 +12,8 @@ class TeamMember(BaseModel):
 
 class ProjectInfo(BaseModel):
     id: Optional[str] = None
-    title: str
-    category: str
+    title: str = "Untitled Project"
+    category: str = "General"
     problem_statement: Optional[str] = None
 
 class RegistrationItem(BaseModel):

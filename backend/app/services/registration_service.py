@@ -20,12 +20,31 @@ class RegistrationService:
 
         result: List[RegistrationItem] = []
         for r in regs:
-            tm_list = [TeamMember(**m) for m in r.get("team_members", [])] if r.get("team_members") else []
-            proj_list = [ProjectInfo(**p) for p in r.get("projects", [])] if r.get("projects") else []
+            tm_list = []
+            if r.get("team_members"):
+                for m in r.get("team_members", []):
+                    if isinstance(m, dict):
+                        try:
+                            tm_list.append(TeamMember(**m))
+                        except Exception as e:
+                            print(f"[RegistrationService] Skipping invalid team_member dict: {e}")
+                    elif isinstance(m, str):
+                        tm_list.append(TeamMember(id=m, name=m, email=""))
+
+            proj_list = []
+            if r.get("projects"):
+                for p in r.get("projects", []):
+                    if isinstance(p, dict):
+                        try:
+                            proj_list.append(ProjectInfo(**p))
+                        except Exception as e:
+                            print(f"[RegistrationService] Skipping invalid project dict: {e}")
+                    elif isinstance(p, str):
+                        proj_list.append(ProjectInfo(id=p, title=p, category="General"))
             
             item = RegistrationItem(
                 id=r.get("id"),
-                registration_id=r.get("registration_id", f"PRAGATHI26-{r.get('id')[:6]}"),
+                registration_id=r.get("registration_id", f"PRAGATHI26-{str(r.get('id', ''))[:6]}"),
                 team_name=r.get("team_name", "Untitled Team"),
                 participant_type=r.get("participant_type", "external_student"),
                 team_size=r.get("team_size", 1),
@@ -73,11 +92,15 @@ class RegistrationService:
     async def delete_registration(reg_id: str) -> bool:
         print(f"[RegistrationService] DELETE request received for reg_id={reg_id}")
         target_uuid = None
-        all_regs = await RegistrationService.get_registrations()
-        for r in all_regs:
-            if r.registration_id == reg_id or r.id == reg_id:
-                target_uuid = r.id
-                break
+
+        if reg_id and len(reg_id) == 36 and "-" in reg_id:
+            target_uuid = reg_id
+        else:
+            all_regs = await RegistrationService.get_registrations()
+            for r in all_regs:
+                if r.registration_id == reg_id or r.id == reg_id:
+                    target_uuid = r.id
+                    break
 
         if target_uuid is None:
             print(f"[RegistrationService] Record not found for reg_id={reg_id}")
@@ -97,9 +120,9 @@ class RegistrationService:
         if not success:
             return False
 
-        # Real verification - query DB to confirm 0 rows remain
-        check_reg = await RegistrationService.get_registration(target_uuid)
-        if check_reg is not None:
+        # Real verification - query DB directly to confirm 0 rows remain
+        raw_check = await db.fetch_supabase("registrations", f"id=eq.{target_uuid}")
+        if raw_check and len(raw_check) > 0:
             print(f"[RegistrationService] Post-delete verification failed: record {target_uuid} still exists.")
             return False
 
