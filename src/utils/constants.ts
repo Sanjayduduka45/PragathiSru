@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Schedule', path: '/#schedule' },
   { label: 'Rules', path: '/about#rules' },
   { label: 'FAQs', path: '/#faq' },
+  { label: 'Testimonials', path: '/testimonials' },
   { label: 'Contact', path: '/contact' },
 ];
 
