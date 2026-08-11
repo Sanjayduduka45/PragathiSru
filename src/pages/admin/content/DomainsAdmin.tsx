@@ -24,7 +24,7 @@ const EMPTY_DOMAIN: Omit<DomainItem, 'id'> = {
 export const DomainsAdmin: React.FC = () => {
   const [domains, setDomains] = useState<DomainItem[]>(seed);
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DomainItem | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<DomainItem, 'id'>>(EMPTY_DOMAIN);
   const [saving, setSaving] = useState(false);
@@ -64,7 +64,7 @@ export const DomainsAdmin: React.FC = () => {
 
   const handleDelete = (id: string) => {
     setDomains((prev) => prev.filter((d) => d.id !== id));
-    setDeleteId(null);
+    setDeleteTarget(null);
     addToast('info', 'Domain removed', 'The domain has been deleted.');
   };
 
@@ -143,7 +143,7 @@ export const DomainsAdmin: React.FC = () => {
                       <button onClick={() => openEdit(d)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#004182] transition-colors cursor-pointer">
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => setDeleteId(d.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer">
+                      <button onClick={() => setDeleteTarget(d)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -197,20 +197,29 @@ export const DomainsAdmin: React.FC = () => {
 
       {/* Delete Confirm Modal */}
       <Modal
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        title="Delete Domain"
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Domain?"
         maxWidth="sm"
         footer={
           <>
-            <button onClick={() => setDeleteId(null)} className="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer">Cancel</button>
-            <button onClick={() => deleteId && handleDelete(deleteId)} className="px-5 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer">Delete</button>
+            <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer">Cancel</button>
+            <button onClick={() => deleteTarget && handleDelete(deleteTarget.id)} className="px-5 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer">Delete</button>
           </>
         }
       >
-        <p className="text-sm text-slate-700">
-          Are you sure you want to delete this domain? This action cannot be undone.
-        </p>
+        {deleteTarget && (
+          <div className="space-y-3">
+            <div className="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-0.5">Domain to delete</p>
+              <p className="text-sm font-bold text-slate-900">{deleteTarget.title}</p>
+              {deleteTarget.badgeText && (
+                <span className="text-[10px] font-bold bg-blue-50 text-[#004182] border border-blue-100 px-2 py-0.5 rounded-full mt-1 inline-block">{deleteTarget.badgeText}</span>
+              )}
+            </div>
+            <p className="text-xs text-slate-600">This action cannot be undone. The domain will be permanently removed.</p>
+          </div>
+        )}
       </Modal>
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

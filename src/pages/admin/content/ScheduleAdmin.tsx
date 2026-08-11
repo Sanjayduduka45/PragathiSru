@@ -29,7 +29,7 @@ const EMPTY: Omit<ScheduleEntry, 'id'> = {
 export const ScheduleAdmin: React.FC = () => {
   const [items, setItems] = useState<ScheduleEntry[]>(seed);
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ScheduleEntry | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<ScheduleEntry, 'id'>>(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -61,7 +61,7 @@ export const ScheduleAdmin: React.FC = () => {
 
   const handleDelete = (id: string) => {
     setItems((prev) => prev.filter((s) => s.id !== id));
-    setDeleteId(null);
+    setDeleteTarget(null);
     addToast('info', 'Item removed', 'Schedule item deleted.');
   };
 
@@ -122,7 +122,7 @@ export const ScheduleAdmin: React.FC = () => {
                 <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#004182] transition-colors cursor-pointer">
                   <Edit3 className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer">
+                <button onClick={() => setDeleteTarget(s)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -167,15 +167,24 @@ export const ScheduleAdmin: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Delete Schedule Item" maxWidth="sm"
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Schedule Item?" maxWidth="sm"
         footer={
           <>
-            <button onClick={() => setDeleteId(null)} className="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer">Cancel</button>
-            <button onClick={() => deleteId && handleDelete(deleteId)} className="px-5 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer">Delete</button>
+            <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer">Cancel</button>
+            <button onClick={() => deleteTarget && handleDelete(deleteTarget.id)} className="px-5 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm cursor-pointer">Delete</button>
           </>
         }
       >
-        <p className="text-sm text-slate-700">Are you sure you want to delete this schedule item? This cannot be undone.</p>
+        {deleteTarget && (
+          <div className="space-y-3">
+            <div className="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-0.5">Schedule item to delete</p>
+              <p className="text-sm font-bold text-slate-900">{deleteTarget.event}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{deleteTarget.time}{deleteTarget.location ? ` — ${deleteTarget.location}` : ''}</p>
+            </div>
+            <p className="text-xs text-slate-600">This action cannot be undone.</p>
+          </div>
+        )}
       </Modal>
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

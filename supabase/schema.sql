@@ -112,3 +112,27 @@ CREATE POLICY "Allow public select student_verifications" ON public.student_veri
 
 CREATE POLICY "Allow public insert to payments" ON public.payments FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public select payments" ON public.payments FOR SELECT USING (true);
+
+-- ADMIN RLS POLICIES (run these in Supabase SQL editor to enable Edit & Delete for the authenticated admin)
+-- These allow authenticated Supabase Auth users (i.e. the admin) to UPDATE and DELETE records.
+
+CREATE POLICY "Allow authenticated update registrations" ON public.registrations
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated delete registrations" ON public.registrations
+  FOR DELETE TO authenticated USING (true);
+
+CREATE POLICY "Allow authenticated update team_members" ON public.team_members
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated delete team_members" ON public.team_members
+  FOR DELETE TO authenticated USING (true);
+
+CREATE POLICY "Allow authenticated update projects" ON public.projects
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated delete projects" ON public.projects
+  FOR DELETE TO authenticated USING (true);
+
+CREATE POLICY "Allow authenticated delete payments" ON public.payments
+  FOR DELETE TO authenticated USING (true);
