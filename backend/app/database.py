@@ -352,4 +352,34 @@ class Database:
             print(f"[Supabase] Insert error on {table}: {e}")
         return None
 
+    async def upload_supabase_storage(self, bucket: str, path: str, content: bytes, content_type: str) -> Optional[str]:
+        if not settings.supabase_url or not settings.supabase_key:
+            return None
+        bucket_url = f"{settings.supabase_url}/storage/v1/bucket"
+        upload_url = f"{settings.supabase_url}/storage/v1/object/{bucket}/{path}"
+        headers = {
+            "apikey": settings.supabase_key,
+            "Authorization": f"Bearer {settings.supabase_key}",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                await client.post(
+                    bucket_url,
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={"id": bucket, "name": bucket, "public": True}
+                )
+                file_headers = {
+                    **headers,
+                    "Content-Type": content_type,
+                    "x-upsert": "true"
+                }
+                res = await client.post(upload_url, headers=file_headers, content=content)
+                if res.status_code in (200, 201):
+                    return f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
+                else:
+                    print(f"[Supabase Storage] Status {res.status_code}: {res.text}")
+        except Exception as e:
+            print(f"[Supabase Storage] Error uploading: {e}")
+        return None
+
 db = Database()

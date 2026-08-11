@@ -919,51 +919,115 @@ export async function getFaqCount(): Promise<number> {
 
 // ─── TESTIMONIALS / SHOWCASE ──────────────────────────────────────────────────
 
+export interface TestimonialEntry {
+  id: string;
+  title: string;
+  description: string;
+  personName?: string;
+  designation: string;
+  eventName: string;
+  eventYear: string;
+  imageUrl: string;
+  imageAlt: string;
+  imageAspectRatio: string;
+  imagePosition: string;
+  mediaType?: 'image' | 'video';
+  mediaUrl?: string;
+  thumbnailUrl?: string;
+  active: boolean;
+  order: number;
+}
+
 export const DEFAULT_TESTIMONIALS_FALLBACK: TestimonialEntry[] = [
   {
     id: 'testim-1',
-    title: 'PRAGATHI 2K25 — Project Expo Showcase',
-    description: 'PRAGATHI gave our team the platform to present our AI Agriculture sensor prototype to industry mentors. The feedback helped us convert our project into a patent-pending startup!',
-    personName: 'Ananya Rao',
-    designation: 'Team Lead, AgriSense IoT',
+    title: 'Robotics & Autonomous Navigation Prototype',
+    description: 'Student researchers presenting an autonomous obstacle-avoiding mobile robot equipped with LiDAR and real-time computer vision hardware at the PRAGATHI National Expo.',
+    personName: '',
+    designation: 'Robotics & Automation Track',
     eventName: 'PRAGATHI 2K25',
     eventYear: '2025',
-    imageUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
-    imageAlt: 'PRAGATHI 2K25 Expo Presentation',
+    imageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Robotics & Hardware Prototype Expo',
     imageAspectRatio: '16:9',
     imagePosition: 'center',
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
     active: true,
     order: 1,
   },
   {
     id: 'testim-2',
-    title: 'Hardware & Robotics Exhibition',
-    description: 'Organization and infrastructure at SR University Warangal was top tier. The exhibition stalls, judge interaction, and seamless digital management made it a memorable experience.',
-    personName: 'K. Vikram Reddy',
-    designation: 'Student Researcher, NIT Warangal',
+    title: 'Solar Tracking & Clean Energy Micro-Grid',
+    description: 'Dual-axis solar tracking prototype designed by undergraduate engineers for off-grid rural electrification, evaluated live by clean energy scientists.',
+    personName: '',
+    designation: 'Green Energy & CleanTech Track',
     eventName: 'PRAGATHI 2K25',
     eventYear: '2025',
-    imageUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80',
-    imageAlt: 'Smart Grid Project Exhibition',
+    imageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Solar Tracking Micro-Grid Prototype',
     imageAspectRatio: '16:9',
     imagePosition: 'center',
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
     active: true,
     order: 2,
   },
   {
     id: 'testim-3',
-    title: 'Innovation & Entrepreneurship Mentorship',
-    description: 'PRAGATHI is designed to foster a culture of creative problem solving, cross-disciplinary collaboration, and real-world engineering impact among young minds across India.',
-    personName: 'Dr. P. Srinivas',
-    designation: 'Incubation Coordinator, SR University',
-    eventName: 'PRAGATHI 2K25',
-    eventYear: '2025',
-    imageUrl: 'https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?auto=format&fit=crop&w=800&q=80',
-    imageAlt: 'SR University Faculty & Mentor Panel',
+    title: 'Smart AgriTech Soil Telemetry Sensor',
+    description: 'IoT wireless sensor nodes measuring NPK soil nutrients and soil moisture in real-time, incubated under SRiX startup ecosystem.',
+    personName: '',
+    designation: 'Smart Agriculture Track',
+    eventName: 'PRAGATHI 2K24',
+    eventYear: '2024',
+    imageUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'AgriTech Telemetry Sensor Prototype',
     imageAspectRatio: '16:9',
     imagePosition: 'center',
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
     active: true,
     order: 3,
+  },
+  {
+    id: 'testim-4',
+    title: 'AI Medical ECG & Health Monitoring System',
+    description: 'Portable 12-lead ECG device paired with lightweight neural network classification model for rapid rural cardiac screening.',
+    personName: '',
+    designation: 'Healthcare & Bio-Tech Track',
+    eventName: 'PRAGATHI 2K24',
+    eventYear: '2024',
+    imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Healthcare ECG Hardware Prototype',
+    imageAspectRatio: '16:9',
+    imagePosition: 'center',
+    mediaType: 'image',
+    mediaUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80',
+    active: true,
+    order: 4,
+  },
+  {
+    id: 'testim-5',
+    title: 'National Project Expo Keynote & Highlights',
+    description: 'Video highlights from the PRAGATHI National Expo floor, featuring live project demonstrations and valedictory awards ceremony.',
+    personName: '',
+    designation: 'Valedictory Ceremony & Highlights',
+    eventName: 'PRAGATHI Highlights',
+    eventYear: '2025',
+    imageUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'National Project Expo Highlights Video',
+    imageAspectRatio: '16:9',
+    imagePosition: 'center',
+    mediaType: 'video',
+    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80',
+    active: true,
+    order: 5,
   },
 ];
 
@@ -979,10 +1043,13 @@ export async function getTestimonials(): Promise<TestimonialEntry[]> {
         designation: t.designation || '',
         eventName: t.event_name || t.eventName || '',
         eventYear: t.event_year || t.eventYear || '',
-        imageUrl: t.image_url || t.imageUrl || '',
+        imageUrl: t.media_url || t.image_url || t.imageUrl || '',
         imageAlt: t.image_alt || t.imageAlt || '',
         imageAspectRatio: t.image_aspect_ratio || t.imageAspectRatio || '16:9',
         imagePosition: t.image_position || t.imagePosition || 'center',
+        mediaType: t.media_type || t.mediaType || 'image',
+        mediaUrl: t.media_url || t.mediaUrl || t.image_url || t.imageUrl || '',
+        thumbnailUrl: t.thumbnail_url || t.thumbnailUrl || t.image_url || t.imageUrl || '',
         active: t.active ?? t.is_active ?? true,
         order: t.order ?? t.display_order ?? 0,
       }));
@@ -1003,10 +1070,13 @@ export async function getTestimonials(): Promise<TestimonialEntry[]> {
           designation: t.designation || '',
           eventName: t.event_name || '',
           eventYear: t.event_year || '',
-          imageUrl: t.image_url || '',
+          imageUrl: t.media_url || t.image_url || '',
           imageAlt: t.image_alt || '',
           imageAspectRatio: t.image_aspect_ratio || '16:9',
           imagePosition: t.image_position || 'center',
+          mediaType: t.media_type || 'image',
+          mediaUrl: t.media_url || t.image_url || '',
+          thumbnailUrl: t.thumbnail_url || t.image_url || '',
           active: t.is_active ?? true,
           order: t.display_order ?? 0,
         }));
@@ -1023,15 +1093,18 @@ export async function addTestimonial(t: Omit<TestimonialEntry, 'id'>): Promise<T
   const payload = {
     title: t.title,
     description: t.description,
-    person_name: t.personName,
+    person_name: t.personName || '',
     designation: t.designation,
     event_name: t.eventName,
     event_year: t.eventYear,
-    image_url: t.imageUrl,
+    image_url: t.imageUrl || t.mediaUrl || '',
     image_alt: t.imageAlt,
     image_aspect_ratio: t.imageAspectRatio,
     image_position: t.imagePosition,
-    active: t.active,
+    media_type: t.mediaType || 'image',
+    media_url: t.mediaUrl || t.imageUrl || '',
+    thumbnail_url: t.thumbnailUrl || t.imageUrl || '',
+    is_active: t.active,
     display_order: t.order,
   };
 
@@ -1046,30 +1119,20 @@ export async function addTestimonial(t: Omit<TestimonialEntry, 'id'>): Promise<T
       designation: data.designation || '',
       eventName: data.event_name || '',
       eventYear: data.event_year || '',
-      imageUrl: data.image_url || '',
+      imageUrl: data.media_url || data.image_url || '',
       imageAlt: data.image_alt || '',
       imageAspectRatio: data.image_aspect_ratio || '16:9',
       imagePosition: data.image_position || 'center',
-      active: data.active ?? true,
+      mediaType: data.media_type || 'image',
+      mediaUrl: data.media_url || data.image_url || '',
+      thumbnailUrl: data.thumbnail_url || data.image_url || '',
+      active: data.is_active ?? true,
       order: data.display_order ?? 0,
     };
   } catch (err) {
-    console.warn('[contentService] addTestimonial FastAPI failed, attempting Supabase direct:', err);
+    console.warn('[contentService] addTestimonial fallback:', err);
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('testimonials').insert([{
-        title: t.title,
-        description: t.description,
-        person_name: t.personName,
-        designation: t.designation,
-        event_name: t.eventName,
-        event_year: t.eventYear,
-        image_url: t.imageUrl,
-        image_alt: t.imageAlt,
-        image_aspect_ratio: t.imageAspectRatio,
-        image_position: t.imagePosition,
-        is_active: t.active,
-        display_order: t.order,
-      }]).select('*');
+      const { data, error } = await supabase.from('testimonials').insert([payload]).select('*');
       if (!error && data && data[0]) {
         return {
           id: data[0].id,
@@ -1079,15 +1142,17 @@ export async function addTestimonial(t: Omit<TestimonialEntry, 'id'>): Promise<T
           designation: data[0].designation || '',
           eventName: data[0].event_name || '',
           eventYear: data[0].event_year || '',
-          imageUrl: data[0].image_url || '',
+          imageUrl: data[0].media_url || data[0].image_url || '',
           imageAlt: data[0].image_alt || '',
           imageAspectRatio: data[0].image_aspect_ratio || '16:9',
           imagePosition: data[0].image_position || 'center',
+          mediaType: data[0].media_type || 'image',
+          mediaUrl: data[0].media_url || data[0].image_url || '',
+          thumbnailUrl: data[0].thumbnail_url || data[0].image_url || '',
           active: data[0].is_active ?? true,
           order: data[0].display_order ?? 0,
         };
       }
-      throw new Error(`Database error: ${error?.message || 'Failed to insert'}`);
     }
     throw err;
   }
@@ -1105,6 +1170,9 @@ export async function updateTestimonial(id: string, t: Partial<Omit<TestimonialE
   if (t.imageAlt !== undefined) payload.image_alt = t.imageAlt;
   if (t.imageAspectRatio !== undefined) payload.image_aspect_ratio = t.imageAspectRatio;
   if (t.imagePosition !== undefined) payload.image_position = t.imagePosition;
+  if (t.mediaType !== undefined) payload.media_type = t.mediaType;
+  if (t.mediaUrl !== undefined) payload.media_url = t.mediaUrl;
+  if (t.thumbnailUrl !== undefined) payload.thumbnail_url = t.thumbnailUrl;
   if (t.active !== undefined) payload.is_active = t.active;
   if (t.order !== undefined) payload.display_order = t.order;
 

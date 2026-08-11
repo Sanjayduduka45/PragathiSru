@@ -6,18 +6,93 @@ from app.schemas.testimonial import TestimonialItem, TestimonialCreate, Testimon
 DEFAULT_TESTIMONIALS = [
     {
         "id": "testim-1",
-        "title": "PRAGATHI 2K25 — Project Expo Showcase",
-        "description": "PRAGATHI gave our team the platform to present our AI Agriculture sensor prototype to industry mentors. The feedback helped us convert our project into a patent-pending startup!",
-        "person_name": "Ananya Rao",
-        "designation": "Team Lead, AgriSense IoT",
+        "title": "Robotics & Autonomous Navigation Prototype",
+        "description": "Student researchers presenting an autonomous obstacle-avoiding mobile robot equipped with LiDAR and real-time computer vision hardware at the PRAGATHI National Expo.",
+        "person_name": "",
+        "designation": "Robotics & Automation Track",
         "event_name": "PRAGATHI 2K25",
         "event_year": "2025",
-        "image_url": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80",
-        "image_alt": "PRAGATHI 2K25 Expo Presentation",
+        "image_url": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
+        "image_alt": "Robotics & Hardware Prototype Expo",
         "image_aspect_ratio": "16:9",
         "image_position": "center",
+        "media_type": "image",
+        "media_url": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
+        "thumbnail_url": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
         "is_active": True,
         "display_order": 1
+    },
+    {
+        "id": "testim-2",
+        "title": "Solar Tracking & Clean Energy Micro-Grid",
+        "description": "Dual-axis solar tracking prototype designed by undergraduate engineers for off-grid rural electrification, evaluated live by clean energy scientists.",
+        "person_name": "",
+        "designation": "Green Energy & CleanTech Track",
+        "event_name": "PRAGATHI 2K25",
+        "event_year": "2025",
+        "image_url": "https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80",
+        "image_alt": "Solar Tracking Micro-Grid Prototype",
+        "image_aspect_ratio": "16:9",
+        "image_position": "center",
+        "media_type": "image",
+        "media_url": "https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80",
+        "thumbnail_url": "https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80",
+        "is_active": True,
+        "display_order": 2
+    },
+    {
+        "id": "testim-3",
+        "title": "Smart AgriTech Soil Telemetry Sensor",
+        "description": "IoT wireless sensor nodes measuring NPK soil nutrients and soil moisture in real-time, incubated under SRiX startup ecosystem.",
+        "person_name": "",
+        "designation": "Smart Agriculture Track",
+        "event_name": "PRAGATHI 2K24",
+        "event_year": "2024",
+        "image_url": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80",
+        "image_alt": "AgriTech Telemetry Sensor Prototype",
+        "image_aspect_ratio": "16:9",
+        "image_position": "center",
+        "media_type": "image",
+        "media_url": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80",
+        "thumbnail_url": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80",
+        "is_active": True,
+        "display_order": 3
+    },
+    {
+        "id": "testim-4",
+        "title": "AI Medical ECG & Health Monitoring System",
+        "description": "Portable 12-lead ECG device paired with lightweight neural network classification model for rapid rural cardiac screening.",
+        "person_name": "",
+        "designation": "Healthcare & Bio-Tech Track",
+        "event_name": "PRAGATHI 2K24",
+        "event_year": "2024",
+        "image_url": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+        "image_alt": "Healthcare ECG Hardware Prototype",
+        "image_aspect_ratio": "16:9",
+        "image_position": "center",
+        "media_type": "image",
+        "media_url": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+        "thumbnail_url": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+        "is_active": True,
+        "display_order": 4
+    },
+    {
+        "id": "testim-5",
+        "title": "National Project Expo Keynote & Highlights",
+        "description": "Video highlights from the PRAGATHI National Expo floor, featuring live project demonstrations and valedictory awards ceremony.",
+        "person_name": "",
+        "designation": "Valedictory Ceremony & Highlights",
+        "event_name": "PRAGATHI Highlights",
+        "event_year": "2025",
+        "image_url": "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80",
+        "image_alt": "National Project Expo Highlights Video",
+        "image_aspect_ratio": "16:9",
+        "image_position": "center",
+        "media_type": "video",
+        "media_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        "thumbnail_url": "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80",
+        "is_active": True,
+        "display_order": 5
     }
 ]
 
@@ -35,10 +110,13 @@ class TestimonialService:
                     designation=row.get("designation", ""),
                     event_name=row.get("event_name", ""),
                     event_year=row.get("event_year", ""),
-                    image_url=row.get("image_url", ""),
+                    image_url=row.get("image_url", "") or row.get("media_url", ""),
                     image_alt=row.get("image_alt", ""),
                     image_aspect_ratio=row.get("image_aspect_ratio", "16:9"),
                     image_position=row.get("image_position", "center"),
+                    media_type=row.get("media_type", "image"),
+                    media_url=row.get("media_url", "") or row.get("image_url", ""),
+                    thumbnail_url=row.get("thumbnail_url", "") or row.get("image_url", ""),
                     is_active=row.get("is_active", True),
                     display_order=row.get("display_order", 0)
                 )
@@ -53,11 +131,14 @@ class TestimonialService:
         payload = {
             "title": data.title,
             "description": data.description,
-            "person_name": data.person_name,
+            "person_name": data.person_name or "",
             "designation": data.designation,
             "event_name": data.event_name,
             "event_year": data.event_year,
-            "image_url": data.image_url,
+            "image_url": data.image_url or data.media_url,
+            "media_type": data.media_type or "image",
+            "media_url": data.media_url or data.image_url,
+            "thumbnail_url": data.thumbnail_url or data.image_url,
             "is_active": data.is_active,
             "display_order": data.display_order
         }
@@ -77,15 +158,9 @@ class TestimonialService:
     async def update_testimonial(testimonial_id: str, data: TestimonialUpdate) -> TestimonialItem:
         update_fields = data.model_dump(exclude_unset=True)
         db_payload = {}
-        if "title" in update_fields: db_payload["title"] = update_fields["title"]
-        if "description" in update_fields: db_payload["description"] = update_fields["description"]
-        if "person_name" in update_fields: db_payload["person_name"] = update_fields["person_name"]
-        if "designation" in update_fields: db_payload["designation"] = update_fields["designation"]
-        if "event_name" in update_fields: db_payload["event_name"] = update_fields["event_name"]
-        if "event_year" in update_fields: db_payload["event_year"] = update_fields["event_year"]
-        if "image_url" in update_fields: db_payload["image_url"] = update_fields["image_url"]
-        if "is_active" in update_fields: db_payload["is_active"] = update_fields["is_active"]
-        if "display_order" in update_fields: db_payload["display_order"] = update_fields["display_order"]
+        for k in ("title", "description", "person_name", "designation", "event_name", "event_year", "image_url", "media_type", "media_url", "thumbnail_url", "is_active", "display_order"):
+            if k in update_fields:
+                db_payload[k] = update_fields[k]
 
         if db_payload:
             await db.update_supabase("testimonials", "id", testimonial_id, db_payload)
@@ -102,7 +177,7 @@ class TestimonialService:
                 break
 
         if updated is None:
-            updated = TestimonialItem(id=testimonial_id, title="", person_name="", **update_fields)
+            updated = TestimonialItem(id=testimonial_id, title="", **update_fields)
             items.append(updated.model_dump())
 
         local["testimonials"] = items

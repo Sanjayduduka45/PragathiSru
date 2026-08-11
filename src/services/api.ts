@@ -4,13 +4,17 @@
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const isAdminEndpoint = endpoint.startsWith('/api/admin/');
+
   try {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
+        ...(isAdminEndpoint ? { 'X-Admin-Secret': ADMIN_SECRET } : {}),
         ...options?.headers,
       },
       ...options,

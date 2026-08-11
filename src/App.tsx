@@ -5,6 +5,7 @@ import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Register } from './pages/Register';
 import { Contact } from './pages/Contact';
+import { TestimonialsPage } from './pages/Testimonials';
 import { ComingSoon } from './pages/ComingSoon';
 import { DesignSystemShowcase } from './components/ui/DesignSystemShowcase';
 
@@ -43,6 +44,7 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/about" element={<About />} />
+                  <Route path="/testimonials" element={<TestimonialsPage />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/coming-soon" element={<ComingSoon />} />

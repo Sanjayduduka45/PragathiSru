@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare,
   Plus,
@@ -15,6 +15,12 @@ import {
   Move,
   Crop,
   Layers,
+  Upload,
+  Video as VideoIcon,
+  Film,
+  Play,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import {
   getTestimonials,
@@ -24,6 +30,7 @@ import {
   type TestimonialEntry,
 } from '../../../services/contentService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { ImageCropperModal } from '../../../components/admin/ImageCropperModal';
 
 export const TestimonialsAdmin: React.FC = () => {
   const [items, setItems] = useState<TestimonialEntry[]>([]);
@@ -33,15 +40,20 @@ export const TestimonialsAdmin: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<TestimonialEntry | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  // Form Fields
+  // Visual Image Cropper State
+  const [cropperImageSrc, setCropperImageSrc] = useState<string | null>(null);
+
+  // Form Fields (NO person_name)
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formPersonName, setFormPersonName] = useState('');
   const [formDesignation, setFormDesignation] = useState('');
   const [formEventName, setFormEventName] = useState('');
   const [formEventYear, setFormEventYear] = useState('');
-  const [formImageUrl, setFormImageUrl] = useState('');
+  const [formMediaType, setFormMediaType] = useState<'image' | 'video'>('image');
+  const [formMediaUrl, setFormMediaUrl] = useState('');
+  const [formThumbnailUrl, setFormThumbnailUrl] = useState('');
   const [formImageAlt, setFormImageAlt] = useState('');
   const [formImageAspectRatio, setFormImageAspectRatio] = useState('16:9');
   const [formImagePosition, setFormImagePosition] = useState('center');
@@ -52,6 +64,7 @@ export const TestimonialsAdmin: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<TestimonialEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useAdminToast();
 
   const loadData = async () => {
@@ -74,11 +87,12 @@ export const TestimonialsAdmin: React.FC = () => {
     setEditingItem(null);
     setFormTitle('');
     setFormDescription('');
-    setFormPersonName('');
     setFormDesignation('');
     setFormEventName('PRAGATHI 2K25');
     setFormEventYear('2025');
-    setFormImageUrl('https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80');
+    setFormMediaType('image');
+    setFormMediaUrl('https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80');
+    setFormThumbnailUrl('https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80');
     setFormImageAlt('');
     setFormImageAspectRatio('16:9');
     setFormImagePosition('center');
@@ -91,11 +105,12 @@ export const TestimonialsAdmin: React.FC = () => {
     setEditingItem(item);
     setFormTitle(item.title || '');
     setFormDescription(item.description || '');
-    setFormPersonName(item.personName || '');
     setFormDesignation(item.designation || '');
     setFormEventName(item.eventName || '');
     setFormEventYear(item.eventYear || '');
-    setFormImageUrl(item.imageUrl || '');
+    setFormMediaType(item.mediaType || 'image');
+    setFormMediaUrl(item.mediaUrl || item.imageUrl || '');
+    setFormThumbnailUrl(item.thumbnailUrl || item.imageUrl || '');
     setFormImageAlt(item.imageAlt || '');
     setFormImageAspectRatio(item.imageAspectRatio || '16:9');
     setFormImagePosition(item.imagePosition || 'center');
@@ -109,26 +124,85 @@ export const TestimonialsAdmin: React.FC = () => {
     setEditingItem(null);
   };
 
+  const uploadMediaFile = async (file: File | Blob, customFilename?: string) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      const filename = customFilename || (file as File).name || 'cropped_image.jpg';
+      formData.append('file', file, filename);
+
+      const adminSecret = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
+      const response = await fetch('/api/admin/testimonials/upload', {
+        method: 'POST',
+        headers: {
+          'X-Admin-Secret': adminSecret,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Upload server error');
+      }
+
+      const resData = await response.json();
+      if (resData.url) {
+        setFormMediaUrl(resData.url);
+        if (resData.media_type === 'video') {
+          setFormMediaType('video');
+        } else {
+          setFormThumbnailUrl(resData.url);
+        }
+        addToast('success', 'Media Uploaded', 'File saved persistently to Supabase Storage.');
+        return resData.url;
+      }
+    } catch (err: any) {
+      addToast('error', 'Upload Failed', err?.message || 'Failed to upload media file.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (formMediaType === 'image') {
+      const objectUrl = URL.createObjectURL(file);
+      setCropperImageSrc(objectUrl);
+    } else {
+      await uploadMediaFile(file);
+    }
+  };
+
+  const handleCroppedImageConfirm = async (croppedBlob: Blob, _dataUrl: string) => {
+    setCropperImageSrc(null);
+    await uploadMediaFile(croppedBlob, `cropped_${Date.now()}.jpg`);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formPersonName.trim()) {
-      addToast('error', 'Validation Error', 'Person Name is required.');
+    if (!formTitle.trim()) {
+      addToast('error', 'Validation Error', 'Title is required.');
       return;
     }
 
     setSaving(true);
     try {
-      const payload = {
+      const payload: Omit<TestimonialEntry, 'id'> = {
         title: formTitle,
         description: formDescription,
-        personName: formPersonName,
+        personName: '',
         designation: formDesignation,
         eventName: formEventName,
         eventYear: formEventYear,
-        imageUrl: formImageUrl,
+        imageUrl: formMediaUrl || formThumbnailUrl,
         imageAlt: formImageAlt,
         imageAspectRatio: formImageAspectRatio,
         imagePosition: formImagePosition,
+        mediaType: formMediaType,
+        mediaUrl: formMediaUrl,
+        thumbnailUrl: formThumbnailUrl || formMediaUrl,
         active: formActive,
         order: Number(formOrder),
       };
@@ -156,7 +230,7 @@ export const TestimonialsAdmin: React.FC = () => {
       addToast(
         'info',
         'Status Updated',
-        `Item "${item.personName}" is now ${!item.active ? 'Active' : 'Inactive'}.`
+        `Item "${item.title || 'Showcase'}" is now ${!item.active ? 'Active' : 'Inactive'}.`
       );
       await loadData();
     } catch (err: any) {
@@ -181,15 +255,25 @@ export const TestimonialsAdmin: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* Visual Image Cropper Modal */}
+      {cropperImageSrc && (
+        <ImageCropperModal
+          imageSrc={cropperImageSrc}
+          initialAspectRatio={formImageAspectRatio}
+          onConfirm={handleCroppedImageConfirm}
+          onCancel={() => setCropperImageSrc(null)}
+        />
+      )}
+
       {/* Top Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-[#004182]" />
-            <h2 className="text-xl font-extrabold text-slate-900">Previous Events & Testimonials</h2>
+            <h2 className="text-xl font-extrabold text-slate-900">Event Memories & Testimonials</h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage showcase images, quotes, participant reviews, and custom crop/aspect ratio settings for the public website.
+            Manage showcase images, videos, innovation stories, interactive visual cropper, and public display settings.
           </p>
         </div>
 
@@ -224,7 +308,7 @@ export const TestimonialsAdmin: React.FC = () => {
           <MessageSquare className="w-10 h-10 text-slate-300 mx-auto" />
           <p className="text-base font-bold text-slate-700">No Showcase Items Found</p>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Add showcase entries to display event memories, photos, and participant feedback on the public home page.
+            Add showcase entries to display event memories, photos, and project videos on the public website.
           </p>
           <button
             onClick={openAddModal}
@@ -236,110 +320,130 @@ export const TestimonialsAdmin: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className={`bg-white rounded-2xl border transition-all shadow-xs flex flex-col justify-between overflow-hidden ${
-                item.active ? 'border-slate-200' : 'border-amber-200 bg-amber-50/20'
-              }`}
-            >
-              <div>
-                {/* Image Preview & Ratio Badge */}
-                <div className="relative aspect-[16/9] bg-slate-900 overflow-hidden group">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.imageAlt || item.personName}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                      <ImageIcon className="w-8 h-8 mb-1" />
-                      <span className="text-xs">No Image Provided</span>
-                    </div>
-                  )}
+          {items.map((item) => {
+            const isVideo = item.mediaType === 'video';
+            const mediaSrc = item.mediaUrl || item.imageUrl;
 
-                  <div className="absolute top-2 left-2 flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-white text-[10px] font-bold">
-                      Ratio: {item.imageAspectRatio || '16:9'}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-blue-300 text-[10px] font-bold">
-                      Pos: {item.imagePosition || 'center'}
-                    </span>
+            return (
+              <div
+                key={item.id}
+                className={`bg-white rounded-2xl border transition-all shadow-xs flex flex-col justify-between overflow-hidden ${
+                  item.active ? 'border-slate-200' : 'border-amber-200 bg-amber-50/20'
+                }`}
+              >
+                <div>
+                  {/* Image/Video Preview & Ratio Badge */}
+                  <div className="relative aspect-[16/9] bg-slate-950 overflow-hidden group">
+                    {mediaSrc ? (
+                      isVideo ? (
+                        <video
+                          src={mediaSrc}
+                          poster={item.thumbnailUrl || item.imageUrl}
+                          controls
+                          preload="metadata"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={mediaSrc}
+                          alt={item.imageAlt || item.title}
+                          className="w-full h-full object-cover"
+                        />
+                      )
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                        <ImageIcon className="w-8 h-8 mb-1" />
+                        <span className="text-xs">No Media Provided</span>
+                      </div>
+                    )}
+
+                    <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1">
+                        {isVideo ? <VideoIcon className="w-3 h-3 text-amber-400" /> : <ImageIcon className="w-3 h-3 text-blue-400" />}
+                        {isVideo ? 'VIDEO' : 'IMAGE'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-blue-300 text-[10px] font-bold">
+                        {item.imageAspectRatio || '16:9'}
+                      </span>
+                    </div>
+
+                    <div className="absolute top-2 right-2">
+                      <button
+                        onClick={() => handleToggleActive(item)}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all ${
+                          item.active
+                            ? 'bg-emerald-500/90 text-white shadow-xs'
+                            : 'bg-amber-500/90 text-white shadow-xs'
+                        }`}
+                      >
+                        {item.active ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                        <span>{item.active ? 'Active' : 'Inactive'}</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="absolute top-2 right-2">
+                  {/* Card Info Body */}
+                  <div className="p-5 space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                          {item.eventName || item.eventYear || 'Event Showcase'}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-400">Order: #{item.order}</span>
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 mt-2 line-clamp-1">
+                        {item.title}
+                      </h3>
+                    </div>
+
+                    {item.description && (
+                      <p className="text-xs text-slate-600 line-clamp-3 italic leading-relaxed">
+                        “{item.description}”
+                      </p>
+                    )}
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      {item.designation ? (
+                        <div className="font-semibold text-blue-800 line-clamp-1">{item.designation}</div>
+                      ) : (
+                        <div className="text-slate-400">Event Showcase</div>
+                      )}
+                      {item.eventYear && (
+                        <span className="text-[11px] font-bold text-slate-400">{item.eventYear}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                  <button
+                    onClick={() => handleToggleActive(item)}
+                    className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  >
+                    {item.active ? 'Hide from Website' : 'Show on Website'}
+                  </button>
+
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => handleToggleActive(item)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all ${
-                        item.active
-                          ? 'bg-emerald-500/90 text-white shadow-xs'
-                          : 'bg-amber-500/90 text-white shadow-xs'
-                      }`}
+                      onClick={() => openEditModal(item)}
+                      className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                      title="Edit Item"
                     >
-                      {item.active ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                      <span>{item.active ? 'Active' : 'Inactive'}</span>
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(item)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                      title="Delete Item"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-
-                {/* Card Info Body */}
-                <div className="p-5 space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                        {item.eventName || item.eventYear || 'Event Showcase'}
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-400">Order: #{item.order}</span>
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900 mt-2 line-clamp-1">
-                      {item.title || item.personName}
-                    </h3>
-                  </div>
-
-                  {item.description && (
-                    <p className="text-xs text-slate-600 line-clamp-3 italic leading-relaxed">
-                      “{item.description}”
-                    </p>
-                  )}
-
-                  <div className="pt-3 border-t border-slate-100">
-                    <div className="font-bold text-xs text-slate-900">{item.personName}</div>
-                    {item.designation && (
-                      <div className="text-[11px] text-slate-500 line-clamp-1">{item.designation}</div>
-                    )}
-                  </div>
-                </div>
               </div>
-
-              {/* Footer Actions */}
-              <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  onClick={() => handleToggleActive(item)}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
-                >
-                  {item.active ? 'Hide from Website' : 'Show on Website'}
-                </button>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => openEditModal(item)}
-                    className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
-                    title="Edit Item"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteTarget(item)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                    title="Delete Item"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -363,35 +467,104 @@ export const TestimonialsAdmin: React.FC = () => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-5">
-              {/* Image Control Section */}
+              {/* Media Type & Upload Section */}
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-4">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <ImageIcon className="w-4 h-4 text-blue-600" />
-                    <span>Image & Display Settings</span>
+                    <Film className="w-4 h-4 text-blue-600" />
+                    <span>Media Type & File Upload</span>
                   </label>
+
+                  {/* Media Type Switcher */}
+                  <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setFormMediaType('image')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        formMediaType === 'image'
+                          ? 'bg-[#004182] text-white shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      Image
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormMediaType('video')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        formMediaType === 'video'
+                          ? 'bg-[#004182] text-white shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      Video
+                    </button>
+                  </div>
+                </div>
+
+                {/* Upload Button + File Input */}
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept={formMediaType === 'video' ? 'video/*' : 'image/*'}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {uploading ? <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> : <Upload className="w-4 h-4 text-blue-600" />}
+                    <span>{uploading ? 'Uploading to Supabase Storage...' : `Upload ${formMediaType === 'video' ? 'Video' : 'Image'}`}</span>
+                  </button>
+
+                  {formMediaType === 'image' && formMediaUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setCropperImageSrc(formMediaUrl)}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold px-3.5 py-2.5 rounded-xl text-xs transition-all cursor-pointer"
+                    >
+                      <Crop className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Open Visual Cropper</span>
+                    </button>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Image URL</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {formMediaType === 'video' ? 'Video URL' : 'Image URL'}
+                  </label>
                   <input
                     type="url"
-                    value={formImageUrl}
-                    onChange={(e) => setFormImageUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
+                    value={formMediaUrl}
+                    onChange={(e) => setFormMediaUrl(e.target.value)}
+                    placeholder={formMediaType === 'video' ? 'https://example.com/video.mp4' : 'https://images.unsplash.com/...'}
                     className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-hidden focus:border-blue-600"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Provide an absolute URL for event photos or participant showcase images.
-                  </p>
                 </div>
 
+                {formMediaType === 'video' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Video Thumbnail Poster URL (Optional)</label>
+                    <input
+                      type="url"
+                      value={formThumbnailUrl}
+                      onChange={(e) => setFormThumbnailUrl(e.target.value)}
+                      placeholder="https://images.unsplash.com/poster.jpg"
+                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-hidden focus:border-blue-600"
+                    />
+                  </div>
+                )}
+
                 {/* Aspect Ratio & Focal Position Controls */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
                       <Crop className="w-3.5 h-3.5 text-slate-500" />
-                      Aspect Ratio Crop
+                      Aspect Ratio Preset
                     </label>
                     <select
                       value={formImageAspectRatio}
@@ -423,51 +596,29 @@ export const TestimonialsAdmin: React.FC = () => {
                     </select>
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Image Alt Text</label>
-                  <input
-                    type="text"
-                    value={formImageAlt}
-                    onChange={(e) => setFormImageAlt(e.target.value)}
-                    placeholder="PRAGATHI 2K25 Student Presentation"
-                    className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-hidden focus:border-blue-600"
-                  />
-                </div>
               </div>
 
-              {/* Content Form Controls */}
+              {/* Content Form Controls (NO person_name) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Title / Caption</label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    placeholder="PRAGATHI 2K25 — Project Expo Showcase"
-                    className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-hidden focus:border-blue-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Person Name *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Title / Caption *</label>
                   <input
                     type="text"
                     required
-                    value={formPersonName}
-                    onChange={(e) => setFormPersonName(e.target.value)}
-                    placeholder="Ananya Rao"
-                    className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-hidden focus:border-blue-600"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder="Robotics & Autonomous Navigation Prototype"
+                    className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-hidden focus:border-blue-600 font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Role / Designation</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Role / Designation / Track</label>
                   <input
                     type="text"
                     value={formDesignation}
                     onChange={(e) => setFormDesignation(e.target.value)}
-                    placeholder="Team Lead, AgriSense IoT"
+                    placeholder="Robotics & Automation Track"
                     className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-hidden focus:border-blue-600"
                   />
                 </div>
@@ -494,17 +645,6 @@ export const TestimonialsAdmin: React.FC = () => {
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Testimonial / Review Quote</label>
-                  <textarea
-                    rows={3}
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Write participant feedback or event description..."
-                    className="w-full text-xs border border-slate-200 rounded-xl p-3 text-slate-900 focus:outline-hidden focus:border-blue-600"
-                  />
-                </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Display Order</label>
                   <input
@@ -515,7 +655,18 @@ export const TestimonialsAdmin: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-6">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Event Showcase Description</label>
+                  <textarea
+                    rows={3}
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Describe the prototype demonstration or event highlight..."
+                    className="w-full text-xs border border-slate-200 rounded-xl p-3 text-slate-900 focus:outline-hidden focus:border-blue-600"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
                   <input
                     type="checkbox"
                     id="formActiveCheck"
@@ -524,7 +675,7 @@ export const TestimonialsAdmin: React.FC = () => {
                     className="w-4 h-4 rounded-xs border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />
                   <label htmlFor="formActiveCheck" className="text-xs font-bold text-slate-800 cursor-pointer">
-                    Show on Public Home Page
+                    Show on Public Website
                   </label>
                 </div>
               </div>
@@ -567,7 +718,7 @@ export const TestimonialsAdmin: React.FC = () => {
             </div>
 
             <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-700 font-bold border border-slate-200">
-              “{deleteTarget.personName} — {deleteTarget.title || 'Showcase'}”
+              “{deleteTarget.title || 'Showcase Item'}”
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">

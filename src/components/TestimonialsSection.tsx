@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Quote, ChevronLeft, ChevronRight, Sparkles, Award } from 'lucide-react';
+import { Quote, ChevronLeft, ChevronRight, Sparkles, Award, ArrowRight, Video } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
 
 export const TestimonialsSection: React.FC = () => {
@@ -75,22 +76,31 @@ export const TestimonialsSection: React.FC = () => {
             </p>
           </div>
 
-          {/* Navigation Controls */}
+          {/* Navigation & View All CTA */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleScroll('left')}
-              className="p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition-all cursor-pointer shadow-lg active:scale-95"
-              aria-label="Scroll left"
+            <Link
+              to="/testimonials"
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl border border-blue-400/30 transition-all shadow-md active:scale-95 shrink-0"
             >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => handleScroll('right')}
-              className="p-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition-all cursor-pointer shadow-lg active:scale-95"
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+              <span>View All Testimonials</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleScroll('left')}
+                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition-all cursor-pointer shadow-lg active:scale-95"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => handleScroll('right')}
+                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition-all cursor-pointer shadow-lg active:scale-95"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -100,66 +110,84 @@ export const TestimonialsSection: React.FC = () => {
           className="flex gap-6 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-none"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {activeItems.map((item) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              className="snap-start shrink-0 w-[85vw] sm:w-[380px] md:w-[420px] bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all flex flex-col justify-between shadow-xl"
-            >
-              {/* Card Image Wrapper */}
-              {item.imageUrl && (
-                <div className={`w-full ${getAspectClass(item.imageAspectRatio)} relative overflow-hidden bg-slate-950`}>
-                  <img
-                    src={item.imageUrl}
-                    alt={item.imageAlt || item.title || 'Showcase Image'}
-                    loading="lazy"
-                    className={`w-full h-full object-cover ${getObjectPositionClass(item.imagePosition)} transition-transform duration-500 hover:scale-105`}
-                  />
-                  {item.eventYear && (
-                    <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-700/50 text-blue-400 text-xs font-bold flex items-center gap-1.5 shadow-md">
-                      <Award className="w-3.5 h-3.5" />
-                      <span>{item.eventName ? `${item.eventName}` : item.eventYear}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+          {activeItems.map((item) => {
+            const isVideo = item.mediaType === 'video';
+            const mediaSrc = item.mediaUrl || item.imageUrl;
+            const posterSrc = item.thumbnailUrl || item.imageUrl;
 
-              {/* Card Content */}
-              <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  {item.title && (
-                    <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">
-                      {item.title}
-                    </h3>
-                  )}
-                  {item.description && (
-                    <div className="relative pl-6 text-slate-300 text-sm leading-relaxed italic line-clamp-4">
-                      <Quote className="w-4 h-4 text-blue-400/60 absolute left-0 top-0" />
-                      {item.description}
-                    </div>
-                  )}
-                </div>
-
-                {/* Person Information */}
-                <div className="pt-4 border-t border-slate-700/40 flex items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">{item.personName}</h4>
-                    {item.designation && (
-                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{item.designation}</p>
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4 }}
+                className="snap-start shrink-0 w-[85vw] sm:w-[380px] md:w-[420px] bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all flex flex-col justify-between shadow-xl"
+              >
+                {/* Card Media Wrapper */}
+                {mediaSrc && (
+                  <div className={`w-full ${getAspectClass(item.imageAspectRatio)} relative overflow-hidden bg-slate-950`}>
+                    {isVideo ? (
+                      <video
+                        src={mediaSrc}
+                        poster={posterSrc}
+                        controls
+                        preload="metadata"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={mediaSrc}
+                        alt={item.imageAlt || item.title || 'Showcase Image'}
+                        loading="lazy"
+                        className={`w-full h-full object-cover ${getObjectPositionClass(item.imagePosition)} transition-transform duration-500 hover:scale-105`}
+                      />
+                    )}
+                    {(item.eventYear || item.eventName) && (
+                      <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-700/50 text-blue-400 text-xs font-bold flex items-center gap-1.5 shadow-md">
+                        {isVideo ? <Video className="w-3.5 h-3.5 text-amber-400" /> : <Award className="w-3.5 h-3.5" />}
+                        <span>{item.eventName ? `${item.eventName}` : item.eventYear}</span>
+                      </div>
                     )}
                   </div>
-                  {item.eventYear && (
-                    <span className="text-[11px] font-semibold text-slate-400 px-2.5 py-1 rounded-md bg-slate-700/40 border border-slate-700/60">
-                      {item.eventYear}
-                    </span>
-                  )}
+                )}
+
+                {/* Card Content */}
+                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                  <div>
+                    {item.title && (
+                      <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">
+                        {item.title}
+                      </h3>
+                    )}
+                    {item.description && (
+                      <div className="relative pl-6 text-slate-300 text-sm leading-relaxed italic line-clamp-4">
+                        <Quote className="w-4 h-4 text-blue-400/60 absolute left-0 top-0" />
+                        {item.description}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Information Row (NO personName) */}
+                  <div className="pt-4 border-t border-slate-700/40 flex items-center justify-between gap-3">
+                    <div>
+                      {item.designation && (
+                        <p className="text-xs font-semibold text-blue-300 line-clamp-1">{item.designation}</p>
+                      )}
+                      {item.eventName && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">{item.eventName}</p>
+                      )}
+                    </div>
+                    {item.eventYear && (
+                      <span className="text-[11px] font-semibold text-slate-400 px-2.5 py-1 rounded-md bg-slate-700/40 border border-slate-700/60">
+                        {item.eventYear}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>

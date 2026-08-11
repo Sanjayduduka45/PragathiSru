@@ -3,9 +3,9 @@ from typing import Optional, List
 
 class TestimonialItem(BaseModel):
     id: str
-    title: str
+    title: str = ""
     description: str = ""
-    person_name: str
+    person_name: Optional[str] = ""
     designation: str = ""
     event_name: str = ""
     event_year: str = ""
@@ -13,13 +13,16 @@ class TestimonialItem(BaseModel):
     image_alt: str = ""
     image_aspect_ratio: str = "16:9"
     image_position: str = "center"
+    media_type: str = "image"
+    media_url: str = ""
+    thumbnail_url: str = ""
     is_active: bool = True
     display_order: int = 0
 
 class TestimonialCreate(BaseModel):
-    title: str
+    title: str = ""
     description: str = ""
-    person_name: str
+    person_name: Optional[str] = ""
     designation: str = ""
     event_name: str = ""
     event_year: str = ""
@@ -27,6 +30,9 @@ class TestimonialCreate(BaseModel):
     image_alt: str = ""
     image_aspect_ratio: str = "16:9"
     image_position: str = "center"
+    media_type: str = "image"
+    media_url: str = ""
+    thumbnail_url: str = ""
     is_active: bool = True
     display_order: int = 0
 
@@ -41,6 +47,9 @@ class TestimonialUpdate(BaseModel):
     image_alt: Optional[str] = None
     image_aspect_ratio: Optional[str] = None
     image_position: Optional[str] = None
+    media_type: Optional[str] = None
+    media_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     is_active: Optional[bool] = None
     display_order: Optional[int] = None
 
