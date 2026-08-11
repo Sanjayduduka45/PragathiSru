@@ -80,6 +80,7 @@ export default function App() {
                       <Route path="/content/schedule" element={<ScheduleAdmin />} />
                       <Route path="/content/rules" element={<RulesAdmin />} />
                       <Route path="/content/testimonials" element={<TestimonialsAdmin />} />
+                      <Route path="/testimonials" element={<TestimonialsAdmin />} />
                       <Route path="/content/faqs" element={<FAQsAdmin />} />
                       <Route path="/content/sponsors" element={<SponsorsAdmin />} />
                       <Route path="/content/contact" element={<ContactAdmin />} />

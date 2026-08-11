@@ -155,6 +155,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
                 { label: 'Schedule', path: '/admin/content/schedule', icon: <Clock className="w-4 h-4" /> },
                 { label: 'Rules & Guidelines', path: '/admin/content/rules', icon: <BookOpen className="w-4 h-4" /> },
                 { label: 'FAQs', path: '/admin/content/faqs', icon: <HelpCircle className="w-4 h-4" /> },
+                { label: 'Testimonials', path: '/admin/content/testimonials', icon: <MessageSquare className="w-4 h-4" /> },
                 { label: 'Sponsors', path: '/admin/content/sponsors', icon: <Star className="w-4 h-4" /> },
                 { label: 'Contact', path: '/admin/content/contact', icon: <Phone className="w-4 h-4" /> },
               ].map((item) => (
@@ -272,6 +273,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       schedule: 'Schedule',
       rules: 'Rules & Guidelines',
       faqs: 'FAQs',
+      testimonials: 'Testimonials',
       sponsors: 'Sponsors',
       contact: 'Contact',
       registrations: 'Registrations',

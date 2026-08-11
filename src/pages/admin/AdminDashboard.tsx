@@ -257,6 +257,11 @@ export const AdminDashboard: React.FC = () => {
             description="Frequently asked questions"
           />
           <QuickLink
+            label="Testimonials"
+            path="/admin/content/testimonials"
+            description="Event memories & showcase"
+          />
+          <QuickLink
             label="Sponsors"
             path="/admin/content/sponsors"
             description="Partners & sponsors"
