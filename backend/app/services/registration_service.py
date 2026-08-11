@@ -93,40 +93,54 @@ class RegistrationService:
         print(f"[RegistrationService] DELETE request received for reg_id={reg_id}")
         target_uuid = None
 
-        if reg_id and len(reg_id) == 36 and "-" in reg_id:
-            target_uuid = reg_id
-        else:
-            all_regs = await RegistrationService.get_registrations()
-            for r in all_regs:
-                if r.registration_id == reg_id or r.id == reg_id:
-                    target_uuid = r.id
-                    break
-
-        if target_uuid is None:
-            print(f"[RegistrationService] Record not found for reg_id={reg_id}")
+        if not reg_id or not reg_id.strip():
+            print(f"[RegistrationService] Empty reg_id provided.")
             return False
 
-        print(f"[RegistrationService] Target UUID resolved: {target_uuid}")
+        clean_id = reg_id.strip()
+
+        # CASE 1: reg_id is a 36-character UUID
+        if len(clean_id) == 36 and "-" in clean_id:
+            check_rows = await db.fetch_supabase("registrations", f"id=eq.{clean_id}&select=id,registration_id")
+            if check_rows and len(check_rows) > 0:
+                target_uuid = check_rows[0].get("id")
+
+        # CASE 2: reg_id is human-readable (e.g. PRAGATHI26-N7BD4T) or non-standard identifier
+        if target_uuid is None:
+            by_reg_code = await db.fetch_supabase("registrations", f"registration_id=eq.{clean_id}&select=id,registration_id")
+            if by_reg_code and len(by_reg_code) > 0:
+                target_uuid = by_reg_code[0].get("id")
+            else:
+                by_id_col = await db.fetch_supabase("registrations", f"id=eq.{clean_id}&select=id,registration_id")
+                if by_id_col and len(by_id_col) > 0:
+                    target_uuid = by_id_col[0].get("id")
+
+        if target_uuid is None:
+            print(f"[RegistrationService] Record not found in Supabase for reg_id='{clean_id}'")
+            return False
+
+        print(f"[RegistrationService] Successfully resolved '{clean_id}' -> target_uuid='{target_uuid}'")
 
         # Delete dependent child rows explicitly to guarantee clean deletion
         await db.delete_supabase("team_members", "registration_id", target_uuid)
         await db.delete_supabase("projects", "registration_id", target_uuid)
         await db.delete_supabase("payments", "registration_id", target_uuid)
 
-        # Delete parent registration
+        # Delete parent registration row using target_uuid
         success = await db.delete_supabase("registrations", "id", target_uuid)
-        print(f"[RegistrationService] DB delete result: {success}")
+        print(f"[RegistrationService] DB delete execution result for '{target_uuid}': {success}")
 
         if not success:
+            print(f"[RegistrationService] Deletion execution failed for target UUID '{target_uuid}'")
             return False
 
         # Real verification - query DB directly to confirm 0 rows remain
-        raw_check = await db.fetch_supabase("registrations", f"id=eq.{target_uuid}")
+        raw_check = await db.fetch_supabase("registrations", f"id=eq.{target_uuid}&select=id")
         if raw_check and len(raw_check) > 0:
-            print(f"[RegistrationService] Post-delete verification failed: record {target_uuid} still exists.")
+            print(f"[RegistrationService] Post-delete verification failed: record '{target_uuid}' still exists in PostgreSQL.")
             return False
 
-        print(f"[RegistrationService] Verification succeeded: record {target_uuid} deleted.")
+        print(f"[RegistrationService] Verification succeeded: record '{target_uuid}' completely deleted.")
         return True
 
     @staticmethod
