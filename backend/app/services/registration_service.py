@@ -71,7 +71,7 @@ class RegistrationService:
 
     @staticmethod
     async def delete_registration(reg_id: str) -> bool:
-        # Step 1: Find target registration UUID if given formatted ID
+        print(f"[RegistrationService] DELETE request received for reg_id={reg_id}")
         target_uuid = None
         all_regs = await RegistrationService.get_registrations()
         for r in all_regs:
@@ -83,17 +83,27 @@ class RegistrationService:
             print(f"[RegistrationService] Record not found for reg_id={reg_id}")
             return False
 
-        # Step 2: Perform CASCADE delete on registrations in Supabase
+        print(f"[RegistrationService] Target UUID resolved: {target_uuid}")
+
+        # Delete dependent child rows explicitly to guarantee clean deletion
+        await db.delete_supabase("team_members", "registration_id", target_uuid)
+        await db.delete_supabase("projects", "registration_id", target_uuid)
+        await db.delete_supabase("payments", "registration_id", target_uuid)
+
+        # Delete parent registration
         success = await db.delete_supabase("registrations", "id", target_uuid)
+        print(f"[RegistrationService] DB delete result: {success}")
+
         if not success:
             return False
 
-        # Step 3: Real verification - query DB to confirm 0 rows remain
+        # Real verification - query DB to confirm 0 rows remain
         check_reg = await RegistrationService.get_registration(target_uuid)
         if check_reg is not None:
             print(f"[RegistrationService] Post-delete verification failed: record {target_uuid} still exists.")
             return False
 
+        print(f"[RegistrationService] Verification succeeded: record {target_uuid} deleted.")
         return True
 
     @staticmethod

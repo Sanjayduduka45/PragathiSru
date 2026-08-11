@@ -303,9 +303,18 @@ class Database:
         url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.delete(url, headers=self.get_headers())
-                # Verify deletion by querying table again
+                headers = self.get_headers()
+                headers["Prefer"] = "return=representation"
+                res = await client.delete(url, headers=headers)
                 if res.status_code in (200, 204):
+                    try:
+                        deleted = res.json()
+                        if isinstance(deleted, list) and len(deleted) > 0:
+                            print(f"[Supabase] Successfully deleted {len(deleted)} row(s) from {table}")
+                            return True
+                    except Exception:
+                        pass
+
                     check_url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
                     check_res = await client.get(check_url, headers=self.get_headers())
                     if check_res.status_code == 200:
