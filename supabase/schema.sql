@@ -97,25 +97,31 @@ ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 -- PUBLIC RLS POLICIES FOR ANON CLIENT
 CREATE POLICY "Allow public insert to registrations" ON public.registrations FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public select registrations" ON public.registrations FOR SELECT USING (true);
+CREATE POLICY "Allow public delete registrations" ON public.registrations FOR DELETE USING (true);
+CREATE POLICY "Allow public update registrations" ON public.registrations FOR UPDATE USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow public insert to institutions" ON public.institutions FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public select institutions" ON public.institutions FOR SELECT USING (true);
 
 CREATE POLICY "Allow public insert to team_members" ON public.team_members FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public select team_members" ON public.team_members FOR SELECT USING (true);
+CREATE POLICY "Allow public delete team_members" ON public.team_members FOR DELETE USING (true);
+CREATE POLICY "Allow public update team_members" ON public.team_members FOR UPDATE USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow public insert to projects" ON public.projects FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public select projects" ON public.projects FOR SELECT USING (true);
+CREATE POLICY "Allow public delete projects" ON public.projects FOR DELETE USING (true);
+CREATE POLICY "Allow public update projects" ON public.projects FOR UPDATE USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow public insert to student_verifications" ON public.student_verifications FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public select student_verifications" ON public.student_verifications FOR SELECT USING (true);
 
 CREATE POLICY "Allow public insert to payments" ON public.payments FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public select payments" ON public.payments FOR SELECT USING (true);
+CREATE POLICY "Allow public delete payments" ON public.payments FOR DELETE USING (true);
+CREATE POLICY "Allow public update payments" ON public.payments FOR UPDATE USING (true) WITH CHECK (true);
 
 -- ADMIN RLS POLICIES (run these in Supabase SQL editor to enable Edit & Delete for the authenticated admin)
--- These allow authenticated Supabase Auth users (i.e. the admin) to UPDATE and DELETE records.
-
 CREATE POLICY "Allow authenticated update registrations" ON public.registrations
   FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 

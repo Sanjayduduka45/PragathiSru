@@ -401,27 +401,34 @@ export const RegistrationsAdmin: React.FC = () => {
 
     setDeleteLoading(true);
     try {
-      await api.registrations.delete(deleteTarget.id);
-      addToast('success', 'Registration deleted', 'Registration deleted successfully from database via FastAPI.');
+      try {
+        await api.registrations.delete(deleteTarget.id);
+      } catch (fastApiErr) {
+        console.warn('[RegistrationsAdmin] FastAPI delete unavailable, executing verified direct Supabase delete:', fastApiErr);
+        if (supabase) {
+          const { data: delData, error: delErr } = await supabase
+            .from('registrations')
+            .delete()
+            .or(`id.eq.${deleteTarget.id},registration_id.eq.${deleteTarget.registration_id}`)
+            .select();
+
+          if (delErr) {
+            throw new Error(`Supabase deletion error: ${delErr.message}`);
+          }
+          if (!delData || delData.length === 0) {
+            throw new Error(`Record verification failed: 0 rows deleted from database.`);
+          }
+        } else {
+          throw fastApiErr;
+        }
+      }
+
+      addToast('success', 'Registration deleted', 'Registration deleted successfully from database.');
       closeDelete();
       await fetchRegistrations();
     } catch (err: any) {
-      console.error('FastAPI deletion error:', err);
-      // Direct Supabase fallback if needed
-      if (supabase) {
-        try {
-          const { error: delErr } = await supabase.from('registrations').delete().eq('id', deleteTarget.id);
-          if (delErr) throw new Error(delErr.message);
-          addToast('success', 'Registration deleted', 'Registration deleted successfully.');
-          closeDelete();
-          await fetchRegistrations();
-          return;
-        } catch (sErr) {
-          addToast('error', 'Deletion failed', 'Unable to delete registration. Please try again.');
-        }
-      } else {
-        addToast('error', 'Deletion failed', err?.message || 'Unable to delete registration.');
-      }
+      console.error('Registration deletion error:', err);
+      addToast('error', 'Deletion failed', err?.message || 'Unable to delete registration.');
     } finally {
       setDeleteLoading(false);
     }
