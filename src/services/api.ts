@@ -3,7 +3,7 @@
  * All frontend requests (Public & Admin Dashboard) call the FastAPI Python backend.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -24,6 +24,9 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     return await response.json();
   } catch (err: any) {
     console.error(`[API Error] ${options?.method || 'GET'} ${endpoint}:`, err);
+    if (err.name === 'TypeError' && (err.message === 'Load failed' || err.message === 'Failed to fetch')) {
+      throw new Error('Unable to connect to FastAPI backend server. Please verify VITE_API_URL and backend deployment health.');
+    }
     throw err;
   }
 }
