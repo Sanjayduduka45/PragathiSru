@@ -743,10 +743,10 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="space-y-16 sm:space-y-24 pb-20">
+    <div className="space-y-16 sm:space-y-24">
 
       {/* HERO SECTION */}
-      <section className="relative overflow-hidden pt-8 pb-16 lg:py-24 bg-gradient-to-b from-blue-50/70 via-white to-white">
+      <section className="relative overflow-hidden pt-6 pb-12 lg:py-16 bg-gradient-to-b from-blue-50/70 via-white to-white">
 
         {/* Background Grid Pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#0041820a_1px,transparent_1px),linear-gradient(to_bottom,#0041820a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
@@ -755,7 +755,7 @@ export const Home: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
 
             {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+            <div className="lg:col-span-7 space-y-4 text-center lg:text-left">
 
               {/* Event Badge */}
               <div className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-100 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-xs">
@@ -778,13 +778,16 @@ export const Home: React.FC = () => {
                 <p className="text-base sm:text-lg text-slate-500 font-medium max-w-2xl mx-auto lg:mx-0 italic">
                   “{eventSettings.tagline}”
                 </p>
+              </div>
 
-                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200">
+              {/* Metadata Badges */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-1">
+                <div className="inline-flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200 text-xs font-bold text-slate-700">
                   <Calendar className="w-4 h-4 text-[#004182]" />
                   <span>{eventSettings.eventDate}</span>
                 </div>
 
-                <div className="flex items-center gap-2 bg-[#004182] text-white px-3.5 py-2 rounded-full shadow-md">
+                <div className="inline-flex items-center gap-2 bg-[#004182] text-white px-3.5 py-2 rounded-full shadow-md text-xs font-bold">
                   <Award className="w-4 h-4 text-amber-300" />
                   <span>
                     Prize Pool:{' '}
@@ -794,7 +797,7 @@ export const Home: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200">
+                <div className="inline-flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200 text-xs font-bold text-slate-700">
                   <MapPin className="w-4 h-4 text-[#004182]" />
                   <span>SR University Campus</span>
                 </div>
@@ -805,7 +808,7 @@ export const Home: React.FC = () => {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="pt-2"
+                className="pt-1"
               >
                 <CountdownTimer />
               </motion.div>
@@ -815,7 +818,7 @@ export const Home: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.4 }}
-                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2"
+                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-1"
               >
                 <Link
                   to="/register"
