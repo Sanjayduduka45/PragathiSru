@@ -2,11 +2,16 @@
  * contentService.ts
  *
  * Single source of truth for ALL content CRUD operations in React.
- * Every admin page and every public page goes through this service,
- * which routes calls to the FastAPI Python Backend (`api.*` from `./api.ts`).
+ * Every admin page and every public page goes through this service.
+ *
+ * Architecture:
+ * 1. Primary: Calls FastAPI Python Backend (`api.*` from `./api.ts`).
+ * 2. Fallback: Queries Supabase PostgreSQL tables directly if FastAPI is unreachable.
+ * 3. Default: Returns static constants if both DB and FastAPI are loading/unreachable.
  */
 
 import { api } from './api';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { EVENT_DETAILS } from '../utils/constants';
 import {
   PROJECT_CATEGORIES,
@@ -165,8 +170,33 @@ export async function getEventSettings(): Promise<SiteSettings> {
       };
     }
   } catch (err) {
-    console.warn('[contentService] getEventSettings backend fallback:', err);
+    console.warn('[contentService] getEventSettings FastAPI fallback:', err);
   }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('site_settings').select('*').limit(1);
+      if (data && data.length > 0) {
+        const d = data[0];
+        return {
+          eventName: d.event_name ?? DEFAULT_SITE_SETTINGS.eventName,
+          fullTitle: d.full_title ?? DEFAULT_SITE_SETTINGS.fullTitle,
+          tagline: d.tagline ?? DEFAULT_SITE_SETTINGS.tagline,
+          eventDate: d.event_date ?? DEFAULT_SITE_SETTINGS.eventDate,
+          targetDateISO: d.target_date_iso ?? DEFAULT_SITE_SETTINGS.targetDateISO,
+          venue: d.venue ?? DEFAULT_SITE_SETTINGS.venue,
+          institution: d.institution ?? DEFAULT_SITE_SETTINGS.institution,
+          location: d.location ?? DEFAULT_SITE_SETTINGS.location,
+          prizePool: d.prize_pool ?? DEFAULT_SITE_SETTINGS.prizePool,
+          contactEmail: d.contact_email ?? DEFAULT_SITE_SETTINGS.contactEmail,
+          helpline: d.helpline ?? DEFAULT_SITE_SETTINGS.helpline,
+        };
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getEventSettings Supabase fallback error:', sErr);
+    }
+  }
+
   return DEFAULT_SITE_SETTINGS;
 }
 
@@ -184,7 +214,19 @@ export async function updateEventSettings(settings: Partial<SiteSettings>): Prom
     contact_email: settings.contactEmail,
     helpline: settings.helpline,
   };
-  await api.event.update(payload);
+
+  try {
+    await api.event.update(payload);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateEventSettings FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('site_settings').upsert([payload]);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 // ─── ABOUT CONTENT ────────────────────────────────────────────────────────────
@@ -201,13 +243,41 @@ export async function getAboutContent(): Promise<AboutContent> {
       };
     }
   } catch (err) {
-    console.warn('[contentService] getAboutContent backend fallback:', err);
+    console.warn('[contentService] getAboutContent FastAPI fallback:', err);
   }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('about_content').select('*').limit(1);
+      if (data && data.length > 0) {
+        return {
+          title: data[0].title ?? DEFAULT_ABOUT.title,
+          description: data[0].description ?? DEFAULT_ABOUT.description,
+          vision: data[0].vision ?? DEFAULT_ABOUT.vision,
+          objectives: data[0].objectives ?? DEFAULT_ABOUT.objectives,
+        };
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getAboutContent Supabase fallback error:', sErr);
+    }
+  }
+
   return DEFAULT_ABOUT;
 }
 
 export async function updateAboutContent(content: AboutContent): Promise<void> {
-  await api.about.update(content);
+  try {
+    await api.about.update(content);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateAboutContent FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('about_content').upsert([content]);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 // ─── PROJECT DOMAINS ──────────────────────────────────────────────────────────
@@ -228,8 +298,29 @@ export async function getDomains(): Promise<DomainItem[]> {
       }));
     }
   } catch (err) {
-    console.warn('[contentService] getDomains backend fallback:', err);
+    console.warn('[contentService] getDomains FastAPI fallback:', err);
   }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('project_domains').select('*').order('display_order', { ascending: true });
+      if (data && data.length > 0) {
+        return data.map((d: any) => ({
+          id: d.id,
+          title: d.title,
+          description: d.description || '',
+          iconName: d.icon_name || 'Cpu',
+          color: d.color || 'from-blue-600 to-indigo-600',
+          badgeText: d.badge_text || '',
+          active: d.is_active ?? true,
+          displayOrder: d.display_order ?? 0,
+        }));
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getDomains Supabase fallback error:', sErr);
+    }
+  }
+
   return PROJECT_CATEGORIES.map((c, i) => ({
     id: c.id,
     title: c.title,
@@ -252,18 +343,48 @@ export async function addDomain(d: Omit<DomainItem, 'id'>): Promise<DomainItem> 
     active: d.active,
     display_order: d.displayOrder,
   };
-  const res = await api.domains.create(payload);
-  const data = res.data;
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description || '',
-    iconName: data.icon_name || 'Cpu',
-    color: data.color || 'from-blue-600 to-indigo-600',
-    badgeText: data.badge_text || '',
-    active: data.active ?? true,
-    displayOrder: data.display_order ?? 0,
-  };
+
+  try {
+    const res = await api.domains.create(payload);
+    const data = res.data;
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description || '',
+      iconName: data.icon_name || 'Cpu',
+      color: data.color || 'from-blue-600 to-indigo-600',
+      badgeText: data.badge_text || '',
+      active: data.active ?? true,
+      displayOrder: data.display_order ?? 0,
+    };
+  } catch (err) {
+    console.warn('[contentService] addDomain FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('project_domains').insert([{
+        title: d.title,
+        description: d.description,
+        icon_name: d.iconName,
+        color: d.color,
+        badge_text: d.badgeText,
+        is_active: d.active,
+        display_order: d.displayOrder,
+      }]).select('*');
+      if (!error && data && data[0]) {
+        return {
+          id: data[0].id,
+          title: data[0].title,
+          description: data[0].description || '',
+          iconName: data[0].icon_name || 'Cpu',
+          color: data[0].color || 'from-blue-600 to-indigo-600',
+          badgeText: data[0].badge_text || '',
+          active: data[0].is_active ?? true,
+          displayOrder: data[0].display_order ?? 0,
+        };
+      }
+      throw new Error(`Database error: ${error?.message || 'Failed to insert'}`);
+    }
+    throw err;
+  }
 }
 
 export async function updateDomain(id: string, d: Partial<Omit<DomainItem, 'id'>>): Promise<void> {
@@ -276,11 +397,33 @@ export async function updateDomain(id: string, d: Partial<Omit<DomainItem, 'id'>
   if (d.active !== undefined) payload.active = d.active;
   if (d.displayOrder !== undefined) payload.display_order = d.displayOrder;
 
-  await api.domains.update(id, payload);
+  try {
+    await api.domains.update(id, payload);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateDomain FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('project_domains').update(payload).eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 export async function deleteDomain(id: string): Promise<void> {
-  await api.domains.delete(id);
+  try {
+    await api.domains.delete(id);
+    return;
+  } catch (err) {
+    console.warn('[contentService] deleteDomain FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('project_domains').delete().eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 // ─── SCHEDULE ITEMS ───────────────────────────────────────────────────────────
@@ -301,8 +444,29 @@ export async function getScheduleItems(): Promise<ScheduleEntry[]> {
       }));
     }
   } catch (err) {
-    console.warn('[contentService] getScheduleItems backend fallback:', err);
+    console.warn('[contentService] getScheduleItems FastAPI fallback:', err);
   }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('schedule_items').select('*').order('display_order', { ascending: true });
+      if (data && data.length > 0) {
+        return data.map((s: any) => ({
+          id: s.id,
+          time: s.time_slot || '',
+          event: s.event_title || '',
+          location: s.location || '',
+          description: s.description || '',
+          badge: s.badge || '',
+          active: s.is_active ?? true,
+          displayOrder: s.display_order ?? 0,
+        }));
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getScheduleItems Supabase fallback error:', sErr);
+    }
+  }
+
   return SCHEDULE_PREVIEW.map((s, i) => ({
     id: `sch-${i}`,
     time: s.time,
@@ -325,35 +489,87 @@ export async function addScheduleItem(s: Omit<ScheduleEntry, 'id'>): Promise<Sch
     active: s.active,
     display_order: s.displayOrder,
   };
-  const res = await api.schedule.create(payload);
-  const data = res.data;
-  return {
-    id: data.id,
-    time: data.time || data.time_slot || '',
-    event: data.event || data.event_title || '',
-    location: data.location || '',
-    description: data.description || '',
-    badge: data.badge || '',
-    active: data.active ?? true,
-    displayOrder: data.display_order ?? 0,
-  };
+
+  try {
+    const res = await api.schedule.create(payload);
+    const data = res.data;
+    return {
+      id: data.id,
+      time: data.time || data.time_slot || '',
+      event: data.event || data.event_title || '',
+      location: data.location || '',
+      description: data.description || '',
+      badge: data.badge || '',
+      active: data.active ?? true,
+      displayOrder: data.display_order ?? 0,
+    };
+  } catch (err) {
+    console.warn('[contentService] addScheduleItem FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('schedule_items').insert([{
+        time_slot: s.time,
+        event_title: s.event,
+        location: s.location,
+        description: s.description,
+        badge: s.badge,
+        is_active: s.active,
+        display_order: s.displayOrder,
+      }]).select('*');
+      if (!error && data && data[0]) {
+        return {
+          id: data[0].id,
+          time: data[0].time_slot || '',
+          event: data[0].event_title || '',
+          location: data[0].location || '',
+          description: data[0].description || '',
+          badge: data[0].badge || '',
+          active: data[0].is_active ?? true,
+          displayOrder: data[0].display_order ?? 0,
+        };
+      }
+      throw new Error(`Database error: ${error?.message || 'Failed to insert'}`);
+    }
+    throw err;
+  }
 }
 
 export async function updateScheduleItem(id: string, s: Partial<Omit<ScheduleEntry, 'id'>>): Promise<void> {
   const payload: Record<string, any> = {};
-  if (s.time !== undefined) payload.time = s.time;
-  if (s.event !== undefined) payload.event = s.event;
+  if (s.time !== undefined) payload.time_slot = s.time;
+  if (s.event !== undefined) payload.event_title = s.event;
   if (s.location !== undefined) payload.location = s.location;
   if (s.description !== undefined) payload.description = s.description;
   if (s.badge !== undefined) payload.badge = s.badge;
-  if (s.active !== undefined) payload.active = s.active;
+  if (s.active !== undefined) payload.is_active = s.active;
   if (s.displayOrder !== undefined) payload.display_order = s.displayOrder;
 
-  await api.schedule.update(id, payload);
+  try {
+    await api.schedule.update(id, payload);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateScheduleItem FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('schedule_items').update(payload).eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 export async function deleteScheduleItem(id: string): Promise<void> {
-  await api.schedule.delete(id);
+  try {
+    await api.schedule.delete(id);
+    return;
+  } catch (err) {
+    console.warn('[contentService] deleteScheduleItem FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('schedule_items').delete().eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 // ─── RULES CONTENT ────────────────────────────────────────────────────────────
@@ -365,13 +581,36 @@ export async function getRulesContent(): Promise<string> {
       return res.data.content;
     }
   } catch (err) {
-    console.warn('[contentService] getRulesContent backend fallback:', err);
+    console.warn('[contentService] getRulesContent FastAPI fallback:', err);
   }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('rules_content').select('*').limit(1);
+      if (data && data.length > 0 && data[0].content) {
+        return data[0].content;
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getRulesContent Supabase fallback error:', sErr);
+    }
+  }
+
   return DEFAULT_RULES;
 }
 
 export async function updateRulesContent(content: string): Promise<void> {
-  await api.rules.update({ content });
+  try {
+    await api.rules.update({ content });
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateRulesContent FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('rules_content').upsert([{ content }]);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 // ─── FAQS ─────────────────────────────────────────────────────────────────────
@@ -390,8 +629,27 @@ export async function getFaqs(): Promise<FAQEntry[]> {
       }));
     }
   } catch (err) {
-    console.warn('[contentService] getFaqs backend fallback:', err);
+    console.warn('[contentService] getFaqs FastAPI fallback:', err);
   }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('faqs').select('*').order('display_order', { ascending: true });
+      if (data && data.length > 0) {
+        return data.map((f: any) => ({
+          id: f.id,
+          question: f.question,
+          answer: f.answer,
+          category: f.category || 'General',
+          active: f.is_active ?? true,
+          order: f.display_order ?? 0,
+        }));
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getFaqs Supabase fallback error:', sErr);
+    }
+  }
+
   return FAQS.map((f, i) => ({
     id: f.id,
     question: f.question,
@@ -410,16 +668,42 @@ export async function addFaq(f: Omit<FAQEntry, 'id'>): Promise<FAQEntry> {
     active: f.active,
     order: f.order,
   };
-  const res = await api.faqs.create(payload);
-  const data = res.data;
-  return {
-    id: data.id,
-    question: data.question,
-    answer: data.answer,
-    category: data.category || 'General',
-    active: data.active ?? true,
-    order: data.order ?? 0,
-  };
+
+  try {
+    const res = await api.faqs.create(payload);
+    const data = res.data;
+    return {
+      id: data.id,
+      question: data.question,
+      answer: data.answer,
+      category: data.category || 'General',
+      active: data.active ?? true,
+      order: data.order ?? 0,
+    };
+  } catch (err) {
+    console.warn('[contentService] addFaq FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('faqs').insert([{
+        question: f.question,
+        answer: f.answer,
+        category: f.category,
+        is_active: f.active,
+        display_order: f.order,
+      }]).select('*');
+      if (!error && data && data[0]) {
+        return {
+          id: data[0].id,
+          question: data[0].question,
+          answer: data[0].answer,
+          category: data[0].category || 'General',
+          active: data[0].is_active ?? true,
+          order: data[0].display_order ?? 0,
+        };
+      }
+      throw new Error(`Database error: ${error?.message || 'Failed to insert'}`);
+    }
+    throw err;
+  }
 }
 
 export async function updateFaq(id: string, f: Partial<Omit<FAQEntry, 'id'>>): Promise<void> {
@@ -427,14 +711,36 @@ export async function updateFaq(id: string, f: Partial<Omit<FAQEntry, 'id'>>): P
   if (f.question !== undefined) payload.question = f.question;
   if (f.answer !== undefined) payload.answer = f.answer;
   if (f.category !== undefined) payload.category = f.category;
-  if (f.active !== undefined) payload.active = f.active;
-  if (f.order !== undefined) payload.order = f.order;
+  if (f.active !== undefined) payload.is_active = f.active;
+  if (f.order !== undefined) payload.display_order = f.order;
 
-  await api.faqs.update(id, payload);
+  try {
+    await api.faqs.update(id, payload);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateFaq FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('faqs').update(payload).eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 export async function deleteFaq(id: string): Promise<void> {
-  await api.faqs.delete(id);
+  try {
+    await api.faqs.delete(id);
+    return;
+  } catch (err) {
+    console.warn('[contentService] deleteFaq FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('faqs').delete().eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 // ─── SPONSORS ─────────────────────────────────────────────────────────────────
@@ -455,8 +761,29 @@ export async function getSponsors(): Promise<SponsorEntry[]> {
       }));
     }
   } catch (err) {
-    console.warn('[contentService] getSponsors backend fallback:', err);
+    console.warn('[contentService] getSponsors FastAPI fallback:', err);
   }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from('sponsors').select('*').order('display_order', { ascending: true });
+      if (data && data.length > 0) {
+        return data.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          type: s.sponsor_type || 'Partner',
+          role: s.role || '',
+          logoText: s.logo_text || '',
+          website: s.website || '',
+          active: s.is_active ?? true,
+          order: s.display_order ?? 0,
+        }));
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getSponsors Supabase fallback error:', sErr);
+    }
+  }
+
   return SPONSORS_PARTNERS.map((s, i) => ({
     id: `sponsor-${i}`,
     name: s.name,
@@ -479,35 +806,87 @@ export async function addSponsor(s: Omit<SponsorEntry, 'id'>): Promise<SponsorEn
     active: s.active,
     order: s.order,
   };
-  const res = await api.sponsors.create(payload);
-  const data = res.data;
-  return {
-    id: data.id,
-    name: data.name,
-    type: data.type || data.sponsor_type || 'Partner',
-    role: data.role || '',
-    logoText: data.logo_text || data.logoText || '',
-    website: data.website || '',
-    active: data.active ?? true,
-    order: data.order ?? 0,
-  };
+
+  try {
+    const res = await api.sponsors.create(payload);
+    const data = res.data;
+    return {
+      id: data.id,
+      name: data.name,
+      type: data.type || data.sponsor_type || 'Partner',
+      role: data.role || '',
+      logoText: data.logo_text || data.logoText || '',
+      website: data.website || '',
+      active: data.active ?? true,
+      order: data.order ?? 0,
+    };
+  } catch (err) {
+    console.warn('[contentService] addSponsor FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('sponsors').insert([{
+        name: s.name,
+        sponsor_type: s.type,
+        role: s.role,
+        logo_text: s.logoText,
+        website: s.website,
+        is_active: s.active,
+        display_order: s.order,
+      }]).select('*');
+      if (!error && data && data[0]) {
+        return {
+          id: data[0].id,
+          name: data[0].name,
+          type: data[0].sponsor_type || 'Partner',
+          role: data[0].role || '',
+          logoText: data[0].logo_text || '',
+          website: data[0].website || '',
+          active: data[0].is_active ?? true,
+          order: data[0].display_order ?? 0,
+        };
+      }
+      throw new Error(`Database error: ${error?.message || 'Failed to insert'}`);
+    }
+    throw err;
+  }
 }
 
 export async function updateSponsor(id: string, s: Partial<Omit<SponsorEntry, 'id'>>): Promise<void> {
   const payload: Record<string, any> = {};
   if (s.name !== undefined) payload.name = s.name;
-  if (s.type !== undefined) payload.type = s.type;
+  if (s.type !== undefined) payload.sponsor_type = s.type;
   if (s.role !== undefined) payload.role = s.role;
   if (s.logoText !== undefined) payload.logo_text = s.logoText;
   if (s.website !== undefined) payload.website = s.website;
-  if (s.active !== undefined) payload.active = s.active;
-  if (s.order !== undefined) payload.order = s.order;
+  if (s.active !== undefined) payload.is_active = s.active;
+  if (s.order !== undefined) payload.display_order = s.order;
 
-  await api.sponsors.update(id, payload);
+  try {
+    await api.sponsors.update(id, payload);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateSponsor FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 export async function deleteSponsor(id: string): Promise<void> {
-  await api.sponsors.delete(id);
+  try {
+    await api.sponsors.delete(id);
+    return;
+  } catch (err) {
+    console.warn('[contentService] deleteSponsor FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('sponsors').delete().eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
 }
 
 // ─── Live Count Helpers ────────────────────────────────────────────────────────
