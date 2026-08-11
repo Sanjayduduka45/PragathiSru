@@ -44,11 +44,17 @@ class EventService:
         payload = data.model_dump()
         existing = await db.fetch_supabase("site_settings", "limit=1")
         if existing and len(existing) > 0:
-            row_id = existing[0].get("id")
+            existing_row = existing[0]
+            row_id = existing_row.get("id")
+            if not payload.get("target_date_iso"):
+                payload["target_date_iso"] = existing_row.get("target_date_iso", "2026-10-09T09:00:00+05:30")
             await db.update_supabase("site_settings", "id", str(row_id), payload)
         else:
+            if not payload.get("target_date_iso"):
+                payload["target_date_iso"] = "2026-10-09T09:00:00+05:30"
             await db.insert_supabase("site_settings", payload)
 
+        data.target_date_iso = payload["target_date_iso"]
         local = db.load_local()
         local["site_settings"] = payload
         db.save_local(local)

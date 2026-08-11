@@ -6,7 +6,7 @@ class EventDetails(BaseModel):
     full_title: str
     tagline: str
     event_date: str
-    target_date_iso: str
+    target_date_iso: Optional[str] = None
     venue: str
     institution: str
     location: str
