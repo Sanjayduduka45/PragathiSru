@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from app.database import db
 from app.schemas.registration import (
@@ -13,9 +14,13 @@ from app.services.faq_service import faq_service
 class RegistrationService:
     @staticmethod
     async def get_registrations() -> List[RegistrationItem]:
-        # Fetch registrations from Supabase
-        regs = await db.fetch_supabase("registrations", "select=*,team_members(*),projects(*)")
-        if regs is None:
+        # Fetch registrations from Supabase with relational join
+        regs = await db.fetch_supabase("registrations", "select=*,team_members(*),projects(*)&order=created_at.desc")
+        # Fallback to simple select=* if relational join query returned empty/None
+        if not regs:
+            print("[RegistrationService] Relational query returned empty/None. Falling back to select=*")
+            regs = await db.fetch_supabase("registrations", "select=*&order=created_at.desc")
+        if not regs:
             regs = []
 
         result: List[RegistrationItem] = []
@@ -30,6 +35,16 @@ class RegistrationService:
                             print(f"[RegistrationService] Skipping invalid team_member dict: {e}")
                     elif isinstance(m, str):
                         tm_list.append(TeamMember(id=m, name=m, email=""))
+
+            # If team_members is empty, auto-create leader entry if leader_name is present
+            if not tm_list and r.get("leader_name"):
+                tm_list.append(TeamMember(
+                    id=f"leader-{r.get('id')}",
+                    name=r.get("leader_name", ""),
+                    email=r.get("leader_email", ""),
+                    mobile=r.get("leader_mobile"),
+                    is_team_leader=True
+                ))
 
             proj_list = []
             if r.get("projects"):
@@ -117,7 +132,10 @@ class RegistrationService:
 
         if target_uuid is None:
             print(f"[RegistrationService] Record not found in Supabase for reg_id='{clean_id}'")
-            return False
+            raise HTTPException(
+                status_code=404,
+                detail=f"Registration '{clean_id}' was not found in database."
+            )
 
         print(f"[RegistrationService] Successfully resolved '{clean_id}' -> target_uuid='{target_uuid}'")
 
@@ -132,13 +150,19 @@ class RegistrationService:
 
         if not success:
             print(f"[RegistrationService] Deletion execution failed for target UUID '{target_uuid}'")
-            return False
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database deletion query returned zero deleted rows for UUID '{target_uuid}'. Verify SUPABASE_SERVICE_ROLE_KEY environment variable."
+            )
 
         # Real verification - query DB directly to confirm 0 rows remain
         raw_check = await db.fetch_supabase("registrations", f"id=eq.{target_uuid}&select=id")
         if raw_check and len(raw_check) > 0:
             print(f"[RegistrationService] Post-delete verification failed: record '{target_uuid}' still exists in PostgreSQL.")
-            return False
+            raise HTTPException(
+                status_code=500,
+                detail=f"Registration resolved to UUID '{target_uuid}', but post-delete verification failed (record still present in DB)."
+            )
 
         print(f"[RegistrationService] Verification succeeded: record '{target_uuid}' completely deleted.")
         return True
