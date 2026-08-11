@@ -30,13 +30,22 @@ async def update_registration(reg_id: str, data: RegistrationUpdate):
 
 @router.delete("/api/admin/registrations/{reg_id}")
 async def delete_registration(reg_id: str):
-    success = await registration_service.delete_registration(reg_id)
-    if not success:
+    try:
+        success = await registration_service.delete_registration(reg_id)
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail="Registration was not found or was not deleted."
+            )
+        return {"success": True, "message": f"Registration {reg_id} deleted successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[API Error] Exception during delete_registration({reg_id}): {e}")
         raise HTTPException(
-            status_code=404,
-            detail="Registration was not found or was not deleted."
+            status_code=500,
+            detail=f"Failed to delete registration: {str(e)}"
         )
-    return {"success": True, "message": f"Registration {reg_id} deleted successfully."}
 
 @router.get("/api/admin/stats", response_model=RegistrationStatsResponse)
 async def get_dashboard_stats():
