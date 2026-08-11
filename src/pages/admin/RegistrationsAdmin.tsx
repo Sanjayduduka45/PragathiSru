@@ -662,7 +662,7 @@ export const RegistrationsAdmin: React.FC = () => {
           {/* Pagination */}
           <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex items-center justify-between text-xs">
             <span className="text-slate-500 font-semibold">
-              Showing {Math.min((currentPage - 1) * pageSize + 1, totalRecords)}–{Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} registrations
+              Showing {Math.min((currentPage - 1) * pageSize + 1, totalRecords)} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} registrations
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -685,9 +685,7 @@ export const RegistrationsAdmin: React.FC = () => {
         </div>
       )}
 
-      {/* ════════════════════════════════════════
-          VIEW MODAL
-      ════════════════════════════════════════ */}
+      {/* View Modal */}
       <Modal
         isOpen={!!selectedReg}
         onClose={() => setSelectedReg(null)}
@@ -829,9 +827,7 @@ export const RegistrationsAdmin: React.FC = () => {
         )}
       </Modal>
 
-      {/* ════════════════════════════════════════
-          EDIT MODAL
-      ════════════════════════════════════════ */}
+      {/* Edit Modal */}
       <Modal
         isOpen={!!editReg}
         onClose={() => { setEditReg(null); setEditForm(null); setEditError(null); }}
@@ -1050,9 +1046,7 @@ export const RegistrationsAdmin: React.FC = () => {
         )}
       </Modal>
 
-      {/* ════════════════════════════════════════
-          DELETE STEP 1 — WARNING DIALOG
-      ════════════════════════════════════════ */}
+      {/* Delete Step 1 Modal */}
       <Modal
         isOpen={deleteStep === 1}
         onClose={closeDelete}
@@ -1070,7 +1064,7 @@ export const RegistrationsAdmin: React.FC = () => {
               onClick={() => setDeleteStep(2)}
               className="px-5 py-2 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer"
             >
-              Continue →
+              Continue -&gt;
             </button>
           </>
         }
@@ -1107,9 +1101,7 @@ export const RegistrationsAdmin: React.FC = () => {
         )}
       </Modal>
 
-      {/* ════════════════════════════════════════
-          DELETE STEP 2 — TYPE REGISTRATION ID
-      ════════════════════════════════════════ */}
+      {/* Delete Step 2 Modal */}
       <Modal
         isOpen={deleteStep === 2}
         onClose={closeDelete}
@@ -1133,7 +1125,7 @@ export const RegistrationsAdmin: React.FC = () => {
                 ? <Loader2 className="w-4 h-4 animate-spin" />
                 : <Trash2 className="w-4 h-4" />
               }
-              {deleteLoading ? 'Deleting…' : 'Delete Permanently'}
+              {deleteLoading ? 'Deleting...' : 'Delete Permanently'}
             </button>
           </>
         }
@@ -1177,12 +1169,12 @@ export const RegistrationsAdmin: React.FC = () => {
               />
               {deleteConfirmInput && !deleteConfirmMatches && (
                 <p className="text-[11px] text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
-                  <X className="w-3 h-3" /> ID does not match — check and try again
+                  <X className="w-3 h-3" /> ID does not match - check and try again
                 </p>
               )}
               {deleteConfirmMatches && (
                 <p className="text-[11px] text-emerald-700 font-semibold mt-1.5 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> ID confirmed — you may now delete permanently
+                  <CheckCircle2 className="w-3 h-3" /> ID confirmed - you may now delete permanently
                 </p>
               )}
             </div>
