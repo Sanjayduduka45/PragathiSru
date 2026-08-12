@@ -660,6 +660,11 @@ import {
   Clock,
   MapPin,
   Trophy,
+  Handshake,
+  Rocket,
+  TrendingUp,
+  Network,
+  Mail,
 } from 'lucide-react';
 
 import { EVENT_DETAILS } from '../utils/constants';
@@ -1222,6 +1227,168 @@ export const Home: React.FC = () => {
 
       {/* DYNAMIC PREVIOUS EVENT SHOWCASE & TESTIMONIALS */}
       <TestimonialsSection />
+
+      {/* COLLABORATION & SPONSORSHIP SECTION */}
+      <section id="collaborate" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
+        {/* Main Card */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-8 sm:p-12 lg:p-14 relative overflow-hidden space-y-12">
+          {/* Subtle Background Radial Glows */}
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-50/70 rounded-full blur-3xl pointer-events-none -z-0" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -z-0" />
+
+          {/* Main Grid: Left Content, Right Collaboration Visual */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center relative z-10">
+            {/* Left Column — Text Content */}
+            <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
+              {/* Top Badge */}
+              <div className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-200/80 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-xs">
+                <Handshake className="w-4 h-4 text-[#004182]" />
+                <span>COLLABORATE WITH PRAGATHI 2K26</span>
+              </div>
+
+              {/* Heading */}
+              <div className="space-y-1">
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 font-display tracking-tight leading-tight uppercase">
+                  Looking for
+                </h2>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#004182] font-display tracking-tight leading-tight uppercase">
+                  Collaborations & Sponsors
+                </h2>
+              </div>
+
+              {/* Description */}
+              <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                Interested in collaborating with PRAGATHI 2K26 or sponsoring the event? Partner with us to support innovation, student projects, and a national-level project expo.
+              </p>
+
+              {/* Primary CTA Button */}
+              <div className="pt-2">
+                <Link
+                  to="/contact"
+                  className="inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-[#004182] to-[#002852] hover:from-[#003366] hover:to-[#001f3f] text-white px-8 py-3.5 rounded-full font-bold text-base shadow-lg shadow-blue-900/20 hover:shadow-xl hover:shadow-blue-900/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 transition-all duration-200 group"
+                >
+                  <span>Contact Us</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Column — Interactive 3D Handshake Visual with Orbiting Categories */}
+            <div className="lg:col-span-6 relative flex items-center justify-center min-h-[340px] sm:min-h-[380px] py-4">
+              {/* Outer Orbit Line */}
+              <div className="absolute w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] rounded-full border-2 border-dashed border-blue-200/80 animate-spin-slow pointer-events-none" />
+
+              {/* Central Glowing Circle & Handshake Icon */}
+              <div className="relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-blue-500 to-[#004182] text-white flex items-center justify-center shadow-2xl shadow-blue-600/30 border-4 border-white animate-float">
+                <Handshake className="w-12 h-12 sm:w-14 sm:h-14 text-white" />
+                {/* Soft outer glow */}
+                <div className="absolute inset-0 rounded-full bg-blue-400/30 blur-md pointer-events-none" />
+              </div>
+
+              {/* Category 1: Top Left - Industry Partners */}
+              <div className="absolute top-0 left-2 sm:left-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
+                  <Building2 className="w-5 h-5 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Industry</div>
+                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Partners</div>
+                </div>
+              </div>
+
+              {/* Category 2: Top Right - Startups & Innovators */}
+              <div className="absolute top-0 right-2 sm:right-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
+                  <Rocket className="w-5 h-5 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Startups &</div>
+                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Innovators</div>
+                </div>
+              </div>
+
+              {/* Category 3: Bottom Left - Academic Institutions */}
+              <div className="absolute bottom-0 left-2 sm:left-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
+                  <GraduationCap className="w-5 h-5 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Academic</div>
+                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Institutions</div>
+                </div>
+              </div>
+
+              {/* Category 4: Bottom Right - Technology Partners */}
+              <div className="absolute bottom-0 right-2 sm:right-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
+                  <Lightbulb className="w-5 h-5 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Technology</div>
+                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Partners</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Benefit Strip — 4 Horizontal Columns */}
+          <div className="pt-8 border-t border-slate-100 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-0 lg:divide-x lg:divide-slate-200">
+              {/* Item 1 */}
+              <div className="flex items-start gap-3.5 lg:px-6 first:lg:pl-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center shrink-0 mt-0.5">
+                  <Trophy className="w-5 h-5 text-[#004182]" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-sm font-bold text-slate-900">Empower Innovation</h4>
+                  <p className="text-xs text-slate-500 leading-snug">Support bright minds and innovative ideas</p>
+                </div>
+              </div>
+
+              {/* Item 2 */}
+              <div className="flex items-start gap-3.5 lg:px-6">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center shrink-0 mt-0.5">
+                  <TrendingUp className="w-5 h-5 text-[#004182]" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-sm font-bold text-slate-900">Increase Visibility</h4>
+                  <p className="text-xs text-slate-500 leading-snug">Showcase your brand to a wide, engaged audience</p>
+                </div>
+              </div>
+
+              {/* Item 3 */}
+              <div className="flex items-start gap-3.5 lg:px-6">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center shrink-0 mt-0.5">
+                  <Network className="w-5 h-5 text-[#004182]" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-sm font-bold text-slate-900">Build Connections</h4>
+                  <p className="text-xs text-slate-500 leading-snug">Network with academia, industry & future talent</p>
+                </div>
+              </div>
+
+              {/* Item 4 */}
+              <div className="flex items-start gap-3.5 lg:px-6 last:lg:pr-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-5 h-5 text-[#004182]" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-sm font-bold text-slate-900">Make an Impact</h4>
+                  <p className="text-xs text-slate-500 leading-snug">Contribute to the growth of the innovation ecosystem</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Centered Sub-Message */}
+        <div className="text-center pt-4">
+          <p className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-500">
+            <Mail className="w-4 h-4 text-[#004182]" />
+            <span>We'd love to explore how we can create value together.</span>
+          </p>
+        </div>
+      </section>
 
       {/* FAQ SECTION */}
       <section
