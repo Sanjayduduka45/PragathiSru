@@ -769,12 +769,12 @@ export const Home: React.FC = () => {
 
               {/* Main Headline */}
               <div className="space-y-2">
-                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-[#004182] tracking-tight leading-[1.05] uppercase font-display">
-                  {eventSettings.eventName}
+                <h1 className="hero-title-3d animate-float text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] uppercase font-display">
+                  PRAGATHI 2.0
                 </h1>
 
                 <p className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display">
-                  National Level Project Expo
+                  A National Level Project Expo 2K26
                 </p>
 
                 <p className="text-base sm:text-lg text-slate-500 font-medium max-w-2xl mx-auto lg:mx-0 italic">

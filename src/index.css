@@ -121,6 +121,19 @@
   animation: floatGentle 6s ease-in-out infinite;
 }
 
+/* 3D Floating Hero Title */
+.hero-title-3d {
+  display: inline-block;
+  color: #004182;
+  text-shadow:
+    0 1px 0 #003870,
+    0 2px 0 #002e5c,
+    0 3px 0 #002449,
+    0 4px 12px rgba(0, 65, 130, 0.22),
+    0 10px 28px rgba(0, 65, 130, 0.14);
+  filter: drop-shadow(0 4px 16px rgba(0, 65, 130, 0.15));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-float {
     animation: none !important;
