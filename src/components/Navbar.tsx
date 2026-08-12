@@ -21,10 +21,15 @@ export const Navbar: React.FC = () => {
       {/* Top Banner Notice */}
       <div className="bg-[#004182] text-white text-xs font-medium py-1.5 px-4 text-center">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <span className="hidden sm:inline-flex items-center gap-1.5">
+          <a
+            href="https://sru.edu.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 hover:text-blue-100 transition-colors"
+          >
             <GraduationCap className="w-3.5 h-3.5 text-blue-200" />
             <span className="font-semibold">{eventSettings.institution}</span>, Warangal • National Level Project Expo
-          </span>
+          </a>
           <div className="mx-auto sm:mx-0 flex items-center gap-2">
             <span className="bg-white/15 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-white/20">
               {eventSettings.eventDate}
@@ -39,11 +44,17 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16 sm:h-20">
           
           {/* SR University Brand Logo (Far Left) */}
-          <Link to="/" className="flex items-center shrink-0 group focus:outline-hidden" aria-label="SR University Home">
+          <a
+            href="https://sru.edu.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center shrink-0 group focus:outline-hidden"
+            aria-label="SR University Official Website"
+          >
             <div className="h-10 sm:h-12 flex items-center shrink-0 group-hover:scale-105 transition-transform duration-200">
               <img src={sruLogo} alt="SR University Logo" className="h-7 sm:h-9 w-auto object-contain" />
             </div>
-          </Link>
+          </a>
 
           {/* Mobile PRAGATHI Logo */}
           <div className="flex md:hidden items-center shrink-0">
