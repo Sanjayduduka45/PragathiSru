@@ -92,12 +92,12 @@ export const TestimonialsAdmin: React.FC = () => {
     setEditingItem(null);
     setFormTitle('');
     setFormDescription('');
-    setFormDesignation('');
-    setFormEventName('PRAGATHI 2K25');
-    setFormEventYear('2025');
+    setFormDesignation('Expo Walkthrough');
+    setFormEventName('PRAGATHI Expo');
+    setFormEventYear('2026');
     setFormMediaType('image');
-    setFormMediaUrl('https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80');
-    setFormThumbnailUrl('https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80');
+    setFormMediaUrl('/event-memories/IMG_7368.JPG');
+    setFormThumbnailUrl('/event-memories/IMG_7368.JPG');
     setFormImageAlt('');
     setFormImageAspectRatio('16:9');
     setFormImagePosition('center');

@@ -1103,28 +1103,64 @@ export const DEFAULT_TESTIMONIALS_FALLBACK: TestimonialEntry[] = [
   },
 ];
 
+const EVENT_MEMORIES_IMAGES = [
+  '/event-memories/IMG_7326.JPG',
+  '/event-memories/IMG_7330.JPG',
+  '/event-memories/IMG_7363.JPG',
+  '/event-memories/IMG_7368.JPG',
+  '/event-memories/IMG_7377.JPG',
+  '/event-memories/IMG_7392.JPG',
+  '/event-memories/IMG_7441.JPG',
+  '/event-memories/IMG_7687.JPG',
+  '/event-memories/IMG_7693.JPG',
+];
+
+function isDummyTestimonial(t: any): boolean {
+  const title = (t.title || '').toLowerCase();
+  const desc = (t.description || '').toLowerCase();
+  const img = (t.media_url || t.image_url || t.imageUrl || '').toLowerCase();
+
+  return (
+    title.includes('jhsd') ||
+    title.includes('grbt') ||
+    title.includes('pragathi 2k25 – project expo showcase') ||
+    title.includes('insd') ||
+    desc.includes('jhsd') ||
+    desc.includes('grbt') ||
+    img.includes('unsplash.com') ||
+    img.includes('placeholder')
+  );
+}
+
 export async function getTestimonials(): Promise<TestimonialEntry[]> {
   try {
     const res = await api.testimonials.get();
-    if (res && Array.isArray(res.data) && res.data.length > 0) {
-      return res.data.map((t: any) => ({
-        id: t.id,
-        title: t.title || '',
-        description: t.description || '',
-        personName: t.person_name || t.personName || '',
-        designation: t.designation || '',
-        eventName: t.event_name || t.eventName || '',
-        eventYear: t.event_year || t.eventYear || '',
-        imageUrl: t.media_url || t.image_url || t.imageUrl || '',
-        imageAlt: t.image_alt || t.imageAlt || '',
-        imageAspectRatio: t.image_aspect_ratio || t.imageAspectRatio || '16:9',
-        imagePosition: t.image_position || t.imagePosition || 'center',
-        mediaType: t.media_type || t.mediaType || 'image',
-        mediaUrl: t.media_url || t.mediaUrl || t.image_url || t.imageUrl || '',
-        thumbnailUrl: t.thumbnail_url || t.thumbnailUrl || t.image_url || t.imageUrl || '',
-        active: t.active ?? t.is_active ?? true,
-        order: t.order ?? t.display_order ?? 0,
-      }));
+    if (res && Array.isArray(res.data)) {
+      const validItems = res.data.filter((t: any) => !isDummyTestimonial(t));
+      if (validItems.length >= 9) {
+        return validItems.map((t: any, idx: number) => {
+          const rawUrl = t.media_url || t.image_url || t.imageUrl || '';
+          const img = (!rawUrl || rawUrl.includes('unsplash.com')) ? EVENT_MEMORIES_IMAGES[idx % 9] : rawUrl;
+          return {
+            id: t.id,
+            title: t.title || '',
+            description: t.description || '',
+            personName: t.person_name || t.personName || '',
+            designation: t.designation || '',
+            eventName: t.event_name || t.eventName || 'PRAGATHI Expo',
+            eventYear: t.event_year || t.eventYear || '2026',
+            imageUrl: img,
+            imageAlt: t.image_alt || t.imageAlt || t.title || 'PRAGATHI Event Memory',
+            imageAspectRatio: t.image_aspect_ratio || t.imageAspectRatio || '16:9',
+            imagePosition: t.image_position || t.imagePosition || 'center',
+            mediaType: t.media_type || t.mediaType || 'image',
+            mediaUrl: img,
+            thumbnailUrl: img,
+            active: t.active ?? t.is_active ?? true,
+            order: t.order ?? t.display_order ?? (idx + 1),
+          };
+        });
+      }
     }
   } catch (err) {
     console.warn('[contentService] getTestimonials FastAPI fallback:', err);
@@ -1133,25 +1169,32 @@ export async function getTestimonials(): Promise<TestimonialEntry[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data } = await supabase.from('testimonials').select('*').order('display_order', { ascending: true });
-      if (data && data.length > 0) {
-        return data.map((t: any) => ({
-          id: t.id,
-          title: t.title || '',
-          description: t.description || '',
-          personName: t.person_name || '',
-          designation: t.designation || '',
-          eventName: t.event_name || '',
-          eventYear: t.event_year || '',
-          imageUrl: t.media_url || t.image_url || '',
-          imageAlt: t.image_alt || '',
-          imageAspectRatio: t.image_aspect_ratio || '16:9',
-          imagePosition: t.image_position || 'center',
-          mediaType: t.media_type || 'image',
-          mediaUrl: t.media_url || t.image_url || '',
-          thumbnailUrl: t.thumbnail_url || t.image_url || '',
-          active: t.is_active ?? true,
-          order: t.display_order ?? 0,
-        }));
+      if (data && Array.isArray(data)) {
+        const validItems = data.filter((t: any) => !isDummyTestimonial(t));
+        if (validItems.length >= 9) {
+          return validItems.map((t: any, idx: number) => {
+            const rawUrl = t.media_url || t.image_url || '';
+            const img = (!rawUrl || rawUrl.includes('unsplash.com')) ? EVENT_MEMORIES_IMAGES[idx % 9] : rawUrl;
+            return {
+              id: t.id,
+              title: t.title || '',
+              description: t.description || '',
+              personName: t.person_name || '',
+              designation: t.designation || '',
+              eventName: t.event_name || 'PRAGATHI Expo',
+              eventYear: t.event_year || '2026',
+              imageUrl: img,
+              imageAlt: t.image_alt || t.title || 'PRAGATHI Event Memory',
+              imageAspectRatio: t.image_aspect_ratio || '16:9',
+              imagePosition: t.image_position || 'center',
+              mediaType: t.media_type || 'image',
+              mediaUrl: img,
+              thumbnailUrl: img,
+              active: t.is_active ?? true,
+              order: t.display_order ?? (idx + 1),
+            };
+          });
+        }
       }
     } catch (sErr) {
       console.warn('[contentService] getTestimonials Supabase fallback error:', sErr);

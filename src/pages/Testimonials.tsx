@@ -4,6 +4,18 @@ import { motion } from 'motion/react';
 import { Sparkles, ArrowLeft, Quote, Award, Video, Film, Image as ImageIcon } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
 
+const EVENT_MEMORIES_FALLBACK = [
+  '/event-memories/IMG_7326.JPG',
+  '/event-memories/IMG_7330.JPG',
+  '/event-memories/IMG_7363.JPG',
+  '/event-memories/IMG_7368.JPG',
+  '/event-memories/IMG_7377.JPG',
+  '/event-memories/IMG_7392.JPG',
+  '/event-memories/IMG_7441.JPG',
+  '/event-memories/IMG_7687.JPG',
+  '/event-memories/IMG_7693.JPG',
+];
+
 export const TestimonialsPage: React.FC = () => {
   const { testimonials, eventSettings } = useContent();
 
@@ -87,10 +99,13 @@ export const TestimonialsPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {activeItems.map((item) => {
+            {activeItems.map((item, idx) => {
               const isVideo = item.mediaType === 'video';
-              const mediaSrc = item.mediaUrl || item.imageUrl;
-              const posterSrc = item.thumbnailUrl || item.imageUrl;
+              let mediaSrc = item.mediaUrl || item.imageUrl || '';
+              if (!mediaSrc || mediaSrc.includes('unsplash.com') || mediaSrc.includes('stock')) {
+                mediaSrc = EVENT_MEMORIES_FALLBACK[idx % EVENT_MEMORIES_FALLBACK.length];
+              }
+              const posterSrc = item.thumbnailUrl || mediaSrc;
 
               return (
                 <motion.div
