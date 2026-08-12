@@ -148,6 +148,19 @@ class RegistrationService:
         success = await db.delete_supabase("registrations", "id", target_uuid)
         print(f"[RegistrationService] DB delete execution result for '{target_uuid}': {success}")
 
+        # Also remove from local_store fallback if present
+        local_data = db.load_local()
+        if "registrations" in local_data:
+            orig_len = len(local_data["registrations"])
+            local_data["registrations"] = [
+                r for r in local_data["registrations"]
+                if r.get("id") != target_uuid and r.get("registration_id") != clean_id
+            ]
+            if len(local_data["registrations"]) < orig_len:
+                db.save_local(local_data)
+                print(f"[RegistrationService] Removed '{target_uuid}' from local data store fallback.")
+                success = True
+
         if not success:
             print(f"[RegistrationService] Deletion execution failed for target UUID '{target_uuid}'")
             raise HTTPException(

@@ -281,9 +281,16 @@ class Database:
 
     # --- SUPABASE REST CLIENT ---
     def get_headers(self) -> Dict[str, str]:
+        key = (
+            settings.supabase_key
+            or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+            or os.getenv("SUPABASE_KEY", "")
+        )
+        if not key:
+            print("[Database Warning] SUPABASE_SERVICE_ROLE_KEY is not configured! Privileged database operations may fail.")
         return {
-            "apikey": settings.supabase_key,
-            "Authorization": f"Bearer {settings.supabase_key}",
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }
