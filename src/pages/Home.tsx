@@ -683,9 +683,7 @@ export const Home: React.FC = () => {
   const {
     eventSettings,
     domains,
-    schedule,
     faqs,
-    sponsors,
   } = useContent();
 
   const [openFaqId, setOpenFaqId] = useState<string | null>(
@@ -695,9 +693,8 @@ export const Home: React.FC = () => {
   const location = useLocation();
 
   const activeDomains = domains.filter((d) => d.active);
-  const activeSchedule = schedule.filter((s) => s.active);
   const activeFaqs = faqs.filter((f) => f.active);
-  const activeSponsors = sponsors.filter((sp) => sp.active);
+
 
   // Scroll to anchor on load or hash change
   useEffect(() => {
@@ -822,19 +819,19 @@ export const Home: React.FC = () => {
               >
                 <Link
                   to="/register"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-[#004182] hover:bg-[#003366] text-white px-8 py-3.5 rounded-full font-bold text-base shadow-lg shadow-blue-900/15 transition-all active:scale-98"
+                  className="hero-cta-primary w-full sm:w-auto inline-flex items-center justify-center gap-2.5 text-white px-8 py-3.5 rounded-2xl font-bold text-base tracking-wide group"
                 >
-                  <Sparkles className="w-5 h-5 text-blue-200" />
-                  <span>REGISTER NOW</span>
-                  <ArrowRight className="w-5 h-5" />
+                  <Sparkles className="w-5 h-5 text-blue-200/90 group-hover:scale-110 transition-transform duration-300" />
+                  <span className="relative z-10">REGISTER NOW</span>
+                  <ArrowRight className="w-5 h-5 opacity-80 group-hover:translate-x-1 transition-transform duration-300" />
                 </Link>
 
                 <a
                   href="#categories"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-[#004182] border border-slate-200 px-7 py-3.5 rounded-full font-bold text-base shadow-xs hover:shadow-sm transition-all"
+                  className="hero-cta-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 text-[#004182] px-7 py-3.5 rounded-2xl font-bold text-base tracking-wide group"
                 >
-                  <span>VIEW DOMAINS</span>
-                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                  <span className="relative z-10">VIEW DOMAINS</span>
+                  <ArrowRight className="w-4 h-4 text-[#004182]/50 group-hover:text-[#004182] group-hover:translate-x-1 transition-all duration-300" />
                 </a>
               </motion.div>
 
@@ -1206,89 +1203,19 @@ export const Home: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
-
-          {activeSchedule.map((item, idx) => (
-            <div
-              key={item.id || idx}
-              className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors"
-            >
-              <div className="md:w-1/4 shrink-0 space-y-1">
-                <span className="text-xs font-bold text-[#004182] bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 inline-block font-mono">
-                  {item.time}
-                </span>
-
-                <div className="text-xs text-slate-400 font-medium">
-                  {item.location}
-                </div>
-              </div>
-
-              <div className="md:w-2/4 space-y-1">
-                <h3 className="text-base font-bold text-slate-900">
-                  {item.event}
-                </h3>
-
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {item.description}
-                </p>
-              </div>
-
-              <div className="md:w-1/4 flex md:justify-end items-center">
-                <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                  {item.badge}
-                </span>
-              </div>
-            </div>
-          ))}
-
-        </div>
-      </section>
-
-      {/* SPONSORS / PARTNERS */}
-      <section className="bg-slate-50 py-16 border-y border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#004182] bg-white px-3 py-1 rounded-full border border-slate-200">
-              Institutional Partners
-            </span>
-
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#004182] font-display uppercase">
-              Supported By Leading Ecosystems
-            </h2>
-
-            <p className="text-xs sm:text-sm text-slate-500">
-              Mentorship, technical standards, and incubation backed by{' '}
-              {eventSettings.institution} bodies
-            </p>
+        {/* Schedule Coming Soon Placeholder Card */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center">
+            <Calendar className="w-7 h-7 text-[#004182]" />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-
-            {activeSponsors.map((partner, idx) => (
-              <div
-                key={partner.id || idx}
-                className="bg-white rounded-2xl p-6 border border-slate-200 text-center space-y-2 shadow-xs hover:border-blue-300 transition-all"
-              >
-                <div className="w-14 h-14 mx-auto rounded-xl bg-blue-50 border border-blue-100 text-[#004182] font-extrabold font-display text-lg flex items-center justify-center">
-                  {partner.logoText ||
-                    partner.name.substring(0, 2).toUpperCase()}
-                </div>
-
-                <h3 className="text-sm font-bold text-slate-900 leading-snug">
-                  {partner.name}
-                </h3>
-
-                <div className="text-[11px] font-semibold text-[#004182]">
-                  {partner.type}
-                </div>
-
-                <p className="text-[10px] text-slate-400">
-                  {partner.role}
-                </p>
-              </div>
-            ))}
-
+          <div className="space-y-1.5">
+            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
+              Schedule Coming Soon
+            </h3>
+            <p className="text-sm sm:text-base text-slate-600 max-w-lg mx-auto leading-relaxed">
+              The detailed Expo Day schedule will be announced one week before PRAGATHI 2K26.
+            </p>
           </div>
         </div>
       </section>
@@ -1358,7 +1285,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* FINAL REGISTRATION CALL TO ACTION BANNER */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
         <div className="bg-[#004182] text-white rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-xl relative overflow-hidden">
 
           <div className="space-y-3 max-w-2xl mx-auto">
