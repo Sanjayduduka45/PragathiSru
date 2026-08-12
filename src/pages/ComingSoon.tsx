@@ -171,10 +171,10 @@ export const ComingSoon: React.FC = () => {
 
             <Link
               to="/register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#004182] hover:bg-[#003366] text-white font-bold px-8 py-3 rounded-full text-sm shadow-md shadow-blue-900/15 transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-[#004182] hover:bg-[#003366] text-white font-extrabold px-8 py-3.5 rounded-[20px] text-sm sm:text-base shadow-md shadow-blue-900/15 hover:shadow-lg hover:-translate-y-[2px] active:translate-y-[1px] transition-all duration-200 group"
             >
-              <Sparkles className="w-4 h-4 text-blue-200" />
               <span>REGISTER NOW</span>
+              <ArrowRight className="w-5 h-5 opacity-90 group-hover:translate-x-1 transition-transform duration-200" />
             </Link>
           </div>
 

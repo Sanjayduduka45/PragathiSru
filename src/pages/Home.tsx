@@ -745,7 +745,7 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="space-y-16 sm:space-y-24">
+    <div className="space-y-12 sm:space-y-16 lg:space-y-20">
 
       {/* HERO SECTION */}
       <section className="relative overflow-hidden pt-6 pb-12 lg:py-16 bg-gradient-to-b from-blue-50/70 via-white to-white">
@@ -760,9 +760,9 @@ export const Home: React.FC = () => {
             <div className="lg:col-span-7 space-y-4 text-center lg:text-left">
 
               {/* Event Badge */}
-              <div className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-100 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-xs">
-                <Sparkles className="w-4 h-4 text-[#004182]" />
-                <span>
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-50/90 border border-blue-100/90 text-[#004182] px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide shadow-2xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out max-w-[calc(100vw-32px)] sm:max-w-none cursor-default">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#004182] shrink-0" />
+                <span className="truncate whitespace-nowrap">
                   {eventSettings.institution} • Warangal, Telangana
                 </span>
               </div>
@@ -783,24 +783,24 @@ export const Home: React.FC = () => {
               </div>
 
               {/* Metadata Badges */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-1">
-                <div className="inline-flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200 text-xs font-bold text-slate-700">
-                  <Calendar className="w-4 h-4 text-[#004182]" />
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3 pt-1 w-full max-w-md sm:max-w-none mx-auto lg:mx-0">
+                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full shadow-2xs hover:shadow-md border border-slate-200 text-xs font-bold text-slate-700 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out cursor-default">
+                  <Calendar className="w-4 h-4 text-[#004182] shrink-0" />
                   <span>{eventSettings.eventDate}</span>
                 </div>
 
-                <div className="inline-flex items-center gap-2 bg-[#004182] text-white px-3.5 py-2 rounded-full shadow-md text-xs font-bold">
-                  <Award className="w-4 h-4 text-amber-300" />
+                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#004182] text-white px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full shadow-md hover:shadow-lg text-xs font-bold whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out cursor-default">
+                  <Award className="w-4 h-4 text-amber-300 shrink-0" />
                   <span>
                     Prize Pool:{' '}
-                    <strong className="text-amber-300">
+                    <strong className="text-amber-300 font-extrabold">
                       {eventSettings.prizePool}
                     </strong>
                   </span>
                 </div>
 
-                <div className="inline-flex items-center gap-2 bg-white px-3.5 py-2 rounded-full shadow-xs border border-slate-200 text-xs font-bold text-slate-700">
-                  <MapPin className="w-4 h-4 text-[#004182]" />
+                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full shadow-2xs hover:shadow-md border border-slate-200 text-xs font-bold text-slate-700 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out cursor-default">
+                  <MapPin className="w-4 h-4 text-[#004182] shrink-0" />
                   <span>SR University Campus</span>
                 </div>
               </div>
@@ -824,11 +824,10 @@ export const Home: React.FC = () => {
               >
                 <Link
                   to="/register"
-                  className="hero-cta-primary w-full sm:w-auto inline-flex items-center justify-center gap-2.5 text-white px-8 py-3.5 rounded-2xl font-bold text-base tracking-wide group"
+                  className="hero-cta-primary w-full sm:w-auto inline-flex items-center justify-center gap-3 text-white px-8 py-3.5 rounded-[20px] font-extrabold text-base tracking-wide shadow-md shadow-blue-900/20 hover:shadow-lg hover:-translate-y-[2px] active:translate-y-[1px] transition-all duration-200 group"
                 >
-                  <Sparkles className="w-5 h-5 text-blue-200/90 group-hover:scale-110 transition-transform duration-300" />
                   <span className="relative z-10">REGISTER NOW</span>
-                  <ArrowRight className="w-5 h-5 opacity-80 group-hover:translate-x-1 transition-transform duration-300" />
+                  <ArrowRight className="w-5 h-5 opacity-90 group-hover:translate-x-1 transition-transform duration-200" />
                 </Link>
 
                 <a
@@ -842,12 +841,12 @@ export const Home: React.FC = () => {
 
             </div>
 
-            {/* Right 3D-Inspired Visual Column */}
+            {/* Right Hero Showcase Visual Column */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="lg:col-span-5 flex justify-center"
+              className="lg:col-span-5 flex justify-center items-center w-full"
             >
               <HeroVisual />
             </motion.div>
@@ -941,15 +940,16 @@ export const Home: React.FC = () => {
         id="about"
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24"
       >
-        <div className="bg-slate-50 rounded-3xl p-8 sm:p-12 border border-slate-200/80 shadow-xs grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="bg-slate-50 rounded-3xl p-6 sm:p-10 lg:p-12 border border-slate-200/80 shadow-xs grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
 
-          <div className="lg:col-span-7 space-y-4">
-            <div className="inline-flex items-center gap-2 bg-blue-100/70 text-[#004182] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+          {/* Left Content Column */}
+          <div className="lg:col-span-7 space-y-4 text-left">
+            <div className="inline-flex items-center gap-2 bg-blue-100/70 text-[#004182] px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-2xs">
               <Building className="w-3.5 h-3.5" />
               <span>About The Expo</span>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#004182] font-display uppercase leading-tight">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase leading-tight">
               About {eventSettings.eventName}
             </h2>
 
@@ -969,29 +969,29 @@ export const Home: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
 
-              <div className="flex items-start gap-3 bg-white p-3.5 rounded-xl border border-slate-200">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md hover:border-blue-300 hover:-translate-y-1 hover:scale-[1.01] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out cursor-default group">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform duration-300" />
 
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">
                     National Level Platform
                   </h4>
 
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-snug">
                     Connecting student innovators with industry mentors and judges.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 bg-white p-3.5 rounded-xl border border-slate-200">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md hover:border-blue-300 hover:-translate-y-1 hover:scale-[1.01] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out cursor-default group">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform duration-300" />
 
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">
                     Incubation Opportunity
                   </h4>
 
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-snug">
                     Seed grants & mentoring via SRiX Incubator.
                   </p>
                 </div>
@@ -1002,37 +1002,38 @@ export const Home: React.FC = () => {
             <div className="pt-2">
               <Link
                 to="/about"
-                className="inline-flex items-center gap-2 text-sm font-bold text-[#004182] hover:text-blue-900 transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-bold text-[#004182] hover:text-blue-900 transition-colors group"
               >
                 <span>Read Full Event Structure & Guidelines</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
               </Link>
             </div>
           </div>
 
-          <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-md space-y-4">
+          {/* Right Official Venue Card */}
+          <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-300 ease-out space-y-4 cursor-default">
 
-            <h3 className="text-lg font-extrabold text-[#004182] font-display border-b border-slate-100 pb-3">
+            <h3 className="text-base sm:text-lg font-extrabold text-[#004182] font-display border-b border-slate-100 pb-3">
               Official Venue & Institution
             </h3>
 
-            <div className="space-y-3 text-xs text-slate-600">
-              <p className="font-semibold text-slate-900">
+            <div className="space-y-3 text-xs sm:text-sm text-slate-600">
+              <p className="font-semibold text-slate-900 leading-snug">
                 {eventSettings.institution} Campus, {eventSettings.location}
               </p>
 
-              <p>
+              <p className="leading-relaxed text-xs">
                 {eventSettings.venue}
               </p>
 
-              <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100 text-[#004182] font-semibold flex items-center justify-between">
-                <span>Helpline / Query Cell:</span>
-                <span className="font-mono">
+              <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100 text-[#004182] font-semibold flex items-center justify-between gap-2">
+                <span className="text-xs">Helpline / Query Cell:</span>
+                <span className="font-mono text-xs font-bold">
                   {eventSettings.helpline}
                 </span>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600 text-[11px]">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600 text-[11px] sm:text-xs">
                 Support Email:{' '}
                 <strong className="text-slate-900">
                   {eventSettings.contactEmail}
@@ -1047,22 +1048,22 @@ export const Home: React.FC = () => {
 
       {/* EVENT STATISTICS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#004182] text-white rounded-3xl p-8 sm:p-12 shadow-xl relative overflow-hidden">
+        <div className="bg-[#004182] text-white rounded-3xl p-6 sm:p-10 lg:p-12 shadow-xl relative overflow-hidden">
 
-          <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
-            <span className="text-xs font-bold uppercase tracking-widest text-blue-200 bg-white/10 px-3 py-1 rounded-full border border-white/20">
+          <div className="text-center max-w-2xl mx-auto space-y-2 mb-8 sm:mb-10">
+            <span className="text-xs font-bold uppercase tracking-widest text-blue-200 bg-white/10 px-3.5 py-1 rounded-full border border-white/20 shadow-2xs">
               Impact & Scale
             </span>
 
-            <h2 className="text-3xl font-extrabold font-display uppercase text-white">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-display uppercase text-white tracking-tight">
               PRAGATHI 2K26 By The Numbers
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 text-center">
 
-            <div className="space-y-1">
-              <div className="text-4xl sm:text-5xl font-black font-display text-white">
+            <div className="bg-white/10 hover:bg-white/15 p-4 sm:p-5 lg:p-6 rounded-2xl border border-white/10 hover:border-white/25 hover:-translate-y-1 hover:scale-[1.015] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out cursor-default space-y-1.5 shadow-md">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-display text-white tracking-tight">
                 500+
               </div>
 
@@ -1070,13 +1071,13 @@ export const Home: React.FC = () => {
                 Submitted Projects
               </div>
 
-              <div className="text-[11px] text-blue-100/80">
+              <div className="text-[11px] sm:text-xs text-blue-100/80">
                 From School & Colleges
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="text-4xl sm:text-5xl font-black font-display text-amber-300">
+            <div className="bg-white/10 hover:bg-white/15 p-4 sm:p-5 lg:p-6 rounded-2xl border border-white/10 hover:border-white/25 hover:-translate-y-1 hover:scale-[1.015] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out cursor-default space-y-1.5 shadow-md">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-display text-amber-300 tracking-tight">
                 {formatPrizeShort(eventSettings.prizePool)}
               </div>
 
@@ -1084,13 +1085,13 @@ export const Home: React.FC = () => {
                 Total Cash Pool
               </div>
 
-              <div className="text-[11px] text-blue-100/80">
+              <div className="text-[11px] sm:text-xs text-blue-100/80">
                 6 Innovation Tracks
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="text-4xl sm:text-5xl font-black font-display text-white">
+            <div className="bg-white/10 hover:bg-white/15 p-4 sm:p-5 lg:p-6 rounded-2xl border border-white/10 hover:border-white/25 hover:-translate-y-1 hover:scale-[1.015] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out cursor-default space-y-1.5 shadow-md">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-display text-white tracking-tight">
                 50+
               </div>
 
@@ -1098,13 +1099,13 @@ export const Home: React.FC = () => {
                 Expert Judges
               </div>
 
-              <div className="text-[11px] text-blue-100/80">
+              <div className="text-[11px] sm:text-xs text-blue-100/80">
                 Academia & Industry
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="text-4xl sm:text-5xl font-black font-display text-emerald-300">
+            <div className="bg-white/10 hover:bg-white/15 p-4 sm:p-5 lg:p-6 rounded-2xl border border-white/10 hover:border-white/25 hover:-translate-y-1 hover:scale-[1.015] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out cursor-default space-y-1.5 shadow-md">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-black font-display text-emerald-300 tracking-tight">
                 100%
               </div>
 
@@ -1112,7 +1113,7 @@ export const Home: React.FC = () => {
                 Certified Participants
               </div>
 
-              <div className="text-[11px] text-blue-100/80">
+              <div className="text-[11px] sm:text-xs text-blue-100/80">
                 Digital & Hardcopy Certificates
               </div>
             </div>
@@ -1128,12 +1129,12 @@ export const Home: React.FC = () => {
       >
         <div className="text-center max-w-2xl mx-auto space-y-2">
 
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100 shadow-2xs">
             <Layers className="w-3.5 h-3.5" />
             <span>Exhibition Domains</span>
           </div>
 
-          <h2 className="text-3xl font-extrabold text-[#004182] font-display uppercase">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight">
             Project Categories & Domains
           </h2>
 
@@ -1142,17 +1143,17 @@ export const Home: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
           {activeDomains.map((cat) => (
             <div
               key={cat.id}
-              className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
+              className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-2xs hover:shadow-xl hover:border-blue-300 hover:-translate-y-1 hover:scale-[1.01] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out flex flex-col justify-between group cursor-default"
             >
               <div className="space-y-4">
 
                 <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center group-hover:bg-[#004182] group-hover:text-white transition-colors duration-300">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center group-hover:bg-[#004182] group-hover:text-white group-hover:scale-105 transition-all duration-300">
                     {getCategoryIcon(cat.iconName)}
                   </div>
 
@@ -1177,7 +1178,7 @@ export const Home: React.FC = () => {
                   className="text-xs font-bold text-[#004182] group-hover:text-blue-900 flex items-center gap-1.5"
                 >
                   <span>Register for Track</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-200" />
                 </Link>
               </div>
             </div>
@@ -1189,36 +1190,36 @@ export const Home: React.FC = () => {
       {/* SCHEDULE PREVIEW */}
       <section
         id="schedule"
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 scroll-mt-24"
       >
         <div className="text-center max-w-2xl mx-auto space-y-2">
 
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100 shadow-2xs">
             <Clock className="w-3.5 h-3.5" />
             <span>{eventSettings.eventDate} Timetable</span>
           </div>
 
-          <h2 className="text-3xl font-extrabold text-[#004182] font-display uppercase">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight">
             Expo Day Schedule
           </h2>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500">
             Agenda for registered participants on {eventSettings.eventDate} at{' '}
             {eventSettings.institution} campus
           </p>
         </div>
 
         {/* Schedule Coming Soon Placeholder Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center">
-            <Calendar className="w-7 h-7 text-[#004182]" />
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-blue-200 hover:-translate-y-1 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-300 ease-out p-6 sm:p-10 text-center max-w-xl mx-auto w-[94%] sm:w-full space-y-3 cursor-default">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-2xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center">
+            <Calendar className="w-6 h-6 sm:w-7 sm:h-7 text-[#004182]" />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
               Schedule Coming Soon
             </h3>
-            <p className="text-sm sm:text-base text-slate-600 max-w-lg mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
               The detailed Expo Day schedule will be announced one week before PRAGATHI 2K26.
             </p>
           </div>
@@ -1231,7 +1232,7 @@ export const Home: React.FC = () => {
       {/* COLLABORATION & SPONSORSHIP SECTION */}
       <section id="collaborate" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
         {/* Main Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-8 sm:p-12 lg:p-14 relative overflow-hidden space-y-12">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-10 lg:p-14 relative overflow-hidden space-y-10 sm:space-y-12">
           {/* Subtle Background Radial Glows */}
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-50/70 rounded-full blur-3xl pointer-events-none -z-0" />
           <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -z-0" />
@@ -1241,17 +1242,17 @@ export const Home: React.FC = () => {
             {/* Left Column — Text Content */}
             <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
               {/* Top Badge */}
-              <div className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-200/80 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-xs">
+              <div className="inline-flex items-center gap-2 bg-blue-50/90 border border-blue-200/80 text-[#004182] px-4 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-2xs">
                 <Handshake className="w-4 h-4 text-[#004182]" />
                 <span>COLLABORATE WITH PRAGATHI 2K26</span>
               </div>
 
               {/* Heading */}
               <div className="space-y-1">
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 font-display tracking-tight leading-tight uppercase">
+                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 font-display tracking-tight leading-tight uppercase">
                   Looking for
                 </h2>
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#004182] font-display tracking-tight leading-tight uppercase">
+                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#004182] font-display tracking-tight leading-tight uppercase">
                   Collaborations & Sponsors
                 </h2>
               </div>
@@ -1273,59 +1274,62 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column — Interactive 3D Handshake Visual with Orbiting Categories */}
-            <div className="lg:col-span-6 relative flex items-center justify-center min-h-[340px] sm:min-h-[380px] py-4">
+            {/* Right Column — Partner Category Visual Grid */}
+            <div className="lg:col-span-6 relative flex flex-col items-center justify-center min-h-[300px] sm:min-h-[340px] py-2">
               {/* Outer Orbit Line */}
-              <div className="absolute w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] rounded-full border-2 border-dashed border-blue-200/80 animate-spin-slow pointer-events-none" />
+              <div className="absolute w-[240px] h-[240px] sm:w-[300px] sm:h-[300px] rounded-full border-2 border-dashed border-blue-200/80 pointer-events-none" />
 
               {/* Central Glowing Circle & Handshake Icon */}
-              <div className="relative z-10 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-blue-500 to-[#004182] text-white flex items-center justify-center shadow-2xl shadow-blue-600/30 border-4 border-white animate-float">
-                <Handshake className="w-12 h-12 sm:w-14 sm:h-14 text-white" />
+              <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-500 to-[#004182] text-white flex items-center justify-center shadow-xl shadow-blue-600/30 border-4 border-white my-4 lg:my-0">
+                <Handshake className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
                 {/* Soft outer glow */}
                 <div className="absolute inset-0 rounded-full bg-blue-400/30 blur-md pointer-events-none" />
               </div>
 
-              {/* Category 1: Top Left - Industry Partners */}
-              <div className="absolute top-0 left-2 sm:left-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
-                  <Building2 className="w-5 h-5 sm:w-5 sm:h-5" />
+              {/* Partner Category Cards — 2x2 on Mobile, Floating layout on Desktop */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:contents w-full z-20">
+                {/* Category 1: Industry Partners */}
+                <div className="lg:absolute lg:top-0 lg:left-2 sm:lg:left-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 rounded-2xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 transition-all duration-300 group z-20 w-full lg:max-w-[175px] cursor-default">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white group-hover:scale-105 transition-all duration-200">
+                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-900 leading-tight">Industry</div>
+                    <div className="text-xs font-bold text-[#004182] leading-tight">Partners</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Industry</div>
-                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Partners</div>
-                </div>
-              </div>
 
-              {/* Category 2: Top Right - Startups & Innovators */}
-              <div className="absolute top-0 right-2 sm:right-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
-                  <Rocket className="w-5 h-5 sm:w-5 sm:h-5" />
+                {/* Category 2: Startups & Innovators */}
+                <div className="lg:absolute lg:top-0 lg:right-2 sm:lg:right-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 rounded-2xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 transition-all duration-300 group z-20 w-full lg:max-w-[175px] cursor-default">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white group-hover:scale-105 transition-all duration-200">
+                    <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-900 leading-tight">Startups &</div>
+                    <div className="text-xs font-bold text-[#004182] leading-tight">Innovators</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Startups &</div>
-                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Innovators</div>
-                </div>
-              </div>
 
-              {/* Category 3: Bottom Left - Academic Institutions */}
-              <div className="absolute bottom-0 left-2 sm:left-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
-                  <GraduationCap className="w-5 h-5 sm:w-5 sm:h-5" />
+                {/* Category 3: Academic Institutions */}
+                <div className="lg:absolute lg:bottom-0 lg:left-2 sm:lg:left-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 rounded-2xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 transition-all duration-300 group z-20 w-full lg:max-w-[175px] cursor-default">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white group-hover:scale-105 transition-all duration-200">
+                    <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-900 leading-tight">Academic</div>
+                    <div className="text-xs font-bold text-[#004182] leading-tight">Institutions</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Academic</div>
-                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Institutions</div>
-                </div>
-              </div>
 
-              {/* Category 4: Bottom Right - Technology Partners */}
-              <div className="absolute bottom-0 right-2 sm:right-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 transition-all duration-300 hover:-translate-y-1 group z-20 max-w-[150px] sm:max-w-[175px]">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white transition-colors duration-200">
-                  <Lightbulb className="w-5 h-5 sm:w-5 sm:h-5" />
-                </div>
-                <div>
-                  <div className="text-xs sm:text-xs font-extrabold text-slate-900 leading-tight">Technology</div>
-                  <div className="text-xs sm:text-xs font-bold text-[#004182] leading-tight">Partners</div>
+                {/* Category 4: Technology Partners */}
+                <div className="lg:absolute lg:bottom-0 lg:right-2 sm:lg:right-6 bg-white border border-slate-200/90 shadow-md hover:shadow-lg hover:border-blue-300 hover:-translate-y-1 rounded-2xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 transition-all duration-300 group z-20 w-full lg:max-w-[175px] cursor-default">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center shrink-0 group-hover:bg-[#004182] group-hover:text-white group-hover:scale-105 transition-all duration-200">
+                    <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-900 leading-tight">Technology</div>
+                    <div className="text-xs font-bold text-[#004182] leading-tight">Partners</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1393,25 +1397,25 @@ export const Home: React.FC = () => {
       {/* FAQ SECTION */}
       <section
         id="faq"
-        className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24"
+        className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 scroll-mt-24"
       >
         <div className="text-center space-y-2">
 
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100 shadow-2xs">
             <HelpCircle className="w-3.5 h-3.5" />
             <span>Frequently Asked Questions</span>
           </div>
 
-          <h2 className="text-3xl font-extrabold text-[#004182] font-display uppercase">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight">
             Got Questions? We Have Answers.
           </h2>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500">
             Everything you need to know about registration, eligibility, and SRU verification
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4 w-[94%] sm:w-full mx-auto">
 
           {activeFaqs.map((faq) => {
             const isOpen = openFaqId === faq.id;
@@ -1419,20 +1423,20 @@ export const Home: React.FC = () => {
             return (
               <div
                 key={faq.id}
-                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs transition-all"
+                className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:border-blue-300 hover:shadow-md transition-all duration-300 cursor-default"
               >
                 <button
                   onClick={() =>
                     setOpenFaqId(isOpen ? null : faq.id)
                   }
-                  className="w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4 font-bold text-slate-900 hover:text-[#004182] transition-colors focus:outline-hidden"
+                  className="w-full text-left p-4 sm:p-6 flex items-center justify-between gap-4 font-bold text-slate-900 hover:text-[#004182] transition-colors focus:outline-hidden cursor-pointer"
                 >
-                  <span className="text-base sm:text-lg">
+                  <span className="text-sm sm:text-base lg:text-lg leading-snug">
                     {faq.question}
                   </span>
 
                   <ChevronDown
-                    className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200 ${isOpen
+                    className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-300 ${isOpen
                         ? 'rotate-180 text-[#004182]'
                         : ''
                       }`}
@@ -1440,7 +1444,7 @@ export const Home: React.FC = () => {
                 </button>
 
                 {isOpen && (
-                  <div className="px-5 pb-6 sm:px-6 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-4 bg-slate-50/50">
+                  <div className="px-4 pb-5 sm:px-6 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-4 bg-slate-50/50">
                     {faq.answer}
                   </div>
                 )}
@@ -1453,19 +1457,19 @@ export const Home: React.FC = () => {
 
       {/* FINAL REGISTRATION CALL TO ACTION BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
-        <div className="bg-[#004182] text-white rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-xl relative overflow-hidden">
+        <div className="bg-[#004182] text-white rounded-3xl p-6 sm:p-10 lg:p-12 text-center space-y-6 shadow-xl relative overflow-hidden">
 
           <div className="space-y-3 max-w-2xl mx-auto">
 
-            <span className="text-xs font-bold uppercase tracking-widest text-blue-200 bg-white/10 px-3 py-1 rounded-full border border-white/20">
+            <span className="text-xs font-bold uppercase tracking-widest text-blue-200 bg-white/10 px-3.5 py-1 rounded-full border border-white/20 shadow-2xs">
               National Level Stage Awaits
             </span>
 
-            <h2 className="text-3xl sm:text-4xl font-extrabold font-display uppercase text-white">
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold font-display uppercase text-white tracking-tight leading-tight">
               Ready to Innovate, Create, and Inspire?
             </h2>
 
-            <p className="text-sm text-blue-100 leading-relaxed">
+            <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
               Register your project team today and showcase your innovation
               on a national stage. Open to school and college students from
               institutions across India.
@@ -1473,20 +1477,19 @@ export const Home: React.FC = () => {
 
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 pt-2">
 
             <Link
               to="/register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-[#004182] font-extrabold px-8 py-3.5 rounded-full shadow-lg hover:bg-blue-50 transition-all text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-white text-[#004182] font-extrabold px-8 py-3.5 rounded-[20px] shadow-lg hover:bg-blue-50 hover:-translate-y-[2px] hover:shadow-xl active:translate-y-[1px] motion-reduce:hover:translate-y-0 transition-all duration-200 text-sm sm:text-base group"
             >
-              <Sparkles className="w-4 h-4 text-[#004182]" />
               <span>REGISTER YOUR TEAM NOW</span>
-              <ArrowRight className="w-4 h-4 text-[#004182]" />
+              <ArrowRight className="w-5 h-5 text-[#004182] group-hover:translate-x-1 transition-transform duration-200" />
             </Link>
 
             <Link
               to="/about"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-7 py-3.5 rounded-full border border-white/20 transition-all text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-7 py-3.5 rounded-full border border-white/20 hover:border-white/40 hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 text-sm"
             >
               <span>Explore Guidelines</span>
             </Link>

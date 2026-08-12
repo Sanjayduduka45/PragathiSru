@@ -112,9 +112,8 @@ export const Navbar: React.FC = () => {
           <div className="hidden lg:flex items-center gap-3 shrink-0">
             <Link
               to="/register"
-              className="relative overflow-hidden bg-gradient-to-r from-[#004182] via-[#003870] to-[#002852] hover:from-[#003366] hover:to-[#002042] text-white px-5.5 py-2.5 rounded-full text-sm font-bold shadow-md shadow-blue-900/15 hover:shadow-lg hover:shadow-blue-900/25 border border-white/20 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 inline-flex items-center gap-2 whitespace-nowrap group"
+              className="relative overflow-hidden bg-[#004182] hover:bg-[#003366] text-white px-5.5 py-2.5 rounded-[16px] text-sm font-bold shadow-md shadow-blue-900/15 hover:shadow-lg hover:shadow-blue-900/25 border border-white/20 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2.5 whitespace-nowrap group"
             >
-              <Sparkles className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform duration-200" />
               <span className="relative z-10 tracking-wide">Register Now</span>
               <ChevronRight className="w-4 h-4 opacity-80 group-hover:translate-x-1 transition-transform duration-200" />
             </Link>
@@ -159,10 +158,10 @@ export const Navbar: React.FC = () => {
             <Link
               to="/register"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full flex items-center justify-center gap-2 bg-[#004182] text-white py-3 rounded-full font-bold text-center shadow-md text-sm"
+              className="w-full flex items-center justify-center gap-2.5 bg-[#004182] hover:bg-[#003366] text-white py-3 rounded-[16px] font-bold text-center shadow-md text-sm group"
             >
-              <Sparkles className="w-4 h-4 text-blue-200" />
-              Register Now
+              <span>Register Now</span>
+              <ChevronRight className="w-4 h-4 opacity-80 group-hover:translate-x-1 transition-transform duration-200" />
             </Link>
           </div>
         </div>

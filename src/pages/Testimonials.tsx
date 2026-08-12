@@ -30,9 +30,8 @@ export const TestimonialsPage: React.FC = () => {
       {/* Header Banner */}
       <section className="bg-gradient-to-b from-blue-50/60 via-white to-white border-b border-slate-100 pt-6 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-          
           {/* Back Connection */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
@@ -134,13 +133,13 @@ export const TestimonialsPage: React.FC = () => {
                   <div className="p-6 flex-1 flex flex-col justify-between space-y-4 text-white">
                     <div>
                       {item.title && (
-                        <h3 className="text-xl font-extrabold text-white mb-2 leading-snug">
+                        <h3 className="text-xl font-bold text-white mb-2 leading-snug">
                           {item.title}
                         </h3>
                       )}
                       {item.description && (
-                        <div className="relative pl-6 text-slate-300 text-xs sm:text-sm leading-relaxed italic">
-                          <Quote className="w-4 h-4 text-blue-400/60 absolute left-0 top-0" />
+                        <div className="relative pl-6 text-[#dce8f8]/90 text-xs sm:text-sm leading-relaxed not-italic font-normal">
+                          <Quote className="w-4 h-4 text-[#6EA8FF] absolute left-0 top-0.5" />
                           {item.description}
                         </div>
                       )}
@@ -150,14 +149,14 @@ export const TestimonialsPage: React.FC = () => {
                     <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 text-xs">
                       <div>
                         {item.designation && (
-                          <p className="font-semibold text-blue-300">{item.designation}</p>
+                          <p className="font-semibold text-[#6EA8FF]">{item.designation}</p>
                         )}
                         {item.eventName && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">{item.eventName}</p>
+                          <p className="text-[11px] text-[#94a3b8] mt-0.5">{item.eventName}</p>
                         )}
                       </div>
                       {item.eventYear && (
-                        <span className="text-[11px] font-bold text-slate-400 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700/60 shrink-0">
+                        <span className="text-[11px] font-bold text-blue-100 px-2.5 py-1 rounded-lg bg-[#002852]/80 border border-blue-500/30 shrink-0">
                           {item.eventYear}
                         </span>
                       )}
