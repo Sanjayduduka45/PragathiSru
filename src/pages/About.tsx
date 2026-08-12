@@ -18,7 +18,6 @@ import {
   Compass,
   Layers,
   Building,
-  Quote,
   HelpCircle,
   Clock,
   Send,
@@ -417,79 +416,7 @@ export const About: React.FC = () => {
         </div>
       </section>
 
-      {/* SAMPLE TESTIMONIALS (PROTOTYPE DEMO) */}
-      <section className="bg-slate-50/80 py-16 border-y border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-white px-3 py-1 rounded-full border border-slate-200">
-              <Quote className="w-3.5 h-3.5 text-[#004182]" />
-              <span>Participant Experience</span>
-            </div>
-            <h2 className="text-3xl font-extrabold text-[#004182] font-display uppercase">
-              Participant & Mentor Voices
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Illustrative feedback reflecting the PRAGATHI expo experience
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Sample Testimonial 1 */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between relative">
-              <div className="space-y-3">
-                <div className="inline-block bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded border border-amber-200">
-                  Sample testimonial for prototype
-                </div>
-                <p className="text-xs text-slate-600 italic leading-relaxed">
-                  “Presenting our IoT agriculture model at PRAGATHI gave us direct exposure to industry judges. The feedback on sensor calibration helped us refine our prototype!”
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100">
-                <div className="font-bold text-sm text-slate-900">Ananya R.</div>
-                <div className="text-xs text-[#004182] font-semibold">Student Team Lead</div>
-                <div className="text-[11px] text-slate-400">School of CS & AI, SR University</div>
-              </div>
-            </div>
-
-            {/* Sample Testimonial 2 */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between relative">
-              <div className="space-y-3">
-                <div className="inline-block bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded border border-amber-200">
-                  Sample testimonial for prototype
-                </div>
-                <p className="text-xs text-slate-600 italic leading-relaxed">
-                  “The organization at SR University Warangal was outstanding. Seamless stall allocation, high energy, and excellent jury interactions throughout Expo Day.”
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100">
-                <div className="font-bold text-sm text-slate-900">K. Vikram Reddy</div>
-                <div className="text-xs text-[#004182] font-semibold">External Participant</div>
-                <div className="text-[11px] text-slate-400">National Institute of Technology</div>
-              </div>
-            </div>
-
-            {/* Sample Testimonial 3 */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between relative">
-              <div className="space-y-3">
-                <div className="inline-block bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded border border-amber-200">
-                  Sample testimonial for prototype
-                </div>
-                <p className="text-xs text-slate-600 italic leading-relaxed">
-                  “PRAGATHI 2K26 reflects SR University’s commitment to fostering a vibrant ecosystem of innovation, multidisciplinary research, and student entrepreneurship.”
-                </p>
-              </div>
-              <div className="pt-3 border-t border-slate-100">
-                <div className="font-bold text-sm text-slate-900">Dr. P. Srinivas</div>
-                <div className="text-xs text-[#004182] font-semibold">Faculty Convener</div>
-                <div className="text-[11px] text-slate-400">SR University Innovation Cell</div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
 
       {/* CALL TO ACTION BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
