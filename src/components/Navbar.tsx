@@ -17,7 +17,7 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 transition-all">
+    <header className="sticky top-0 z-50 bg-white/92 backdrop-blur-lg border-b border-slate-100/80 shadow-xs shadow-slate-900/5 transition-all duration-300">
       {/* Top Banner Notice */}
       <div className="bg-[#004182] text-white text-xs font-medium py-1.5 px-4 text-center">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -64,33 +64,46 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Desktop Navigation & PRAGATHI Logo */}
-          <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8">
+          <nav className="hidden md:flex items-center gap-1 lg:gap-2.5 xl:gap-3.5">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.path);
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                  className={`relative px-3 py-1.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap group ${
                     active
-                      ? 'text-[#004182] border-b-2 border-[#004182] pb-0.5'
-                      : 'text-slate-500 hover:text-[#004182]'
+                      ? 'text-[#004182] bg-blue-50/90 font-bold border border-blue-100/80 shadow-xs'
+                      : 'text-slate-600 hover:text-[#004182] hover:bg-blue-50/50 border border-transparent hover:border-blue-100/40 hover:-translate-y-0.5'
                   }`}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
                   {item.isFuture && (
                     <span className="text-[9px] bg-amber-50 text-amber-800 font-bold px-1.5 py-0.5 rounded-full border border-amber-200/60">
                       Soon
                     </span>
                   )}
+
+                  {/* Animated Underline Accent for Active & Hover */}
+                  <span
+                    className={`absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-[#004182] transition-all duration-300 ${
+                      active
+                        ? 'opacity-100 scale-x-100'
+                        : 'opacity-0 scale-x-0 group-hover:opacity-60 group-hover:scale-x-75'
+                    }`}
+                  />
                 </Link>
               );
             })}
 
-            {/* PRAGATHI Logo immediately after Contact */}
-            <Link to="/" className="flex items-center shrink-0 group focus:outline-hidden ml-2 lg:ml-4" aria-label="PRAGATHI 2K26 Home">
-              <div className="h-12 sm:h-16 flex items-center shrink-0 group-hover:scale-105 transition-transform duration-200">
-                <img src={pragathiLogo} alt="PRAGATHI Logo" className="h-10 sm:h-14 w-auto object-contain" />
+            {/* PRAGATHI Logo Container immediately after Contact */}
+            <Link
+              to="/"
+              className="flex items-center shrink-0 focus:outline-hidden ml-1.5 lg:ml-3"
+              aria-label="PRAGATHI 2K26 Home"
+            >
+              <div className="h-12 sm:h-14 px-2.5 py-1 rounded-2xl bg-slate-50/60 hover:bg-blue-50/50 border border-slate-200/60 hover:border-blue-200/60 flex items-center shrink-0 transition-all duration-200 hover:-translate-y-0.5 shadow-xs hover:shadow-sm group">
+                <img src={pragathiLogo} alt="PRAGATHI Logo" className="h-9 sm:h-11 w-auto object-contain group-hover:scale-105 transition-transform duration-200" />
               </div>
             </Link>
           </nav>
@@ -99,11 +112,11 @@ export const Navbar: React.FC = () => {
           <div className="hidden lg:flex items-center gap-3 shrink-0">
             <Link
               to="/register"
-              className="bg-[#004182] hover:bg-[#003366] text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-blue-900/10 transition-all active:scale-95 inline-flex items-center gap-2 whitespace-nowrap"
+              className="relative overflow-hidden bg-gradient-to-r from-[#004182] via-[#003870] to-[#002852] hover:from-[#003366] hover:to-[#002042] text-white px-5.5 py-2.5 rounded-full text-sm font-bold shadow-md shadow-blue-900/15 hover:shadow-lg hover:shadow-blue-900/25 border border-white/20 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 inline-flex items-center gap-2 whitespace-nowrap group"
             >
-              <Sparkles className="w-4 h-4 text-blue-200" />
-              <span>Register Now</span>
-              <ChevronRight className="w-4 h-4 opacity-80" />
+              <Sparkles className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform duration-200" />
+              <span className="relative z-10 tracking-wide">Register Now</span>
+              <ChevronRight className="w-4 h-4 opacity-80 group-hover:translate-x-1 transition-transform duration-200" />
             </Link>
           </div>
 
