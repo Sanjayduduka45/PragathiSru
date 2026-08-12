@@ -435,7 +435,7 @@ export const Register: React.FC = () => {
                     Team & Institution Details
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Provide team leader contact and institution details
+                    Please enter the full names of all participants carefully, as they will be printed on the certificates.
                   </p>
                 </div>
 

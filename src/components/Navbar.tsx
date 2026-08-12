@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Sparkles, ChevronRight, GraduationCap } from 'lucide-react';
 import { NAV_ITEMS } from '../utils/constants';
 import { useContent } from '../context/ContentContext';
+const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
+const pragathiLogo = '/image.png';
 
 export const Navbar: React.FC = () => {
   const { eventSettings } = useContent();
@@ -36,30 +38,29 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           
-          {/* SR University Brand Logo */}
-          <Link to="/" className="flex items-center gap-3 group focus:outline-hidden">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-[#004182] text-white flex items-center justify-center font-bold font-display text-xl shadow-sm group-hover:scale-105 transition-transform">
-              SR
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg sm:text-xl font-extrabold text-[#004182] uppercase tracking-tight leading-none group-hover:text-blue-900 transition-colors">
-                {eventSettings.institution}
-              </span>
-              <span className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mt-0.5">
-                {eventSettings.eventName} • Warangal, Telangana
-              </span>
+          {/* SR University Brand Logo (Far Left) */}
+          <Link to="/" className="flex items-center shrink-0 group focus:outline-hidden" aria-label="SR University Home">
+            <div className="h-10 sm:h-12 flex items-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+              <img src={sruLogo} alt="SR University Logo" className="h-7 sm:h-9 w-auto object-contain" />
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          {/* Mobile PRAGATHI Logo */}
+          <div className="flex md:hidden items-center shrink-0">
+            <Link to="/" className="flex items-center shrink-0 focus:outline-hidden" aria-label="PRAGATHI 2K26 Home">
+              <img src={pragathiLogo} alt="PRAGATHI Logo" className="h-7 w-auto object-contain" />
+            </Link>
+          </div>
+
+          {/* Desktop Navigation & PRAGATHI Logo */}
+          <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.path);
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                  className={`text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
                     active
                       ? 'text-[#004182] border-b-2 border-[#004182] pb-0.5'
                       : 'text-slate-500 hover:text-[#004182]'
@@ -74,13 +75,20 @@ export const Navbar: React.FC = () => {
                 </Link>
               );
             })}
+
+            {/* PRAGATHI Logo immediately after Contact */}
+            <Link to="/" className="flex items-center shrink-0 group focus:outline-hidden ml-2 lg:ml-4" aria-label="PRAGATHI 2K26 Home">
+              <div className="h-12 sm:h-16 flex items-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+                <img src={pragathiLogo} alt="PRAGATHI Logo" className="h-10 sm:h-14 w-auto object-contain" />
+              </div>
+            </Link>
           </nav>
 
-          {/* Actions: Register Now */}
-          <div className="hidden lg:flex items-center gap-3">
+          {/* Actions: Register Now (Far Right) */}
+          <div className="hidden lg:flex items-center gap-3 shrink-0">
             <Link
               to="/register"
-              className="bg-[#004182] hover:bg-[#003366] text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-blue-900/10 transition-all active:scale-95 inline-flex items-center gap-2"
+              className="bg-[#004182] hover:bg-[#003366] text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-blue-900/10 transition-all active:scale-95 inline-flex items-center gap-2 whitespace-nowrap"
             >
               <Sparkles className="w-4 h-4 text-blue-200" />
               <span>Register Now</span>

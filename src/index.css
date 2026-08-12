@@ -130,5 +130,156 @@
   }
 }
 
+/* ── Hero CTA: Premium Glassmorphic Buttons ── */
 
+/* Primary CTA — Register Now */
+.hero-cta-primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(0, 65, 130, 0.92) 0%, rgba(0, 40, 82, 0.97) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 6px 20px -4px rgba(0, 40, 82, 0.35),
+    0 2px 6px -1px rgba(0, 40, 82, 0.15);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
+.hero-cta-primary:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+    0 14px 36px -6px rgba(0, 40, 82, 0.40),
+    0 4px 12px -2px rgba(0, 40, 82, 0.20);
+}
+
+.hero-cta-primary:active {
+  transform: translateY(0px) scale(0.98);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.08) inset,
+    0 2px 8px -2px rgba(0, 40, 82, 0.25);
+  transition-duration: 0.1s;
+}
+
+/* Glass reflection sweep */
+.hero-cta-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.08) 40%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0.08) 60%,
+    transparent 80%
+  );
+  transition: left 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.hero-cta-primary:hover::before {
+  left: 120%;
+}
+
+/* Top-edge glass highlight */
+.hero-cta-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  pointer-events: none;
+}
+
+/* Secondary CTA — View Domains */
+.hero-cta-secondary {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 65, 130, 0.12);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
+    0 4px 16px -4px rgba(0, 65, 130, 0.10),
+    0 1px 4px -1px rgba(0, 65, 130, 0.06);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-cta-secondary:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 65, 130, 0.20);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.8) inset,
+    0 12px 32px -6px rgba(0, 65, 130, 0.14),
+    0 4px 10px -2px rgba(0, 65, 130, 0.08);
+}
+
+.hero-cta-secondary:active {
+  transform: translateY(0px) scale(0.98);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 6px -2px rgba(0, 65, 130, 0.08);
+  transition-duration: 0.1s;
+}
+
+/* Glass reflection sweep */
+.hero-cta-secondary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(0, 65, 130, 0.03) 40%,
+    rgba(0, 65, 130, 0.06) 50%,
+    rgba(0, 65, 130, 0.03) 60%,
+    transparent 80%
+  );
+  transition: left 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.hero-cta-secondary:hover::before {
+  left: 120%;
+}
+
+/* Top-edge glass highlight */
+.hero-cta-secondary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-cta-primary,
+  .hero-cta-secondary {
+    transition: none !important;
+  }
+  .hero-cta-primary:hover,
+  .hero-cta-secondary:hover {
+    transform: none !important;
+  }
+  .hero-cta-primary::before,
+  .hero-cta-secondary::before {
+    display: none !important;
+  }
+}
