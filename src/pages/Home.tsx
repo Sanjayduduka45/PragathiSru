@@ -757,7 +757,7 @@ export const Home: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
 
             {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-4 text-center lg:text-left">
+            <div className="lg:col-span-7 space-y-3.5 text-center lg:text-left">
 
               {/* Event Badge */}
               <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-50/90 border border-blue-100/90 text-[#004182] px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide shadow-2xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out max-w-[calc(100vw-32px)] sm:max-w-none cursor-default">
@@ -768,10 +768,16 @@ export const Home: React.FC = () => {
               </div>
 
               {/* Main Headline */}
-              <div className="space-y-2">
-                <h1 className="hero-title-3d animate-float text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] uppercase font-display">
+              <div className="space-y-1.5">
+                <motion.h1
+                  initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  className="hero-title-3d font-black tracking-tighter leading-[0.98] uppercase font-display whitespace-nowrap sm:whitespace-nowrap max-w-full"
+                  style={{ fontSize: 'clamp(1.5rem, 4.2vw, 3.75rem)' }}
+                >
                   PRAGATHI 2.0
-                </h1>
+                </motion.h1>
 
                 <p className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display">
                   A National Level Project Expo 2K26
