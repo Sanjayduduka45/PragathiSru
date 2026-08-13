@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Eye,
   X,
+  Info,
 } from 'lucide-react';
 
 export interface ReviewTeamMember {
@@ -135,6 +136,21 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
           <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
             Your team registration has been successfully recorded.
           </p>
+        </div>
+
+        {/* Important Notice Box */}
+        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 text-left max-w-lg mx-auto shadow-xs flex items-start gap-3 relative z-10">
+          <div className="p-1.5 bg-amber-100 text-amber-800 rounded-lg shrink-0 mt-0.5">
+            <Info className="w-4 h-4" />
+          </div>
+          <div className="text-xs sm:text-sm text-slate-700 space-y-1">
+            <div className="font-extrabold text-amber-900 uppercase tracking-wider text-[10px] sm:text-[11px]">
+              Important — Save Your ID
+            </div>
+            <p className="leading-relaxed">
+              Please <strong className="font-bold text-slate-900">save or take a screenshot of your Registration ID</strong>. You will need this ID to log in and access your Participant Profile.
+            </p>
+          </div>
         </div>
 
         {/* Confirmation Ticket Card */}

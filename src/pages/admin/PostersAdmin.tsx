@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { PosterService, type AdminPosterRecord } from '../../services/posterService';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { CanonicalPoster } from '../../components/CanonicalPoster';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,175 +65,16 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 // ── Poster Preview (exact template layout) ───────────────────────────────────
 
 const PosterPreview: React.FC<{ record: AdminPosterRecord }> = ({ record }) => {
-  const content = record.posterContent;
+  const content = record.posterContent || {
+    teamName: record.teamName,
+    projectTitle: record.projectTitle,
+    category: record.category,
+    institutionName: record.institutionName,
+    leaderName: record.leaderName,
+    leaderEmail: record.leaderEmail,
+  };
 
-  return (
-    <div id="poster-print-area" className="w-[960px] h-[1200px] bg-white border-[24px] border-[#004182] p-8 flex flex-col justify-between shadow-md relative select-text text-left font-sans">
-      {/* Header Branding (Locked) */}
-      <div className="flex items-center justify-between border-b-4 border-[#004182] pb-4 mb-4">
-        {/* SRU Logo */}
-        <div className="flex items-center gap-4">
-          <img src="/poster-template/sru-logo.png" className="w-14 h-14 object-contain" alt="SRU" />
-          <div>
-            <h1 className="text-xl font-black text-[#004182] tracking-tight leading-none">SR UNIVERSITY</h1>
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Warangal, Telangana</p>
-          </div>
-        </div>
-
-        {/* Event Title */}
-        <div className="flex flex-col items-center text-center">
-          <img src="/poster-template/pragathi-logo.png" className="h-8 object-contain mb-1" alt="Pragathi" />
-          <h2 className="text-xl font-black text-[#004182] tracking-tight leading-none">PRAGATHI 2K26</h2>
-          <p className="text-[9px] font-extrabold text-indigo-700 uppercase tracking-widest mt-1">National Level Project Expo</p>
-        </div>
-
-        {/* Title Sponsor */}
-        <div className="flex flex-col items-end text-right">
-          <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest">Title Sponsored By</span>
-          <div className="flex items-center gap-2 mt-1">
-            <img src="/poster-template/template-img8.png" className="h-7 object-contain" alt="Canara Bank" />
-            <div>
-              <p className="text-[10px] font-extrabold text-slate-800 leading-none">Canara Bank</p>
-              <p className="text-[8px] text-slate-500 font-bold mt-0.5">Hanumakonda Branch</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Project Title Block (Title, Members, Dept) */}
-      <div className="bg-[#004182] text-white rounded-2xl p-5 mb-5 text-center shadow-md border border-[#003166]">
-        <h1 className="text-2xl font-black tracking-tight mb-2 uppercase min-h-[36px]">
-          {content?.projectTitle || record.projectTitle || 'PROJECT TITLE'}
-        </h1>
-        <p className="text-sm font-bold text-blue-100 tracking-wide mb-1">
-          Team Members: {content?.teamMembers || record.leaderName}
-        </p>
-        <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider min-h-[16px]">
-          {content?.departmentDetails || record.institutionName}
-        </p>
-      </div>
-
-      {/* Poster Content Grid (2 Columns) */}
-      <div className="flex-1 grid grid-cols-2 gap-5 min-h-0">
-        {/* LEFT Column */}
-        <div className="flex flex-col gap-5">
-          {/* Introduction Box */}
-          <div className="border-2 border-indigo-900/10 rounded-2xl p-5 bg-slate-50/50 flex-1 flex flex-col min-h-0">
-            <h3 className="text-sm font-extrabold text-indigo-950 uppercase tracking-widest border-b border-indigo-900/10 pb-1.5 mb-2.5">
-              Introduction
-            </h3>
-            <div className="text-xs text-slate-700 leading-relaxed overflow-y-auto whitespace-pre-wrap flex-1 text-left">
-              {content?.introduction || '—'}
-            </div>
-          </div>
-
-          {/* Methodology Box */}
-          <div className="border-2 border-indigo-900/10 rounded-2xl p-5 bg-slate-50/50 flex-1 flex flex-col min-h-0">
-            <h3 className="text-sm font-extrabold text-indigo-950 uppercase tracking-widest border-b border-indigo-900/10 pb-1.5 mb-2.5">
-              Research Objectives & Methodology
-            </h3>
-            <div className="text-xs text-slate-700 leading-relaxed overflow-y-auto whitespace-pre-wrap flex-1 text-left">
-              {content?.methodology || '—'}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT Column */}
-        <div className="flex flex-col gap-5">
-          {/* Diagrams / Configuration Box */}
-          <div className="border-2 border-indigo-900/10 rounded-2xl p-5 bg-slate-50/50 flex flex-col h-[450px]">
-            <h3 className="text-sm font-extrabold text-indigo-950 uppercase tracking-widest border-b border-indigo-900/10 pb-1.5 mb-2.5">
-              Configurations & Diagrams
-            </h3>
-            <div className="flex-1 grid grid-cols-3 gap-3 min-h-0 items-center justify-center">
-              {/* Diagram 1 */}
-              <div className="flex flex-col items-center">
-                <div className="relative w-full aspect-square border border-dashed border-slate-300 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-                  {content?.diagram1 ? (
-                    <img src={content.diagram1} className="w-full h-full object-contain" alt="Fig 1" />
-                  ) : (
-                    <div className="text-center p-2 text-slate-300 text-[8px] font-bold">No Fig 1</div>
-                  )}
-                </div>
-                <div className="text-[9px] font-bold text-slate-500 mt-1.5 text-center leading-tight">
-                  {content?.diagram1Caption || 'Fig. 1. Prototype config'}
-                </div>
-              </div>
-
-              {/* Diagram 2 */}
-              <div className="flex flex-col items-center">
-                <div className="relative w-full aspect-square border border-dashed border-slate-300 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-                  {content?.diagram2 ? (
-                    <img src={content.diagram2} className="w-full h-full object-contain" alt="Fig 2" />
-                  ) : (
-                    <div className="text-center p-2 text-slate-300 text-[8px] font-bold">No Fig 2</div>
-                  )}
-                </div>
-                <div className="text-[9px] font-bold text-slate-500 mt-1.5 text-center leading-tight">
-                  {content?.diagram2Caption || 'Fig. 2. System design'}
-                </div>
-              </div>
-
-              {/* Diagram 3 */}
-              <div className="flex flex-col items-center">
-                <div className="relative w-full aspect-square border border-dashed border-slate-300 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-                  {content?.diagram3 ? (
-                    <img src={content.diagram3} className="w-full h-full object-contain" alt="Fig 3" />
-                  ) : (
-                    <div className="text-center p-2 text-slate-300 text-[8px] font-bold">No Fig 3</div>
-                  )}
-                </div>
-                <div className="text-[9px] font-bold text-slate-500 mt-1.5 text-center leading-tight">
-                  {content?.diagram3Caption || 'Fig. 3. Result responses'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Conclusion & References Box */}
-          <div className="border-2 border-indigo-900/10 rounded-2xl p-5 bg-slate-50/50 flex-1 flex flex-col gap-4 min-h-0">
-            {/* Conclusion */}
-            <div className="flex flex-col min-h-0">
-              <h3 className="text-xs font-extrabold text-indigo-950 uppercase tracking-widest border-b border-indigo-900/10 pb-1 mb-1.5">
-                Conclusion
-              </h3>
-              <div className="text-xs text-slate-700 leading-relaxed overflow-y-auto whitespace-pre-wrap text-left font-sans">
-                {content?.conclusion || '—'}
-              </div>
-            </div>
-
-            {/* References */}
-            <div className="flex-1 flex flex-col min-h-0 border-t border-dashed border-slate-200 pt-2">
-              <h3 className="text-xs font-extrabold text-indigo-950 uppercase tracking-widest pb-1">
-                References
-              </h3>
-              <div className="text-[10px] text-slate-500 leading-relaxed overflow-y-auto whitespace-pre-wrap text-left font-mono flex-1">
-                {content?.references || '—'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer Sponsors Banner (Locked) */}
-      <div className="border-t-4 border-[#004182] pt-3 mt-4 flex items-center justify-between select-none">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black text-indigo-950 uppercase tracking-widest">Our Sponsors:</span>
-          <div className="flex items-center gap-4 flex-wrap">
-            <img src="/poster-template/template-img4.png" className="h-5 object-contain grayscale opacity-75" alt="s1" />
-            <img src="/poster-template/template-img5.png" className="h-5 object-contain grayscale opacity-75" alt="s2" />
-            <img src="/poster-template/template-img6.png" className="h-5 object-contain grayscale opacity-75" alt="s3" />
-            <img src="/poster-template/template-img7.png" className="h-5 object-contain grayscale opacity-75" alt="s4" />
-            <img src="/poster-template/template-img8.png" className="h-5 object-contain grayscale opacity-75" alt="s5" />
-            <img src="/poster-template/template-img9.png" className="h-5 object-contain grayscale opacity-75" alt="s6" />
-          </div>
-        </div>
-        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-right">
-          PRAGATHI 2K26 · {record.registrationId}
-        </div>
-      </div>
-    </div>
-  );
+  return <CanonicalPoster content={content} isEditable={false} />;
 };
 
 // ── Poster View Modal ────────────────────────────────────────────────────────
@@ -250,119 +92,121 @@ const PosterViewModal: React.FC<{
     const win = window.open('', '_blank', 'width=1000,height=1200');
     if (!win) return;
 
+    // Capture all stylesheets from the parent document
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+
     win.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>PRAGATHI 2K26 Poster — ${record.teamName}</title>
+          ${styles}
           <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: start; background: #fff; }
-            
-            #poster-print-area {
-              width: 24in !important;
-              height: 30in !important;
-              padding: 0.8in !important;
-              border: 24px solid #004182 !important;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              position: relative !important;
+            @page {
+              size: 24in 30in;
+              margin: 0;
+            }
+            * { box-sizing: border-box; }
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 24in;
+              height: 30in;
+              background: #f1f5f9;
             }
 
-            .flex { display: flex; }
-            .flex-col { flex-direction: column; }
-            .items-center { align-items: center; }
-            .justify-between { justify-content: space-between; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .text-left { text-align: left; }
+            .print-page-wrapper {
+              width: 24in;
+              height: 30in;
+              overflow: hidden;
+              position: relative;
+              background: #fff;
+              box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+              margin: 20px auto;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
+              page-break-before: avoid !important;
+              break-before: avoid !important;
+            }
             
-            .border-b-4 { border-bottom: 4px solid #004182; }
-            .pb-4 { padding-bottom: 16px; }
-            .mb-4 { margin-bottom: 16px; }
-            .mb-5 { margin-bottom: 20px; }
-            .mt-1 { margin-top: 4px; }
-            .mt-1\\.5 { margin-top: 6px; }
-            .mt-4 { margin-top: 16px; }
-            .gap-4 { gap: 16px; }
-            .gap-3 { gap: 12px; }
-            .gap-2 { gap: 8px; }
-            .gap-5 { gap: 20px; }
-            
-            .w-14 { width: 56px; }
-            .h-14 { height: 56px; }
-            .h-8 { height: 32px; }
-            .h-7 { height: 28px; }
-            .h-5 { height: 20px; }
-            .w-full { width: 100%; }
-            .aspect-square { aspect-ratio: 1 / 1; }
-            
-            .text-xl { font-size: 20px; }
-            .text-2xl { font-size: 24px; }
-            .text-3xl { font-size: 32px; }
-            .font-black { font-weight: 900; }
-            .font-extrabold { font-weight: 800; }
-            .font-bold { font-weight: 700; }
-            .font-semibold { font-weight: 600; }
-            .text-slate-500 { color: #64748b; }
-            .text-slate-400 { color: #94a3b8; }
-            .text-slate-800 { color: #1e293b; }
-            .text-slate-700 { color: #334155; }
-            .text-indigo-700 { color: #4338ca; }
-            .text-indigo-950 { color: #1e1b4b; }
-            .text-[#004182] { color: #004182; }
-            .uppercase { text-transform: uppercase; }
-            .tracking-tight { letter-spacing: -0.025em; }
-            .tracking-widest { letter-spacing: 0.1em; }
-            .tracking-wider { letter-spacing: 0.05em; }
-            .leading-none { leading: 1; }
-            .leading-relaxed { line-height: 1.625; }
-            
-            .bg-\\[\\#004182\\] { background-color: #004182; }
-            .text-white { color: #fff; }
-            .rounded-2xl { border-radius: 16px; }
-            .rounded-xl { border-radius: 12px; }
-            .p-5 { padding: 20px; }
-            .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-            
-            .flex-1 { flex: 1 1 0%; }
-            .grid { display: grid; }
-            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-            
-            .border-2 { border: 2px solid rgba(30, 27, 75, 0.1); }
-            .border-dashed { border-style: dashed; }
-            .border-slate-300 { border-color: #cbd5e1; }
-            .bg-slate-50\\/50 { background-color: rgba(248, 250, 252, 0.5); }
-            
-            .text-xs { font-size: 14px; }
-            .text-\\[10px\\] { font-size: 11px; }
-            .text-\\[9px\\] { font-size: 10px; }
-            .text-\\[8px\\] { font-size: 9px; }
-            .font-mono { font-family: monospace; }
-            .whitespace-pre-wrap { white-space: pre-wrap; }
-            .border-t-4 { border-top: 4px solid #004182; }
-            
+            #poster-print-area {
+              width: 960px !important;
+              height: 1200px !important;
+              zoom: 2.4 !important;
+              -webkit-zoom: 2.4 !important;
+              transform: none !important;
+              -webkit-transform: none !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+            }
+
             @media print {
               @page {
                 size: 24in 30in;
                 margin: 0;
               }
-              body {
-                padding: 0;
-                margin: 0;
-                width: 24in;
-                height: 30in;
+              html, body {
+                display: block !important;
+                width: 24in !important;
+                height: 30in !important;
+                max-width: 24in !important;
+                max-height: 30in !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                overflow: hidden !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+                page-break-before: avoid !important;
+                break-before: avoid !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .print-page-wrapper {
+                width: 24in !important;
+                height: 30in !important;
+                max-width: 24in !important;
+                max-height: 30in !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                overflow: hidden !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
               }
               #poster-print-area {
+                width: 960px !important;
+                height: 1200px !important;
+                zoom: 2.4 !important;
+                -webkit-zoom: 2.4 !important;
+                transform: none !important;
+                -webkit-transform: none !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
                 box-shadow: none !important;
+                margin: 0 !important;
               }
             }
           </style>
         </head>
         <body>
-          ${printContent.innerHTML}
+          <div class="print-page-wrapper">
+            ${printContent.outerHTML}
+          </div>
         </body>
       </html>
     `);
@@ -370,7 +214,7 @@ const PosterViewModal: React.FC<{
     win.focus();
     setTimeout(() => {
       win.print();
-    }, 300);
+    }, 500);
   }, [record.teamName]);
 
   // Close on Escape

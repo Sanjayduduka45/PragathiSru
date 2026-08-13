@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Hash, Mail, AlertCircle, Info } from 'lucide-react';
 import { useParticipantAuth } from '../context/ParticipantAuthContext';
 
-const pragathiLogo = '/image.png';
+const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
 export const ParticipantLogin: React.FC = () => {
   const { signIn, session, loading } = useParticipantAuth();
@@ -54,18 +54,12 @@ export const ParticipantLogin: React.FC = () => {
 
         {/* Brand */}
         <div className="text-center space-y-3">
-          <Link to="/" className="inline-flex items-center gap-3 group" aria-label="PRAGATHI 2K26 Home">
-            <div className="w-12 h-12 rounded-2xl bg-[#004182] flex items-center justify-center shadow-md shadow-blue-900/20 group-hover:scale-105 transition-transform duration-200">
-              <img src={pragathiLogo} alt="PRAGATHI Logo" className="h-9 w-auto object-contain" />
-            </div>
-            <div className="text-left">
-              <p className="text-lg font-extrabold text-[#004182] uppercase tracking-tight leading-none">
-                PRAGATHI 2K26
-              </p>
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider mt-0.5">
-                SR University, Warangal
-              </p>
-            </div>
+          <Link to="/" className="inline-block group" aria-label="SR University Home">
+            <img
+              src={sruLogo}
+              alt="SR University Logo"
+              className="h-10 sm:h-12 w-auto mx-auto object-contain group-hover:scale-105 transition-transform duration-200"
+            />
           </Link>
 
           <div>
