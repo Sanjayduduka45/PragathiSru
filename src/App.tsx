@@ -2,11 +2,6 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
 import { Home } from './pages/Home';
-import { About } from './pages/About';
-import { Register } from './pages/Register';
-import { Contact } from './pages/Contact';
-import { TestimonialsPage } from './pages/Testimonials';
-import { ComingSoon } from './pages/ComingSoon';
 import { DesignSystemShowcase } from './components/ui/DesignSystemShowcase';
 
 import { AdminAuthProvider } from './context/AdminAuthContext';
@@ -15,9 +10,16 @@ import { ProtectedAdminRoute } from './pages/admin/ProtectedAdminRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminPageSkeleton, AuthLoadingScreen } from './components/admin/AdminSkeleton';
 import { ParticipantAuthProvider } from './context/ParticipantAuthContext';
-import { ParticipantLogin } from './pages/ParticipantLogin';
-import { ParticipantDashboard } from './pages/ParticipantDashboard';
 import { ProtectedParticipantRoute } from './pages/ProtectedParticipantRoute';
+
+// Lazy-loaded Public Secondary & Participant Routes
+const About = React.lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
+const Register = React.lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
+const Contact = React.lazy(() => import('./pages/Contact').then((m) => ({ default: m.Contact })));
+const TestimonialsPage = React.lazy(() => import('./pages/Testimonials').then((m) => ({ default: m.TestimonialsPage })));
+const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then((m) => ({ default: m.ComingSoon })));
+const ParticipantLogin = React.lazy(() => import('./pages/ParticipantLogin').then((m) => ({ default: m.ParticipantLogin })));
+const ParticipantDashboard = React.lazy(() => import('./pages/ParticipantDashboard').then((m) => ({ default: m.ParticipantDashboard })));
 
 // Lazy-loaded Admin Routes for code splitting & faster initial page load
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then((m) => ({ default: m.AdminLogin })));
@@ -47,16 +49,18 @@ export default function App() {
             path="/*"
             element={
               <MainLayout>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/testimonials" element={<TestimonialsPage />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/coming-soon" element={<ComingSoon />} />
-                  <Route path="/design-system" element={<DesignSystemShowcase />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/testimonials" element={<TestimonialsPage />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/coming-soon" element={<ComingSoon />} />
+                    <Route path="/design-system" element={<DesignSystemShowcase />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Suspense>
               </MainLayout>
             }
           />
@@ -64,13 +68,19 @@ export default function App() {
           {/* Participant Routes (outside MainLayout) */}
           <Route
             path="/login"
-            element={<ParticipantLogin />}
+            element={
+              <Suspense fallback={<AuthLoadingScreen />}>
+                <ParticipantLogin />
+              </Suspense>
+            }
           />
           <Route
             path="/participant"
             element={
               <ProtectedParticipantRoute>
-                <ParticipantDashboard />
+                <Suspense fallback={<AuthLoadingScreen />}>
+                  <ParticipantDashboard />
+                </Suspense>
               </ProtectedParticipantRoute>
             }
           />

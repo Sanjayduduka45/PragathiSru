@@ -8,7 +8,7 @@ interface TimeLeft {
   seconds: number;
 }
 
-export const CountdownTimer: React.FC = () => {
+export const CountdownTimer: React.FC = React.memo(() => {
   const { eventSettings } = useContent();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
@@ -67,4 +67,4 @@ export const CountdownTimer: React.FC = () => {
       </div>
     </div>
   );
-};
+});
