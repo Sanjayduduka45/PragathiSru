@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Sparkles, ChevronRight, GraduationCap } from 'lucide-react';
+import { Menu, X, Sparkles, ChevronRight, GraduationCap, LogIn } from 'lucide-react';
 import { NAV_ITEMS } from '../utils/constants';
 import { useContent } from '../context/ContentContext';
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
@@ -108,8 +108,15 @@ export const Navbar: React.FC = () => {
             </Link>
           </nav>
 
-          {/* Actions: Register Now (Far Right) */}
+          {/* Actions: Login (secondary) + Register Now (primary) — Far Right */}
           <div className="hidden lg:flex items-center gap-3 shrink-0">
+            <Link
+              to="/login"
+              className="relative text-[#004182] hover:bg-blue-50/80 border border-[#004182]/25 hover:border-[#004182]/50 px-4 py-2.5 rounded-[16px] text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2 whitespace-nowrap"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Login</span>
+            </Link>
             <Link
               to="/register"
               className="relative overflow-hidden bg-[#004182] hover:bg-[#003366] text-white px-5.5 py-2.5 rounded-[16px] text-sm font-bold shadow-md shadow-blue-900/15 hover:shadow-lg hover:shadow-blue-900/25 border border-white/20 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2.5 whitespace-nowrap group"
@@ -155,6 +162,14 @@ export const Navbar: React.FC = () => {
             </Link>
           ))}
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+            <Link
+              to="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center justify-center gap-2 border border-[#004182]/30 text-[#004182] hover:bg-blue-50 py-3 rounded-[16px] font-bold text-center text-sm transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Participant Login</span>
+            </Link>
             <Link
               to="/register"
               onClick={() => setMobileMenuOpen(false)}

@@ -14,6 +14,10 @@ import { ContentProvider } from './context/ContentContext';
 import { ProtectedAdminRoute } from './pages/admin/ProtectedAdminRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminPageSkeleton, AuthLoadingScreen } from './components/admin/AdminSkeleton';
+import { ParticipantAuthProvider } from './context/ParticipantAuthContext';
+import { ParticipantLogin } from './pages/ParticipantLogin';
+import { ParticipantDashboard } from './pages/ParticipantDashboard';
+import { ProtectedParticipantRoute } from './pages/ProtectedParticipantRoute';
 
 // Lazy-loaded Admin Routes for code splitting & faster initial page load
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then((m) => ({ default: m.AdminLogin })));
@@ -29,9 +33,11 @@ const SponsorsAdmin = React.lazy(() => import('./pages/admin/content/SponsorsAdm
 const ContactAdmin = React.lazy(() => import('./pages/admin/content/ContactAdmin').then((m) => ({ default: m.ContactAdmin })));
 const TestimonialsAdmin = React.lazy(() => import('./pages/admin/content/TestimonialsAdmin').then((m) => ({ default: m.TestimonialsAdmin })));
 const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon').then((m) => ({ default: m.AdminComingSoon })));
+const PostersAdmin = React.lazy(() => import('./pages/admin/PostersAdmin').then((m) => ({ default: m.PostersAdmin })));
 
 export default function App() {
   return (
+    <ParticipantAuthProvider>
     <AdminAuthProvider>
       <ContentProvider>
         <BrowserRouter>
@@ -52,6 +58,20 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </MainLayout>
+            }
+          />
+
+          {/* Participant Routes (outside MainLayout) */}
+          <Route
+            path="/login"
+            element={<ParticipantLogin />}
+          />
+          <Route
+            path="/participant"
+            element={
+              <ProtectedParticipantRoute>
+                <ParticipantDashboard />
+              </ProtectedParticipantRoute>
             }
           />
 
@@ -87,6 +107,7 @@ export default function App() {
 
                       {/* Operational Modules */}
                       <Route path="/registrations" element={<RegistrationsAdmin />} />
+                      <Route path="/posters" element={<PostersAdmin />} />
                       <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
                       <Route path="/judges" element={<AdminComingSoon module="Judges Portal" />} />
                       <Route path="/results" element={<AdminComingSoon module="Results & Leaders" />} />
@@ -103,5 +124,6 @@ export default function App() {
       </BrowserRouter>
     </ContentProvider>
   </AdminAuthProvider>
+  </ParticipantAuthProvider>
 );
 }

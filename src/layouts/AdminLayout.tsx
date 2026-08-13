@@ -22,6 +22,7 @@ import {
   Star,
   GraduationCap,
   MessageSquare,
+  FileImage,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -81,6 +82,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
   );
   const [opsExpanded, setOpsExpanded] = useState(
     location.pathname.startsWith('/admin/registrations') ||
+    location.pathname.startsWith('/admin/posters') ||
     location.pathname.startsWith('/admin/participants') ||
     location.pathname.startsWith('/admin/judges') ||
     location.pathname.startsWith('/admin/results')
@@ -201,6 +203,16 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
                 <FileText className="w-4 h-4 shrink-0" />
                 Registrations
               </NavLink>
+              <NavLink
+                to="/admin/posters"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <FileImage className="w-4 h-4 shrink-0" />
+                Project Posters
+              </NavLink>
               {[
                 { label: 'Participants', path: '/admin/participants', icon: <Users className="w-4 h-4" /> },
                 { label: 'Judges', path: '/admin/judges', icon: <GraduationCap className="w-4 h-4" /> },
@@ -277,6 +289,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       sponsors: 'Sponsors',
       contact: 'Contact',
       registrations: 'Registrations',
+      posters: 'Project Posters',
       participants: 'Participants',
       judges: 'Judges',
       results: 'Results',

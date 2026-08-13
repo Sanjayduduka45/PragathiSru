@@ -1,0 +1,266 @@
+/**
+ * posterService.ts
+ * Phase 3 — Poster Submissions Service
+ *
+ * Handles all CRUD for the poster_submissions table.
+ * - Participant: upsert draft, submit (sets status = 'submitted')
+ * - Admin: fetch all submitted posters with joined team/registration data
+ *
+ * The poster_submissions table has UNIQUE(registration_id), so upsert
+ * always touches the same row — no duplicate records are created.
+ */
+
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+/** Fields stored inside poster_content JSONB */
+export interface PosterContent {
+  teamName: string;
+  projectTitle: string;
+  category: string;
+  institutionName: string;
+  leaderName: string;
+  leaderEmail: string;
+
+  // Slide-specific editable content
+  teamMembers?: string;
+  departmentDetails?: string;
+  introduction?: string;
+  methodology?: string;
+  conclusion?: string;
+  references?: string;
+
+  // Image / Diagram uploads (base64 data URIs)
+  diagram1?: string; // Diagram 1 (GTPVS Configuration)
+  diagram1Caption?: string;
+  diagram2?: string; // Diagram 2 (Methodology/Control Architecture)
+  diagram2Caption?: string;
+  diagram3?: string; // Diagram 3 (Results)
+  diagram3Caption?: string;
+}
+
+export type PosterStatus = 'draft' | 'submitted';
+
+export interface PosterSubmission {
+  id: string;
+  registrationInternalId: string; // UUID from registrations.id
+  status: PosterStatus;
+  posterContent: PosterContent | null;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Shape returned by getAllSubmittedPosters() for admin view */
+export interface AdminPosterRecord {
+  posterId: string;
+  registrationInternalId: string;
+  registrationId: string;          // public PRAGATHI26-XXXXXX id
+  teamName: string;
+  projectTitle: string;
+  category: string;
+  leaderName: string;
+  leaderEmail: string;
+  institutionName: string;
+  status: PosterStatus;
+  submittedAt: string | null;
+  posterContent: PosterContent | null;
+}
+
+// ── Service ───────────────────────────────────────────────────────────────────
+
+export const PosterService = {
+  /**
+   * Participant: upsert a poster draft.
+   * Creates the record if it doesn't exist, or updates it if it does.
+   * Uses ON CONFLICT on registration_id to enforce one-record-per-team.
+   */
+  async upsertPosterDraft(
+    registrationInternalId: string,
+    content: PosterContent
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Database not configured.' };
+    }
+
+    const now = new Date().toISOString();
+
+    const { error } = await supabase
+      .from('poster_submissions')
+      .upsert(
+        {
+          registration_id: registrationInternalId,
+          poster_content: content,
+          status: 'draft',
+          updated_at: now,
+        },
+        {
+          onConflict: 'registration_id',
+          ignoreDuplicates: false,
+        }
+      );
+
+    if (error) {
+      console.error('PosterService.upsertPosterDraft error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Participant: submit poster (status → 'submitted').
+   * Updates only the existing row for this registration.
+   */
+  async submitPoster(
+    registrationInternalId: string,
+    content: PosterContent
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Database not configured.' };
+    }
+
+    const now = new Date().toISOString();
+
+    const { error } = await supabase
+      .from('poster_submissions')
+      .upsert(
+        {
+          registration_id: registrationInternalId,
+          poster_content: content,
+          status: 'submitted',
+          submitted_at: now,
+          updated_at: now,
+        },
+        {
+          onConflict: 'registration_id',
+          ignoreDuplicates: false,
+        }
+      );
+
+    if (error) {
+      console.error('PosterService.submitPoster error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Participant: fetch their own poster record by registrations.id (internal UUID).
+   */
+  async getMyPoster(
+    registrationInternalId: string
+  ): Promise<PosterSubmission | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+
+    const { data, error } = await supabase
+      .from('poster_submissions')
+      .select('*')
+      .eq('registration_id', registrationInternalId)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id as string,
+      registrationInternalId: data.registration_id as string,
+      status: data.status as PosterStatus,
+      posterContent: (data.poster_content as PosterContent) ?? null,
+      submittedAt: (data.submitted_at as string) ?? null,
+      createdAt: data.created_at as string,
+      updatedAt: data.updated_at as string,
+    };
+  },
+
+  /**
+   * Participant: resolve their internal UUID from their public registration_id string.
+   * Needed because the participant session stores the public ID (PRAGATHI26-XXXXXX),
+   * but poster_submissions links to registrations.id (UUID).
+   */
+  async resolveInternalId(
+    publicRegistrationId: string
+  ): Promise<string | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('registration_id', publicRegistrationId)
+      .single();
+
+    if (error || !data) return null;
+    return data.id as string;
+  },
+
+  /**
+   * Admin: fetch all submitted posters with joined registration + institution data.
+   * Returns only status='submitted' records.
+   */
+  async getAllSubmittedPosters(): Promise<AdminPosterRecord[]> {
+    if (!isSupabaseConfigured || !supabase) return [];
+
+    const { data, error } = await supabase
+      .from('poster_submissions')
+      .select(
+        `
+        id,
+        registration_id,
+        status,
+        poster_content,
+        submitted_at,
+        created_at,
+        updated_at,
+        registrations (
+          id,
+          registration_id,
+          team_name,
+          leader_name,
+          leader_email,
+          institutions (
+            name
+          ),
+          projects (
+            title,
+            category
+          )
+        )
+      `
+      )
+      .eq('status', 'submitted')
+      .order('submitted_at', { ascending: false });
+
+    if (error) {
+      console.error('PosterService.getAllSubmittedPosters error:', error);
+      return [];
+    }
+
+    return (data ?? []).map((row: Record<string, unknown>) => {
+      const reg = row.registrations as Record<string, unknown> | null;
+      const inst = Array.isArray(reg?.institutions)
+        ? (reg?.institutions[0] as Record<string, unknown>)
+        : (reg?.institutions as Record<string, unknown> | null);
+      const proj = Array.isArray(reg?.projects)
+        ? (reg?.projects[0] as Record<string, unknown>)
+        : (reg?.projects as Record<string, unknown> | null);
+
+      const content = row.poster_content as PosterContent | null;
+
+      return {
+        posterId: row.id as string,
+        registrationInternalId: row.registration_id as string,
+        registrationId: (reg?.registration_id as string) ?? '',
+        teamName: (reg?.team_name as string) ?? content?.teamName ?? '',
+        projectTitle: (proj?.title as string) ?? content?.projectTitle ?? '',
+        category: (proj?.category as string) ?? content?.category ?? '',
+        leaderName: (reg?.leader_name as string) ?? content?.leaderName ?? '',
+        leaderEmail: (reg?.leader_email as string) ?? content?.leaderEmail ?? '',
+        institutionName: (inst?.name as string) ?? content?.institutionName ?? '',
+        status: row.status as PosterStatus,
+        submittedAt: (row.submitted_at as string) ?? null,
+        posterContent: content,
+      };
+    });
+  },
+};
