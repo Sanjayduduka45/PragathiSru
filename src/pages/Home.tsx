@@ -747,118 +747,130 @@ export const Home: React.FC = () => {
   return (
     <div className="space-y-12 sm:space-y-16 lg:space-y-20">
 
-      {/* HERO SECTION */}
-      <section className="relative overflow-hidden pt-6 pb-12 lg:py-16 bg-gradient-to-b from-blue-50/70 via-white to-white">
+      {/* HERO SECTION — SHARP RIGHT PHOTO + BLURRED LIGHT LEFT ATTENTION AREA */}
+      <section className="relative overflow-hidden min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] flex items-center py-12 lg:py-20 bg-slate-50">
 
-        {/* Background Grid Pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0041820a_1px,transparent_1px),linear-gradient(to_bottom,#0041820a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+        {/* 1. Base Layer: Sharp Original Photograph Positioned on Older Man, Project & Boy in Blue */}
+        <div
+          className="absolute inset-0 bg-cover bg-[position:73%_25%] bg-no-repeat"
+          style={{ backgroundImage: `url('/event-memories/IMG_7368.JPG')` }}
+        />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        {/* 2. Middle Layer: Soft Blur Masked to Left Side Only */}
+        <div
+          className="absolute inset-0 bg-cover bg-[position:73%_25%] bg-no-repeat blur-xl scale-105 opacity-80"
+          style={{
+            backgroundImage: `url('/event-memories/IMG_7368.JPG')`,
+            maskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0) 70%)',
+            WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0) 70%)'
+          }}
+        />
 
-            {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-3.5 text-center lg:text-left">
+        {/* 3. Top Layer: Light Translucent Gradient Overlay (Reduced Opacity so Photo remains Visible) */}
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-white/75 via-blue-50/50 to-transparent"
+          style={{
+            maskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 45%, rgba(0,0,0,0) 75%)',
+            WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 45%, rgba(0,0,0,0) 75%)'
+          }}
+        />
 
-              {/* Event Badge */}
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-50/90 border border-blue-100/90 text-[#004182] px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide shadow-2xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out max-w-[calc(100vw-32px)] sm:max-w-none cursor-default">
-                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#004182] shrink-0" />
-                <span className="truncate whitespace-nowrap">
-                  {eventSettings.institution} • Warangal, Telangana
+        {/* Subtle grid accent overlay for tech feel */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0041820a_1px,transparent_1px),linear-gradient(to_bottom,#0041820a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_20%_50%,#000_70%,transparent_100%)] pointer-events-none" />
+
+        {/* 4. Hero Content Container (Foreground z-10) */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+          <div className="max-w-2xl lg:max-w-3xl space-y-3.5 text-center lg:text-left">
+
+            {/* Event Badge */}
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-50/90 border border-blue-100/90 text-[#004182] px-3.5 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide shadow-2xs hover:shadow-md transition-all duration-200 ease-out cursor-default">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#004182] shrink-0" />
+              <span className="truncate whitespace-nowrap">
+                {eventSettings.institution} • Warangal, Telangana
+              </span>
+            </div>
+
+            {/* Main Headline */}
+            <div className="space-y-1.5">
+              <motion.h1
+                initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="hero-title-3d font-black tracking-tighter leading-[0.98] uppercase font-display whitespace-nowrap max-w-full"
+                style={{ fontSize: 'clamp(1.75rem, 4.8vw, 4.25rem)' }}
+              >
+                PRAGATHI 2.0
+              </motion.h1>
+
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display">
+                A National Level Project Expo 2K26
+              </p>
+
+              <p className="text-base sm:text-lg text-slate-500 font-medium max-w-2xl mx-auto lg:mx-0 italic">
+                “{eventSettings.tagline}”
+              </p>
+            </div>
+
+            {/* Metadata Badges */}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3 pt-1 w-full max-w-md sm:max-w-none mx-auto lg:mx-0">
+              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full border border-slate-200/80 text-xs font-bold text-slate-700 shadow-2xs hover:shadow-md transition-all duration-200 cursor-default">
+                <Calendar className="w-4 h-4 text-[#004182] shrink-0" />
+                <span>{eventSettings.eventDate}</span>
+              </div>
+
+              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#004182] text-white px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full shadow-md hover:shadow-lg text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-default">
+                <Award className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>
+                  Prize Pool:{' '}
+                  <strong className="text-amber-300 font-extrabold">
+                    {eventSettings.prizePool}
+                  </strong>
                 </span>
               </div>
 
-              {/* Main Headline */}
-              <div className="space-y-1.5">
-                <motion.h1
-                  initial={{ opacity: 0, y: 12, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="hero-title-3d font-black tracking-tighter leading-[0.98] uppercase font-display whitespace-nowrap sm:whitespace-nowrap max-w-full"
-                  style={{ fontSize: 'clamp(1.5rem, 4.2vw, 3.75rem)' }}
-                >
-                  PRAGATHI 2.0
-                </motion.h1>
-
-                <p className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display">
-                  A National Level Project Expo 2K26
-                </p>
-
-                <p className="text-base sm:text-lg text-slate-500 font-medium max-w-2xl mx-auto lg:mx-0 italic">
-                  “{eventSettings.tagline}”
-                </p>
+              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full border border-slate-200/80 text-xs font-bold text-slate-700 shadow-2xs hover:shadow-md transition-all duration-200 cursor-default">
+                <MapPin className="w-4 h-4 text-[#004182] shrink-0" />
+                <span>SR University Campus</span>
               </div>
-
-              {/* Metadata Badges */}
-              <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3 pt-1 w-full max-w-md sm:max-w-none mx-auto lg:mx-0">
-                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full shadow-2xs hover:shadow-md border border-slate-200 text-xs font-bold text-slate-700 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out cursor-default">
-                  <Calendar className="w-4 h-4 text-[#004182] shrink-0" />
-                  <span>{eventSettings.eventDate}</span>
-                </div>
-
-                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#004182] text-white px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full shadow-md hover:shadow-lg text-xs font-bold whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out cursor-default">
-                  <Award className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span>
-                    Prize Pool:{' '}
-                    <strong className="text-amber-300 font-extrabold">
-                      {eventSettings.prizePool}
-                    </strong>
-                  </span>
-                </div>
-
-                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full shadow-2xs hover:shadow-md border border-slate-200 text-xs font-bold text-slate-700 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 ease-out cursor-default">
-                  <MapPin className="w-4 h-4 text-[#004182] shrink-0" />
-                  <span>SR University Campus</span>
-                </div>
-              </div>
-
-              {/* Live Countdown Timer */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="pt-1"
-              >
-                <CountdownTimer />
-              </motion.div>
-
-              {/* Hero CTAs */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.4 }}
-                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-1"
-              >
-                <Link
-                  to="/register"
-                  className="hero-cta-primary w-full sm:w-auto inline-flex items-center justify-center gap-3 text-white px-8 py-3.5 rounded-[20px] font-extrabold text-base tracking-wide shadow-md shadow-blue-900/20 hover:shadow-lg hover:-translate-y-[2px] active:translate-y-[1px] transition-all duration-200 group"
-                >
-                  <span className="relative z-10">REGISTER NOW</span>
-                  <ArrowRight className="w-5 h-5 opacity-90 group-hover:translate-x-1 transition-transform duration-200" />
-                </Link>
-
-                <a
-                  href="#categories"
-                  className="hero-cta-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 text-[#004182] px-7 py-3.5 rounded-2xl font-bold text-base tracking-wide group"
-                >
-                  <span className="relative z-10">VIEW DOMAINS</span>
-                  <ArrowRight className="w-4 h-4 text-[#004182]/50 group-hover:text-[#004182] group-hover:translate-x-1 transition-all duration-300" />
-                </a>
-              </motion.div>
-
             </div>
 
-            {/* Right Hero Showcase Visual Column */}
+            {/* Live Countdown Timer */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="lg:col-span-5 flex justify-center items-center w-full"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="pt-1"
             >
-              <HeroVisual />
+              <CountdownTimer />
+            </motion.div>
+
+            {/* Hero CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.4 }}
+              className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-1"
+            >
+              <Link
+                to="/register"
+                className="hero-cta-primary w-full sm:w-auto inline-flex items-center justify-center gap-3 text-white px-8 py-3.5 rounded-[20px] font-extrabold text-base tracking-wide shadow-md shadow-blue-900/20 hover:shadow-lg hover:-translate-y-[2px] active:translate-y-[1px] transition-all duration-200 group"
+              >
+                <span className="relative z-10">REGISTER NOW</span>
+                <ArrowRight className="w-5 h-5 opacity-90 group-hover:translate-x-1 transition-transform duration-200" />
+              </Link>
+
+              <a
+                href="#categories"
+                className="hero-cta-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 text-[#004182] bg-white/90 hover:bg-white border border-slate-200/90 px-7 py-3.5 rounded-2xl font-bold text-base tracking-wide shadow-2xs transition-all duration-200 group"
+              >
+                <span className="relative z-10">VIEW DOMAINS</span>
+                <ArrowRight className="w-4 h-4 text-[#004182]/50 group-hover:text-[#004182] group-hover:translate-x-1 transition-all duration-300" />
+              </a>
             </motion.div>
 
           </div>
         </div>
+
       </section>
 
       {/* EVENT HIGHLIGHTS BAR */}
