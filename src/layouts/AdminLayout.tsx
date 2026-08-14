@@ -244,13 +244,16 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
           <div className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">
             System
           </div>
-          <div className={`${linkBase} ${linkDisabled}`}>
+          <NavLink
+            to="/admin/settings"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `${linkBase} ${isActive ? linkActive : linkInactive}`
+            }
+          >
             <Settings className="w-4 h-4 shrink-0" />
             Settings
-            <span className="ml-auto text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
-              Soon
-            </span>
-          </div>
+          </NavLink>
         </div>
       </nav>
 

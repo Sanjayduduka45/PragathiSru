@@ -250,5 +250,121 @@
       "display_order": 2,
       "is_active": true
     }
+  ],
+  "system_settings": {
+    "event_config": {
+      "event_name": "PRAGATHI 2K26",
+      "event_date": "09 October 2026",
+      "target_date_iso": "2026-10-09T09:00:00+05:30",
+      "registration_status": "open",
+      "registration_open_date": "2026-08-01T00:00:00+05:30",
+      "registration_close_date": "2026-10-01T23:59:59+05:30",
+      "website_visibility": "published",
+      "event_status": "active"
+    },
+    "notification_config": {
+      "announcement_emails_enabled": true,
+      "registration_confirmation_emails_enabled": true,
+      "event_reminder_alerts_enabled": true,
+      "email_sender_name": "PRAGATHI 2K26 Secretariat",
+      "provider_status": "ready"
+    },
+    "system_config": {
+      "maintenance_mode": false,
+      "max_registrations": 500,
+      "announcement_banner_enabled": false,
+      "announcement_banner_text": "Welcome to PRAGATHI 2K26 Expo Registration Portal!",
+      "debug_logging": false
+    },
+    "admin_profile": {
+      "display_name": "Lead Administrator",
+      "email": "admin@sru.edu.in",
+      "role": "admin",
+      "account_status": "verified",
+      "last_sign_in": null,
+      "auth_provider": "email"
+    }
+  },
+  "user_roles": [
+    {
+      "id": "role-admin-1",
+      "user_email": "admin@sru.edu.in",
+      "role": "admin",
+      "display_name": "Lead Administrator",
+      "department": "Deanery",
+      "is_active": true,
+      "assigned_by": "system",
+      "created_at": "2026-08-01T00:00:00Z"
+    },
+    {
+      "id": "role-coord-1",
+      "user_email": "coordinator@sru.edu.in",
+      "role": "coordinator",
+      "display_name": "Chief Event Coordinator",
+      "department": "CSE",
+      "is_active": true,
+      "assigned_by": "system",
+      "created_at": "2026-08-01T00:00:00Z"
+    },
+    {
+      "id": "role-jury-1",
+      "user_email": "jury.head@sru.edu.in",
+      "role": "jury",
+      "display_name": "Evaluation Panel Head",
+      "department": "Research",
+      "is_active": true,
+      "assigned_by": "system",
+      "created_at": "2026-08-01T00:00:00Z"
+    }
+  ],
+  "audit_logs": [
+    {
+      "id": "audit-3d5fb274",
+      "action": "SETTINGS_RESET",
+      "performed_by": "admin",
+      "target": "system",
+      "details": "System configuration restored to default baseline.",
+      "created_at": "2026-08-14T18:34:29.597245+00:00"
+    },
+    {
+      "id": "audit-353c2077",
+      "action": "ROLE_REVOKED",
+      "performed_by": "admin",
+      "target": "test.coordinator@sru.edu.in",
+      "details": "Revoked role assignment for test.coordinator@sru.edu.in",
+      "created_at": "2026-08-14T18:34:26.663331+00:00"
+    },
+    {
+      "id": "audit-a27ad4bc",
+      "action": "ROLE_UPDATED",
+      "performed_by": "admin",
+      "target": "test.coordinator@sru.edu.in",
+      "details": "Updated role configuration for test.coordinator@sru.edu.in",
+      "created_at": "2026-08-14T18:34:25.717991+00:00"
+    },
+    {
+      "id": "audit-475a574f",
+      "action": "ROLE_ASSIGNED",
+      "performed_by": "admin",
+      "target": "test.coordinator@sru.edu.in",
+      "details": "Assigned role 'coordinator' to test.coordinator@sru.edu.in",
+      "created_at": "2026-08-14T18:34:24.746590+00:00"
+    },
+    {
+      "id": "audit-450ba79f",
+      "action": "SETTINGS_UPDATE",
+      "performed_by": "admin",
+      "target": "system_settings",
+      "details": "Updated configuration sections: event_config, system_config",
+      "created_at": "2026-08-14T18:34:23.389092+00:00"
+    },
+    {
+      "id": "audit-init",
+      "action": "SYSTEM_INIT",
+      "performed_by": "system",
+      "target": "system_settings",
+      "details": "System settings and security framework initialized.",
+      "created_at": "2026-08-14T18:33:31.168538+00:00"
+    }
   ]
 }

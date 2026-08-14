@@ -274,3 +274,52 @@ INSERT INTO public.contact_people (category, name, designation, mobile, email, d
 ('coordinator', 'Mr. Mohammad Afzal', 'Coordinator', '9100726799', '', 1, true),
 ('coordinator', 'Mr. Algol Sumanth', 'Coordinator', '7842421505', '', 2, true);
 
+-- ─── 10. SYSTEM SETTINGS ───────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.system_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  value_type TEXT NOT NULL DEFAULT 'json',
+  description TEXT DEFAULT '',
+  is_public BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_by TEXT DEFAULT 'admin',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 11. USER ROLES ───────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_email TEXT NOT NULL UNIQUE,
+  role TEXT NOT NULL CHECK (role IN ('admin', 'coordinator', 'jury', 'participant')),
+  display_name TEXT DEFAULT '',
+  department TEXT DEFAULT '',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  assigned_by TEXT DEFAULT 'admin',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── 12. AUDIT LOGS ───────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  action TEXT NOT NULL,
+  performed_by TEXT NOT NULL DEFAULT 'admin',
+  target TEXT DEFAULT '',
+  details TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read of public settings" ON public.system_settings FOR SELECT USING (is_public = true);
+CREATE POLICY "Allow authenticated full access to system settings" ON public.system_settings FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+CREATE POLICY "Allow full access to user roles" ON public.user_roles FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+CREATE POLICY "Allow full access to audit logs" ON public.audit_logs FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+
+

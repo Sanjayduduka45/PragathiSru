@@ -36,6 +36,7 @@ const ContactAdmin = React.lazy(() => import('./pages/admin/content/ContactAdmin
 const TestimonialsAdmin = React.lazy(() => import('./pages/admin/content/TestimonialsAdmin').then((m) => ({ default: m.TestimonialsAdmin })));
 const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon').then((m) => ({ default: m.AdminComingSoon })));
 const PostersAdmin = React.lazy(() => import('./pages/admin/PostersAdmin').then((m) => ({ default: m.PostersAdmin })));
+const SettingsAdmin = React.lazy(() => import('./pages/admin/SettingsAdmin').then((m) => ({ default: m.SettingsAdmin })));
 
 export default function App() {
   return (
@@ -114,7 +115,7 @@ export default function App() {
                       <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
                       <Route path="/judges" element={<AdminComingSoon module="Judges Portal" />} />
                       <Route path="/results" element={<AdminComingSoon module="Results & Leaders" />} />
-                      <Route path="/settings" element={<AdminComingSoon module="System Settings" />} />
+                      <Route path="/settings" element={<SettingsAdmin />} />
 
                       <Route path="*" element={<Navigate to="/admin" replace />} />
                     </Routes>

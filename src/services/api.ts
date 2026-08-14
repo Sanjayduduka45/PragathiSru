@@ -314,5 +314,36 @@ export const api = {
         method: 'DELETE',
       }),
     getStats: () => request<{ success: boolean; data: any }>('/api/admin/stats'),
+
+    getSettings: () => request<{ success: boolean; data: any }>('/api/admin/settings'),
+    updateSettings: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    resetSettings: (section?: string) =>
+      request<{ success: boolean; data: any }>(
+        `/api/admin/settings/reset${section ? `?section=${section}` : ''}`,
+        { method: 'POST' }
+      ),
+
+    getRoles: () => request<{ success: boolean; data: any[] }>('/api/admin/roles'),
+    createRole: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/roles', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateRole: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/roles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteRole: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/roles/${id}`, {
+        method: 'DELETE',
+      }),
+
+    getAuditLogs: (limit: number = 30) =>
+      request<{ success: boolean; data: any[] }>(`/api/admin/audit-logs?limit=${limit}`),
   },
 };

@@ -11,7 +11,8 @@ from app.api import (
     sponsors,
     contact,
     registrations,
-    testimonials
+    testimonials,
+    settings as settings_api
 )
 
 app = FastAPI(
@@ -49,6 +50,7 @@ app.include_router(sponsors.router)
 app.include_router(contact.router)
 app.include_router(registrations.router)
 app.include_router(testimonials.router)
+app.include_router(settings_api.router)
 
 @app.get("/")
 async def root():

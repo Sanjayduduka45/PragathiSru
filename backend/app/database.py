@@ -364,6 +364,31 @@ class Database:
             print(f"[Supabase] Insert error on {table}: {e}")
         return None
 
+    async def upsert_supabase(self, table: str, payload: Dict[str, Any], on_conflict: str = "id") -> Optional[Dict[str, Any]]:
+        url = f"{settings.supabase_url}/rest/v1/{table}?on_conflict={on_conflict}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = self.get_headers()
+                headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+                res = await client.post(url, headers=headers, json=payload)
+                if res.status_code in (200, 201):
+                    data = res.json()
+                    if isinstance(data, list) and len(data) > 0:
+                        return data[0]
+                    elif isinstance(data, dict):
+                        return data
+                # If resolution header fails, fallback to patch if on_conflict field is present
+                if on_conflict in payload:
+                    val = payload[on_conflict]
+                    patch_url = f"{settings.supabase_url}/rest/v1/{table}?{on_conflict}=eq.{val}"
+                    patch_res = await client.patch(patch_url, headers=self.get_headers(), json=payload)
+                    if patch_res.status_code in (200, 204):
+                        return payload
+                print(f"[Supabase] Upsert failed on {table} HTTP {res.status_code}: {res.text}")
+        except Exception as e:
+            print(f"[Supabase] Upsert error on {table}: {e}")
+        return None
+
     async def upload_supabase_storage(self, bucket: str, path: str, content: bytes, content_type: str) -> Optional[str]:
         if not settings.supabase_url or not settings.supabase_key:
             return None
