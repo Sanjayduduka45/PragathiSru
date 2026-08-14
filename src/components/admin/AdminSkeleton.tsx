@@ -1,32 +1,12 @@
 import React from 'react';
 
 /**
- * Centered Auth Loading screen displayed while verifying user session.
+ * Neutral Auth Loading screen displayed while verifying user session.
  */
 export const AuthLoadingScreen: React.FC = () => {
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
-      {/* Brand Icon */}
-      <div className="w-14 h-14 rounded-2xl bg-[#004182] text-white flex items-center justify-center font-bold font-display text-xl shadow-md shadow-blue-900/10 animate-pulse">
-        SR
-      </div>
-
-      <div className="space-y-1">
-        <span className="inline-block text-[10px] font-extrabold uppercase tracking-widest text-[#004182] bg-blue-50 border border-blue-100 px-3 py-1 rounded-full">
-          PRAGATHI 2K26
-        </span>
-        <h2 className="text-xl font-extrabold text-slate-900 font-display">
-          Admin Portal
-        </h2>
-        <p className="text-xs font-semibold text-slate-500">
-          Loading admin dashboard...
-        </p>
-      </div>
-
-      {/* Spinner */}
-      <div className="pt-2">
-        <div className="w-8 h-8 border-3 border-blue-100 border-t-[#004182] rounded-full animate-spin mx-auto" />
-      </div>
+      <div className="w-8 h-8 border-3 border-[#004182]/20 border-t-[#004182] rounded-full animate-spin mx-auto" />
     </div>
   );
 };

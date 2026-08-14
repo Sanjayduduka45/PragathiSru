@@ -5,9 +5,11 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 interface AdminAuthContextType {
   user: User | null;
   session: Session | null;
+  role: string | null;
+  isAdmin: boolean;
   loading: boolean;
   isSupabaseReady: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; role?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -16,7 +18,35 @@ const AdminAuthContext = createContext<AdminAuthContextType | null>(null);
 export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const resolveUserRole = async (userObj: User | null): Promise<string | null> => {
+    if (!userObj || !userObj.email) return null;
+    const email = userObj.email.trim().toLowerCase();
+
+    if (!supabase) return 'admin';
+
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, is_active')
+        .ilike('user_email', email)
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        if (data[0].is_active === false) {
+          return 'inactive';
+        }
+        return data[0].role;
+      }
+    } catch (err) {
+      console.warn('[AdminAuthContext] Role lookup failed:', err);
+    }
+
+    // Default to admin for authenticated Supabase admin users if no specific role assigned
+    return 'admin';
+  };
 
   useEffect(() => {
     if (!supabase) {
@@ -24,22 +54,28 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      const resolvedRole = await resolveUserRole(currentUser);
+      setRole(resolvedRole);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      const resolvedRole = await resolveUserRole(currentUser);
+      setRole(resolvedRole);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
+  const signIn = async (email: string, password: string): Promise<{ error: string | null; role?: string }> => {
     if (!supabase) {
       return {
         error: 'Supabase client is not initialized. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
@@ -51,7 +87,9 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     setSession(data.session);
     setUser(data.user);
-    return { error: null };
+    const userRole = await resolveUserRole(data.user);
+    setRole(userRole);
+    return { error: null, role: userRole || 'admin' };
   };
 
   const signOut = async () => {
@@ -60,11 +98,23 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     setUser(null);
     setSession(null);
+    setRole(null);
   };
+
+  const isAdmin = role === 'admin' || role === 'superadmin';
 
   return (
     <AdminAuthContext.Provider
-      value={{ user, session, loading, isSupabaseReady: isSupabaseConfigured, signIn, signOut }}
+      value={{
+        user,
+        session,
+        role,
+        isAdmin,
+        loading,
+        isSupabaseReady: isSupabaseConfigured,
+        signIn,
+        signOut,
+      }}
     >
       {children}
     </AdminAuthContext.Provider>

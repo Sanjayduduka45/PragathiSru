@@ -31,20 +31,20 @@ const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 // Current active roles: participant, admin
 // Future roles: extend here when jury/coordinator dashboards are ready.
 // ---------------------------------------------------------------------------
-type AppRole = 'participant' | 'admin' | 'jury' | 'coordinator';
+type AppRole = 'participant' | 'admin' | 'superadmin' | 'jury' | 'judge' | 'coordinator';
 
-function getRedirectPath(role: AppRole): string {
-  switch (role) {
+function getRedirectPath(role: string): string {
+  switch (role.toLowerCase()) {
     case 'participant':
       return '/participant';
     case 'admin':
+    case 'superadmin':
       return '/admin';
     case 'jury':
-      // Not yet implemented - safe fallback until jury dashboard exists
-      return '/coming-soon';
+    case 'judge':
+      return '/coming-soon?module=judges';
     case 'coordinator':
-      // Not yet implemented - safe fallback until coordinator dashboard exists
-      return '/coming-soon';
+      return '/coming-soon?module=coordinator';
     default:
       return '/';
   }
@@ -59,7 +59,12 @@ export const Login: React.FC = () => {
     session: participantSession,
     loading: participantLoading,
   } = useParticipantAuth();
-  const { signIn: adminSignIn, user: adminUser, loading: adminLoading } = useAdminAuth();
+  const {
+    signIn: adminSignIn,
+    user: adminUser,
+    role: adminRole,
+    loading: adminLoading,
+  } = useAdminAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -78,9 +83,9 @@ export const Login: React.FC = () => {
       return;
     }
     if (adminUser) {
-      navigate(getRedirectPath('admin'), { replace: true });
+      navigate(getRedirectPath(adminRole || 'admin'), { replace: true });
     }
-  }, [participantSession, adminUser, participantLoading, adminLoading, navigate]);
+  }, [participantSession, adminUser, adminRole, participantLoading, adminLoading, navigate]);
 
   // -------------------------------------------------------------------------
   // Submit: email-based path separation
@@ -156,24 +161,31 @@ export const Login: React.FC = () => {
         }
       } else {
         // =================================================================
-        // ADMIN / FUTURE-ROLE PATH
-        // Email NOT in registrations table. Try Supabase Auth.
-        // Participant credentials NEVER reach this branch.
-        //
-        // FUTURE EXTENSION POINT:
-        //   After adminSignIn succeeds, resolve the actual role:
-        //   const { data: { user } } = await supabase.auth.getUser();
-        //   const { data: roleRow } = await supabase
-        //     .from('user_roles')
-        //     .select('role')
-        //     .eq('user_id', user.id)
-        //     .single();
-        //   navigate(getRedirectPath(roleRow.role as AppRole), { replace: true });
+        // ADMIN / ROLE-BASED PATH
+        // Email NOT in registrations table. Authenticate via Supabase.
         // =================================================================
-        const { error: adminError } = await adminSignIn(trimmedEmail, trimmedPassword);
+        const { error: adminError, role: returnedRole } = await adminSignIn(trimmedEmail, trimmedPassword);
 
         if (!adminError) {
-          const resolvedRole: AppRole = 'admin';
+          let resolvedRole = returnedRole || 'admin';
+
+          // Query user_roles table to double-verify role
+          if (isSupabaseConfigured && supabase) {
+            try {
+              const { data: roleRows } = await supabase
+                .from('user_roles')
+                .select('role, is_active')
+                .ilike('user_email', trimmedEmail)
+                .limit(1);
+
+              if (roleRows && roleRows.length > 0 && roleRows[0].is_active !== false) {
+                resolvedRole = roleRows[0].role;
+              }
+            } catch (rErr) {
+              console.warn('[Login] DB role check fallback:', rErr);
+            }
+          }
+
           navigate(getRedirectPath(resolvedRole), { replace: true });
         } else {
           setError(GENERIC_ERROR);

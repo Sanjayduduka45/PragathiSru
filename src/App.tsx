@@ -8,7 +8,7 @@ import { AdminAuthProvider } from './context/AdminAuthContext';
 import { ContentProvider } from './context/ContentContext';
 import { ProtectedAdminRoute } from './pages/admin/ProtectedAdminRoute';
 import { AdminLayout } from './layouts/AdminLayout';
-import { AdminPageSkeleton, AuthLoadingScreen } from './components/admin/AdminSkeleton';
+import { AdminPageSkeleton } from './components/admin/AdminSkeleton';
 import { ParticipantAuthProvider } from './context/ParticipantAuthContext';
 import { ProtectedParticipantRoute } from './pages/ProtectedParticipantRoute';
 
@@ -39,6 +39,12 @@ const PostersAdmin = React.lazy(() => import('./pages/admin/PostersAdmin').then(
 const SettingsAdmin = React.lazy(() => import('./pages/admin/SettingsAdmin').then((m) => ({ default: m.SettingsAdmin })));
 
 export default function App() {
+  const neutralLoader = (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="w-8 h-8 border-3 border-[#004182]/20 border-t-[#004182] rounded-full animate-spin" />
+    </div>
+  );
+
   return (
     <ParticipantAuthProvider>
     <AdminAuthProvider>
@@ -70,7 +76,7 @@ export default function App() {
           <Route
             path="/login"
             element={
-              <Suspense fallback={<AuthLoadingScreen />}>
+              <Suspense fallback={neutralLoader}>
                 <Login />
               </Suspense>
             }
@@ -79,7 +85,7 @@ export default function App() {
             path="/participant"
             element={
               <ProtectedParticipantRoute>
-                <Suspense fallback={<AuthLoadingScreen />}>
+                <Suspense fallback={neutralLoader}>
                   <ParticipantDashboard />
                 </Suspense>
               </ProtectedParticipantRoute>

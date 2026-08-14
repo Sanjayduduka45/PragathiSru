@@ -92,7 +92,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/admin/login');
+    navigate('/login', { replace: true });
     onClose?.();
   };
 
