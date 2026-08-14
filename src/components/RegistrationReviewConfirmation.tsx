@@ -148,7 +148,7 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
               Important — Save Your ID
             </div>
             <p className="leading-relaxed">
-              Please <strong className="font-bold text-slate-900">save or take a screenshot of your Registration ID</strong>. You will need this ID to log in and access your Participant Profile.
+              Keep your Registration ID safe. You’ll need it along with your registered email to sign in and access your Participant Profile.
             </p>
           </div>
         </div>

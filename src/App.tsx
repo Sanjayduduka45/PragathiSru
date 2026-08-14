@@ -19,10 +19,10 @@ const Contact = React.lazy(() => import('./pages/Contact').then((m) => ({ defaul
 const TestimonialsPage = React.lazy(() => import('./pages/Testimonials').then((m) => ({ default: m.TestimonialsPage })));
 const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then((m) => ({ default: m.ComingSoon })));
 const ParticipantLogin = React.lazy(() => import('./pages/ParticipantLogin').then((m) => ({ default: m.ParticipantLogin })));
+const Login = React.lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const ParticipantDashboard = React.lazy(() => import('./pages/ParticipantDashboard').then((m) => ({ default: m.ParticipantDashboard })));
 
 // Lazy-loaded Admin Routes for code splitting & faster initial page load
-const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin').then((m) => ({ default: m.AdminLogin })));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const RegistrationsAdmin = React.lazy(() => import('./pages/admin/RegistrationsAdmin').then((m) => ({ default: m.RegistrationsAdmin })));
 const EventDetailsAdmin = React.lazy(() => import('./pages/admin/content/EventDetailsAdmin').then((m) => ({ default: m.EventDetailsAdmin })));
@@ -70,7 +70,7 @@ export default function App() {
             path="/login"
             element={
               <Suspense fallback={<AuthLoadingScreen />}>
-                <ParticipantLogin />
+                <Login />
               </Suspense>
             }
           />
@@ -85,15 +85,8 @@ export default function App() {
             }
           />
 
-          {/* Admin Unprotected Route */}
-          <Route
-            path="/admin/login"
-            element={
-              <Suspense fallback={<AuthLoadingScreen />}>
-                <AdminLogin />
-              </Suspense>
-            }
-          />
+          {/* /admin/login redirects to common login - no longer a standalone page */}
+          <Route path="/admin/login" element={<Navigate to="/login" replace />} />
 
           {/* Admin Protected Routes wrapped in AdminLayout */}
           <Route

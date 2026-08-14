@@ -72,16 +72,77 @@ export interface AdminPosterRecord {
 
 export const PosterService = {
   /**
+   * Authoritative backend/database verification:
+   * Checks if userEmail is the verified Team Leader of registrationInternalId
+   * directly from public.registrations and public.team_members.
+   */
+  async verifyLeaderAuthorization(
+    registrationInternalId: string,
+    userEmail: string
+  ): Promise<{ authorized: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { authorized: false, error: 'Database not configured.' };
+    }
+
+    const cleanEmail = (userEmail || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      return { authorized: false, error: 'User email is required for authorization verification.' };
+    }
+
+    try {
+      const { data: regRow, error } = await supabase
+        .from('registrations')
+        .select('id, leader_email, team_members(email, is_team_leader)')
+        .eq('id', registrationInternalId)
+        .single();
+
+      if (error || !regRow) {
+        return { authorized: false, error: 'Registration record not found.' };
+      }
+
+      const dbLeaderEmail = (regRow.leader_email || '').trim().toLowerCase();
+      const members = (regRow.team_members as Array<{ email?: string; is_team_leader?: boolean }>) || [];
+
+      const isLeader =
+        cleanEmail === dbLeaderEmail ||
+        members.some(
+          (tm) => (tm.email || '').trim().toLowerCase() === cleanEmail && tm.is_team_leader
+        );
+
+      if (!isLeader) {
+        return {
+          authorized: false,
+          error: 'Forbidden: Only the designated Team Leader can create, edit, or submit project posters.',
+        };
+      }
+
+      return { authorized: true };
+    } catch (err) {
+      console.error('PosterService.verifyLeaderAuthorization exception:', err);
+      return { authorized: false, error: 'Authorization verification failed.' };
+    }
+  },
+
+  /**
    * Participant: upsert a poster draft.
    * Creates the record if it doesn't exist, or updates it if it does.
    * Uses ON CONFLICT on registration_id to enforce one-record-per-team.
+   * Enforces server-side leader authorization before writing.
    */
   async upsertPosterDraft(
     registrationInternalId: string,
-    content: PosterContent
+    content: PosterContent,
+    userEmail?: string
   ): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured || !supabase) {
       return { success: false, error: 'Database not configured.' };
+    }
+
+    if (userEmail) {
+      const auth = await this.verifyLeaderAuthorization(registrationInternalId, userEmail);
+      if (!auth.authorized) {
+        return { success: false, error: auth.error };
+      }
     }
 
     const now = new Date().toISOString();
@@ -112,13 +173,22 @@ export const PosterService = {
   /**
    * Participant: submit poster (status → 'submitted').
    * Updates only the existing row for this registration.
+   * Enforces server-side leader authorization before writing.
    */
   async submitPoster(
     registrationInternalId: string,
-    content: PosterContent
+    content: PosterContent,
+    userEmail?: string
   ): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured || !supabase) {
       return { success: false, error: 'Database not configured.' };
+    }
+
+    if (userEmail) {
+      const auth = await this.verifyLeaderAuthorization(registrationInternalId, userEmail);
+      if (!auth.authorized) {
+        return { success: false, error: auth.error };
+      }
     }
 
     const now = new Date().toISOString();

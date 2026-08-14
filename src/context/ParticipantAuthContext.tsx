@@ -21,12 +21,18 @@ export interface ParticipantProfile {
   registrationStatus: string;
   paymentStatus: string;
   members: ParticipantMember[];
+  leaderName: string;
+  leaderEmail: string;
+  isCurrentUserLeader: boolean;
+  currentUserEmail: string;
   createdAt: string;
 }
 
 export interface ParticipantSession {
   registrationId: string;
+  userEmail: string;
   leaderEmail: string;
+  isLeader: boolean;
 }
 
 interface ParticipantAuthContextType {
@@ -34,7 +40,7 @@ interface ParticipantAuthContextType {
   profile: ParticipantProfile | null;
   loading: boolean;
   profileLoading: boolean;
-  signIn: (registrationId: string, leaderEmail: string) => Promise<{ error: string | null }>;
+  signIn: (registrationId: string, userEmail: string) => Promise<{ error: string | null }>;
   signOut: () => void;
 }
 
@@ -48,7 +54,7 @@ export const ParticipantAuthProvider: React.FC<{ children: React.ReactNode }> = 
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  const loadProfile = useCallback(async (registrationId: string): Promise<void> => {
+  const loadProfile = useCallback(async (registrationId: string, userEmail?: string): Promise<void> => {
     if (!isSupabaseConfigured || !supabase) return;
     setProfileLoading(true);
     try {
@@ -78,6 +84,16 @@ export const ParticipantAuthProvider: React.FC<{ children: React.ReactNode }> = 
       const proj = Array.isArray(regRow.projects) ? regRow.projects[0] : regRow.projects;
       const inst = Array.isArray(regRow.institutions) ? regRow.institutions[0] : regRow.institutions;
 
+      const leaderMember = members.find((m) => m.role === 'Leader') || members[0];
+      const leaderEmail = (regRow.leader_email as string) || leaderMember?.email || '';
+      const leaderName = (regRow.leader_name as string) || leaderMember?.name || '';
+
+      const currentEmail = (userEmail || '').trim().toLowerCase();
+      const isCurrentUserLeader = currentEmail
+        ? currentEmail === leaderEmail.trim().toLowerCase() ||
+          members.some((m) => m.email.trim().toLowerCase() === currentEmail && m.role === 'Leader')
+        : true;
+
       setProfile({
         registrationId: regRow.registration_id as string,
         teamName: regRow.team_name as string,
@@ -88,6 +104,10 @@ export const ParticipantAuthProvider: React.FC<{ children: React.ReactNode }> = 
         registrationStatus: (regRow.registration_status as string) || 'submitted',
         paymentStatus: (regRow.payment_status as string) || 'pending',
         members,
+        leaderName,
+        leaderEmail,
+        isCurrentUserLeader,
+        currentUserEmail: currentEmail || leaderEmail,
         createdAt: regRow.created_at as string,
       });
     } catch (err) {
@@ -103,7 +123,7 @@ export const ParticipantAuthProvider: React.FC<{ children: React.ReactNode }> = 
       if (raw) {
         const stored: ParticipantSession = JSON.parse(raw);
         setSession(stored);
-        void loadProfile(stored.registrationId);
+        void loadProfile(stored.registrationId, stored.userEmail);
       }
     } catch {
       // ignore corrupt storage
@@ -114,28 +134,49 @@ export const ParticipantAuthProvider: React.FC<{ children: React.ReactNode }> = 
 
   const signIn = async (
     registrationId: string,
-    leaderEmail: string
+    userEmail: string
   ): Promise<{ error: string | null }> => {
     if (!isSupabaseConfigured || !supabase) {
       return { error: 'The database is not configured. Please contact the event organizers.' };
     }
     const cleanId = registrationId.trim().toUpperCase();
-    const cleanEmail = leaderEmail.trim().toLowerCase();
+    const cleanEmail = userEmail.trim().toLowerCase();
     try {
-      const { data, error } = await supabase
+      const { data: regRow, error } = await supabase
         .from('registrations')
-        .select('registration_id, leader_email, team_name')
+        .select('*, team_members(*)')
         .eq('registration_id', cleanId)
-        .eq('leader_email', cleanEmail)
         .single();
 
-      if (error || !data) {
+      if (error || !regRow) {
         return { error: 'Registration ID or email not found. Please check your details and try again.' };
       }
-      const sess: ParticipantSession = { registrationId: cleanId, leaderEmail: cleanEmail };
+
+      const dbLeaderEmail = (regRow.leader_email || '').trim().toLowerCase();
+      const members = (regRow.team_members as Array<{ email?: string; is_team_leader?: boolean }>) || [];
+
+      const isMember =
+        cleanEmail === dbLeaderEmail ||
+        members.some((tm) => (tm.email || '').trim().toLowerCase() === cleanEmail);
+
+      if (!isMember) {
+        return { error: 'Registration ID or email not found. Please check your details and try again.' };
+      }
+
+      const isLeader =
+        cleanEmail === dbLeaderEmail ||
+        members.some((tm) => (tm.email || '').trim().toLowerCase() === cleanEmail && tm.is_team_leader);
+
+      const sess: ParticipantSession = {
+        registrationId: cleanId,
+        userEmail: cleanEmail,
+        leaderEmail: dbLeaderEmail,
+        isLeader,
+      };
+
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
       setSession(sess);
-      await loadProfile(cleanId);
+      await loadProfile(cleanId, cleanEmail);
       return { error: null };
     } catch {
       return { error: 'Login failed. Please try again.' };

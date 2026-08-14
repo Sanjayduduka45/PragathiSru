@@ -171,9 +171,16 @@ const ComingSoonCard: React.FC<{
 
 // ─── Poster Submission Card ─────────────────────────────────────────────────────
 
-const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId: string }> = ({
+const PosterCard: React.FC<{
+  profile: ParticipantProfile;
+  registrationInternalId: string;
+  isLeader: boolean;
+  currentUserEmail: string;
+}> = ({
   profile,
   registrationInternalId,
+  isLeader,
+  currentUserEmail,
 }) => {
   const [posterStatus, setPosterStatus] = useState<PosterStatus | null>(null);
   const [posterLoading, setPosterLoading] = useState(true);
@@ -272,33 +279,42 @@ const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId
   }, [registrationInternalId, defaultMembers, defaultDept]);
 
   const handleSaveDraft = async () => {
+    if (!isLeader) {
+      setSaveMsg('Unauthorized: Only the designated Team Leader can save poster drafts.');
+      return;
+    }
     setSaving(true);
     setSaveMsg(null);
-    const result = await PosterService.upsertPosterDraft(registrationInternalId, buildContent());
+    const result = await PosterService.upsertPosterDraft(registrationInternalId, buildContent(), currentUserEmail);
     setSaving(false);
     if (result.success) {
       setPosterStatus('draft');
       setSaveMsg('Draft saved successfully!');
       setTimeout(() => setSaveMsg(null), 3000);
     } else {
-      setSaveMsg('Save failed. Please try again.');
+      setSaveMsg(result.error || 'Save failed. Please try again.');
     }
   };
 
   const handleSubmit = async () => {
+    if (!isLeader) {
+      setSaveMsg('Unauthorized: Only the designated Team Leader can submit posters.');
+      return;
+    }
     setSubmitting(true);
     setSaveMsg(null);
-    const result = await PosterService.submitPoster(registrationInternalId, buildContent());
+    const result = await PosterService.submitPoster(registrationInternalId, buildContent(), currentUserEmail);
     setSubmitting(false);
     if (result.success) {
       setPosterStatus('submitted');
       setEditorOpen(false);
     } else {
-      setSaveMsg('Submission failed. Please try again.');
+      setSaveMsg(result.error || 'Submission failed. Please try again.');
     }
   };
 
   const handleImageUpload = (key: 'diagram1' | 'diagram2' | 'diagram3', file: File) => {
+    if (!isLeader || isSubmitted) return;
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
@@ -340,6 +356,7 @@ const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId
   }
 
   const isSubmitted = posterStatus === 'submitted';
+  const canEditPoster = isLeader && !isSubmitted;
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -373,25 +390,46 @@ const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId
           <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
             {isSubmitted
               ? 'Your official event poster has been submitted successfully.'
-              : 'Complete your official project poster template and submit it to management.'}
+              : isLeader
+              ? 'Complete your official project poster template and submit it to management.'
+              : `Poster management is reserved for your Team Leader (${profile.leaderName || 'Team Leader'}).`}
           </p>
         </div>
       </div>
 
-      {/* Main card trigger button */}
+      {/* Main card trigger button / Team Member info */}
       <div className="px-4 pb-4">
-        <button
-          id="participant-poster-open-editor"
-          type="button"
-          onClick={() => setEditorOpen(true)}
-          className="w-full flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2.5 rounded-xl transition-colors cursor-pointer"
-        >
-          <Edit3 className="w-3.5 h-3.5" />
-          {isSubmitted ? 'View Submitted Poster' : posterStatus === 'draft' ? 'Edit Poster Draft' : 'Create Poster'}
-        </button>
+        {isLeader ? (
+          <button
+            id="participant-poster-open-editor"
+            type="button"
+            onClick={() => setEditorOpen(true)}
+            className="w-full flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2.5 rounded-xl transition-colors cursor-pointer"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            {isSubmitted ? 'View Submitted Poster' : posterStatus === 'draft' ? 'Edit Poster Draft' : 'Create Poster'}
+          </button>
+        ) : isSubmitted ? (
+          <button
+            id="participant-poster-open-editor"
+            type="button"
+            onClick={() => setEditorOpen(true)}
+            className="w-full flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2.5 rounded-xl transition-colors cursor-pointer"
+          >
+            <FileImage className="w-3.5 h-3.5" />
+            View Submitted Poster
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-500">
+            <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="leading-relaxed">
+              Poster creation and submission is managed exclusively by your Team Leader.
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Slide Editor Modal */}
+      {/* Slide Editor / Viewer Modal */}
       {editorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-xs">
           <div className="relative z-10 w-full max-w-5xl bg-slate-100 rounded-3xl shadow-2xl border border-slate-200 flex flex-col h-[92vh] overflow-hidden">
@@ -402,13 +440,17 @@ const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId
                   <FileImage className="w-4.5 h-4.5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">PRAGATHI 2K26 Poster Editor</h3>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    {canEditPoster ? 'PRAGATHI 2K26 Poster Editor' : 'PRAGATHI 2K26 Poster Viewer'}
+                  </h3>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-[10px] text-slate-400">Status:</span>
                     {isSubmitted ? (
                       <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Submitted</span>
                     ) : (
-                      <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">Editable Draft</span>
+                      <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        {canEditPoster ? 'Editable Draft' : 'Draft (Leader Only)'}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -416,7 +458,7 @@ const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
-                {!isSubmitted && (
+                {canEditPoster && (
                   <>
                     <button
                       id="participant-poster-save-draft"
@@ -455,15 +497,23 @@ const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId
             <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center" ref={containerRef}>
               {saveMsg && (
                 <div className={`w-full max-w-[960px] mb-3 px-4 py-2 rounded-xl text-xs font-bold ${
-                  saveMsg.includes('failed') ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                  saveMsg.includes('failed') || saveMsg.includes('Unauthorized')
+                    ? 'bg-rose-50 border border-rose-200 text-rose-700'
+                    : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
                 }`}>
                   {saveMsg}
                 </div>
               )}
 
-              {!isSubmitted && (
+              {canEditPoster && (
                 <p className="text-[10px] text-slate-400 mb-4 max-w-[960px] text-center leading-relaxed">
                   💡 **Direct Edit Mode:** Click on any highlighted section on the poster template (Title, Members, Introduction, Conclusion, etc.) and type directly. Use the upload zones to insert your project diagrams. Sponsored branding remains locked.
+                </p>
+              )}
+
+              {!isLeader && isSubmitted && (
+                <p className="text-[10px] text-slate-400 mb-4 max-w-[960px] text-center leading-relaxed">
+                  👁️ **Read-Only View:** This is the official project poster submitted by your Team Leader ({profile.leaderName || 'Team Leader'}).
                 </p>
               )}
 
@@ -480,9 +530,9 @@ const PosterCard: React.FC<{ profile: ParticipantProfile; registrationInternalId
               >
                 <CanonicalPoster
                   content={buildContent()}
-                  isEditable={!isSubmitted}
-                  onFieldChange={(key, val) => setFields((prev) => ({ ...prev, [key]: val }))}
-                  onImageUpload={handleImageUpload}
+                  isEditable={canEditPoster}
+                  onFieldChange={canEditPoster ? (key, val) => setFields((prev) => ({ ...prev, [key]: val })) : undefined}
+                  onImageUpload={canEditPoster ? handleImageUpload : undefined}
                 />
               </div>
             </div>
@@ -771,6 +821,8 @@ export const ParticipantDashboard: React.FC = () => {
                   <PosterCard
                     profile={profile}
                     registrationInternalId={registrationInternalId}
+                    isLeader={profile.isCurrentUserLeader}
+                    currentUserEmail={profile.currentUserEmail || session?.userEmail || ''}
                   />
                 ) : (
                   <ComingSoonCard

@@ -19,6 +19,7 @@ import {
   Phone,
   School,
   Info,
+  Printer,
 } from 'lucide-react';
 import { EVENT_DETAILS } from '../utils/constants';
 import { PROJECT_CATEGORIES } from '../data/eventData';
@@ -217,11 +218,11 @@ export const Register: React.FC = () => {
   };
 
   return (
-    <div className="py-8 pb-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 bg-white">
+    <div className="registration-page-container py-8 pb-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 bg-white">
       
       {/* Top Navigation & Header */}
       <div className="space-y-4">
-        <div>
+        <div className="no-print">
           <Link
             to="/"
             className="inline-flex items-center gap-2 text-xs font-bold text-[#004182] hover:text-blue-900 transition-colors bg-blue-50/80 px-3.5 py-1.5 rounded-full border border-blue-100 shadow-2xs"
@@ -247,7 +248,23 @@ export const Register: React.FC = () => {
 
       {/* Confirmation State Pass Screen */}
       {confirmedRecord ? (
-        <div className="bg-white rounded-3xl border border-emerald-200 shadow-xl p-6 sm:p-10 space-y-6 text-center animate-in fade-in duration-300">
+        <div
+          id="registration-confirmation-print-area"
+          className="registration-confirmation-print-area bg-white rounded-3xl border border-emerald-200 shadow-xl p-6 sm:p-10 space-y-6 text-center animate-in fade-in duration-300"
+        >
+          {/* Print-only Event Header Branding */}
+          <div className="hidden print:block text-center space-y-1 pb-4 border-b border-slate-200 mb-2">
+            <div className="text-xs font-extrabold uppercase tracking-widest text-[#004182]">
+              SR University • Warangal, Telangana
+            </div>
+            <h1 className="text-2xl font-black text-[#004182] font-display uppercase tracking-tight">
+              PRAGATHI 2K26 — REGISTRATION CONFIRMATION
+            </h1>
+            <p className="text-xs text-slate-500 font-medium">
+              National Level Project Expo • 09 October 2026
+            </p>
+          </div>
+
           <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100 shadow-xs">
             <CheckCircle2 className="w-10 h-10" />
           </div>
@@ -274,13 +291,16 @@ export const Register: React.FC = () => {
                 Important — Save Your ID
               </div>
               <p className="leading-relaxed">
-                Please <strong className="font-bold text-slate-900">save or take a screenshot of your Registration ID</strong>. You will need this ID to log in and access your Participant Profile.
+                Keep your Registration ID safe. You’ll need it along with your registered email to sign in and access your Participant Profile.
               </p>
             </div>
           </div>
 
           {/* Registration Pass Ticket Box */}
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-left space-y-4 max-w-lg mx-auto text-xs sm:text-sm shadow-xs">
+          <div
+            id="registration-pass-ticket"
+            className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-left space-y-4 max-w-lg mx-auto text-xs sm:text-sm shadow-xs"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Registration ID</span>
@@ -321,12 +341,25 @@ export const Register: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-center pt-2">
+          {/* Action Buttons: Print / Download + Go to Home */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 no-print">
             <button
-              onClick={() => navigate('/')}
-              className="w-full sm:w-auto bg-[#004182] hover:bg-[#003366] text-white font-bold px-8 py-3.5 rounded-full text-sm shadow-md transition-all cursor-pointer"
+              id="printbtn"
+              type="button"
+              onClick={() => window.print()}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#004182] hover:bg-[#003366] text-white font-bold px-7 py-3.5 rounded-full text-sm shadow-md transition-all cursor-pointer hover:-translate-y-0.5"
             >
-              Go to Home Page
+              <Printer className="w-4 h-4" />
+              <span>Print / Download Confirmation</span>
+            </button>
+
+            <button
+              id="5m2e7p"
+              type="button"
+              onClick={() => navigate('/')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-7 py-3.5 rounded-full text-sm border border-slate-200 transition-all cursor-pointer hover:-translate-y-0.5"
+            >
+              <span>Go to Home Page</span>
             </button>
           </div>
         </div>

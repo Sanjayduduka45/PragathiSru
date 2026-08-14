@@ -296,3 +296,79 @@
     display: none !important;
   }
 }
+
+/* Print Styles for Registration Confirmation (Strict Isolation) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
+  }
+
+  /* Force exact background colors and text colors */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Reset document flow */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+  }
+
+  /* 1. Hide everything in the entire application */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* 2. Make ONLY the registration confirmation print container and its descendants visible */
+  #registration-confirmation-print-area,
+  #registration-confirmation-print-area * {
+    visibility: visible !important;
+  }
+
+  /* 3. Position the registration confirmation print area at the absolute top of the page */
+  #registration-confirmation-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 24px 28px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 20px !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 4. Strictly hide any element with .no-print or buttons inside the print container */
+  .no-print,
+  .no-print *,
+  #printbtn,
+  #5m2e7p,
+  button,
+  header,
+  footer,
+  nav {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 5. Clean ticket pass styling on paper */
+  #registration-pass-ticket {
+    background-color: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
