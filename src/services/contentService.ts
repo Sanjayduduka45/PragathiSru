@@ -91,7 +91,7 @@ export interface TestimonialEntry {
   id: string;
   title: string;
   description: string;
-  personName: string;
+  personName?: string;
   designation: string;
   eventName: string;
   eventYear: string;
@@ -99,6 +99,9 @@ export interface TestimonialEntry {
   imageAlt: string;
   imageAspectRatio: string;
   imagePosition: string;
+  mediaType?: 'image' | 'video';
+  mediaUrl?: string;
+  thumbnailUrl?: string;
   active: boolean;
   order: number;
 }
@@ -217,18 +220,33 @@ export async function getEventSettings(): Promise<SiteSettings> {
 }
 
 export async function updateEventSettings(settings: Partial<SiteSettings>): Promise<void> {
+  const current = await getEventSettings();
+  const merged: SiteSettings = {
+    eventName: settings.eventName ?? current.eventName,
+    fullTitle: settings.fullTitle ?? current.fullTitle,
+    tagline: settings.tagline ?? current.tagline,
+    eventDate: settings.eventDate ?? current.eventDate,
+    targetDateISO: settings.targetDateISO ?? current.targetDateISO,
+    venue: settings.venue ?? current.venue,
+    institution: settings.institution ?? current.institution,
+    location: settings.location ?? current.location,
+    prizePool: settings.prizePool ?? current.prizePool,
+    contactEmail: settings.contactEmail ?? current.contactEmail,
+    helpline: settings.helpline ?? current.helpline,
+  };
+
   const payload = {
-    event_name: settings.eventName,
-    full_title: settings.fullTitle,
-    tagline: settings.tagline,
-    event_date: settings.eventDate,
-    target_date_iso: settings.targetDateISO,
-    venue: settings.venue,
-    institution: settings.institution,
-    location: settings.location,
-    prize_pool: settings.prizePool,
-    contact_email: settings.contactEmail,
-    helpline: settings.helpline,
+    event_name: merged.eventName,
+    full_title: merged.fullTitle,
+    tagline: merged.tagline,
+    event_date: merged.eventDate,
+    target_date_iso: merged.targetDateISO,
+    venue: merged.venue,
+    institution: merged.institution,
+    location: merged.location,
+    prize_pool: merged.prizePool,
+    contact_email: merged.contactEmail,
+    helpline: merged.helpline,
   };
 
   try {
@@ -294,6 +312,22 @@ export async function updateAboutContent(content: AboutContent): Promise<void> {
     }
     throw err;
   }
+}
+
+export async function resetAboutContent(): Promise<AboutContent> {
+  try {
+    await api.about.delete();
+  } catch (err) {
+    console.warn('[contentService] resetAboutContent FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('about_content').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (sErr) {
+        console.warn('[contentService] resetAboutContent Supabase fallback error:', sErr);
+      }
+    }
+  }
+  return DEFAULT_ABOUT;
 }
 
 // ─── PROJECT DOMAINS ──────────────────────────────────────────────────────────
@@ -919,25 +953,6 @@ export async function getFaqCount(): Promise<number> {
 
 // ─── TESTIMONIALS / SHOWCASE ──────────────────────────────────────────────────
 
-export interface TestimonialEntry {
-  id: string;
-  title: string;
-  description: string;
-  personName?: string;
-  designation: string;
-  eventName: string;
-  eventYear: string;
-  imageUrl: string;
-  imageAlt: string;
-  imageAspectRatio: string;
-  imagePosition: string;
-  mediaType?: 'image' | 'video';
-  mediaUrl?: string;
-  thumbnailUrl?: string;
-  active: boolean;
-  order: number;
-}
-
 export const DEFAULT_TESTIMONIALS_FALLBACK: TestimonialEntry[] = [
   {
     id: 'testim-1',
@@ -1313,6 +1328,208 @@ export async function deleteTestimonial(id: string): Promise<void> {
     console.warn('[contentService] deleteTestimonial FastAPI failed, attempting Supabase direct:', err);
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('testimonials').delete().eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
+}
+
+// ─── CONTACT PEOPLE (Leadership & Coordinators) ───────────────────────────────
+
+export interface ContactPerson {
+  id: string;
+  category: 'leadership' | 'coordinator';
+  name: string;
+  designation: string;
+  mobile: string;
+  email?: string;
+  order: number;
+  active: boolean;
+}
+
+export const DEFAULT_CONTACT_PEOPLE: ContactPerson[] = [
+  {
+    id: 'cp-lead-1',
+    category: 'leadership',
+    name: 'Dr. CH. Hussaian Basha',
+    designation: 'Dean-Project Show Case',
+    mobile: '9514418276',
+    email: 'dean.psc@sru.edu.in',
+    order: 1,
+    active: true,
+  },
+  {
+    id: 'cp-lead-2',
+    category: 'leadership',
+    name: 'Dr. Markala Karthik Reddy',
+    designation: 'Associate Dean Project Show Case',
+    mobile: '7842227172',
+    email: 'm.karthik@sru.edu.in',
+    order: 2,
+    active: true,
+  },
+  {
+    id: 'cp-lead-3',
+    category: 'leadership',
+    name: 'Dr. Shravan Kumar Yadav',
+    designation: 'Associate Dean Project Show Case',
+    mobile: '9040316409',
+    email: 'shravan.kumar@sru.edu.in',
+    order: 3,
+    active: true,
+  },
+  {
+    id: 'cp-coord-1',
+    category: 'coordinator',
+    name: 'Mr. Mohammad Afzal',
+    designation: 'Coordinator',
+    mobile: '9100726799',
+    email: '',
+    order: 1,
+    active: true,
+  },
+  {
+    id: 'cp-coord-2',
+    category: 'coordinator',
+    name: 'Mr. Algol Sumanth',
+    designation: 'Coordinator',
+    mobile: '7842421505',
+    email: '',
+    order: 2,
+    active: true,
+  },
+];
+
+export async function getContactPeople(): Promise<ContactPerson[]> {
+  try {
+    const res = await api.contact.getPeople();
+    if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+      return res.data.map((r: any) => ({
+        id: String(r.id),
+        category: (r.category === 'coordinator' ? 'coordinator' : 'leadership') as 'leadership' | 'coordinator',
+        name: r.name || '',
+        designation: r.designation || '',
+        mobile: r.mobile || '',
+        email: r.email || '',
+        order: r.display_order ?? r.order ?? 1,
+        active: r.is_active ?? r.active ?? true,
+      }));
+    }
+  } catch (err) {
+    console.warn('[contentService] getContactPeople FastAPI fallback:', err);
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('contact_people')
+        .select('*')
+        .order('display_order', { ascending: true });
+      if (!error && data && data.length > 0) {
+        return data.map((r: any) => ({
+          id: String(r.id),
+          category: (r.category === 'coordinator' ? 'coordinator' : 'leadership') as 'leadership' | 'coordinator',
+          name: r.name || '',
+          designation: r.designation || '',
+          mobile: r.mobile || '',
+          email: r.email || '',
+          order: r.display_order ?? 1,
+          active: r.is_active ?? true,
+        }));
+      }
+    } catch (sErr) {
+      console.warn('[contentService] getContactPeople Supabase fallback error:', sErr);
+    }
+  }
+
+  return DEFAULT_CONTACT_PEOPLE;
+}
+
+export async function createContactPerson(person: Omit<ContactPerson, 'id'>): Promise<ContactPerson> {
+  const payload = {
+    category: person.category,
+    name: person.name,
+    designation: person.designation,
+    mobile: person.mobile,
+    email: person.email || '',
+    display_order: person.order,
+    is_active: person.active,
+  };
+
+  try {
+    const res = await api.contact.createPerson(payload);
+    if (res && res.data) {
+      return {
+        id: String(res.data.id),
+        category: res.data.category,
+        name: res.data.name,
+        designation: res.data.designation,
+        mobile: res.data.mobile,
+        email: res.data.email || '',
+        order: res.data.display_order ?? res.data.order ?? 1,
+        active: res.data.is_active ?? res.data.active ?? true,
+      };
+    }
+  } catch (err) {
+    console.warn('[contentService] createContactPerson FastAPI failed, attempting Supabase direct:', err);
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.from('contact_people').insert([payload]).select().single();
+    if (!error && data) {
+      return {
+        id: String(data.id),
+        category: data.category,
+        name: data.name,
+        designation: data.designation,
+        mobile: data.mobile,
+        email: data.email || '',
+        order: data.display_order ?? 1,
+        active: data.is_active ?? true,
+      };
+    }
+    if (error) throw new Error(`Database error: ${error.message}`);
+  }
+
+  return {
+    id: `cp-${Date.now()}`,
+    ...person,
+  };
+}
+
+export async function updateContactPerson(id: string, person: Partial<Omit<ContactPerson, 'id'>>): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (person.category !== undefined) payload.category = person.category;
+  if (person.name !== undefined) payload.name = person.name;
+  if (person.designation !== undefined) payload.designation = person.designation;
+  if (person.mobile !== undefined) payload.mobile = person.mobile;
+  if (person.email !== undefined) payload.email = person.email;
+  if (person.order !== undefined) payload.display_order = person.order;
+  if (person.active !== undefined) payload.is_active = person.active;
+
+  try {
+    await api.contact.updatePerson(id, payload);
+    return;
+  } catch (err) {
+    console.warn('[contentService] updateContactPerson FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('contact_people').update(payload).eq('id', id);
+      if (!error) return;
+      throw new Error(`Database error: ${error.message}`);
+    }
+    throw err;
+  }
+}
+
+export async function deleteContactPerson(id: string): Promise<void> {
+  try {
+    await api.contact.deletePerson(id);
+    return;
+  } catch (err) {
+    console.warn('[contentService] deleteContactPerson FastAPI failed, attempting Supabase direct:', err);
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('contact_people').delete().eq('id', id);
       if (!error) return;
       throw new Error(`Database error: ${error.message}`);
     }

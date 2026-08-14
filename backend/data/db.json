@@ -1,7 +1,7 @@
 {
   "site_settings": {
     "event_name": "PRAGATHI 2K26",
-    "full_title": "PRAGATHI 2K26 — National Level Project Expo",
+    "full_title": "PRAGATHI 2K26",
     "tagline": "Innovate. Create. Inspire.",
     "event_date": "09 October 2026",
     "target_date_iso": "2026-10-09T09:00:00+05:30",
@@ -9,15 +9,10 @@
     "institution": "SR University",
     "location": "Warangal, Telangana",
     "prize_pool": "₹1,50,000",
-    "contact_email": "pragathi2k26@sru.edu.in",
-    "helpline": "+91 870 281 8333"
+    "contact_email": "dean.psc@sru.edu.in",
+    "helpline": "+91 9514418276"
   },
-  "about_content": {
-    "title": "About PRAGATHI 2K26",
-    "description": "PRAGATHI 2K26 is SR University's flagship National Level Project Expo, designed to ignite youth innovation, foster interdisciplinary engineering solutions, and provide a stage for high-impact prototypes. Over 500 student teams from across India showcase hardware models, software applications, renewable energy solutions, and biotech inventions evaluated by senior academicians, scientists, and incubation mentors from the SRiX (SR Innovation Exchange) ecosystem.",
-    "vision": "To create a nationally recognized platform that nurtures engineering talent, fosters innovation culture, and bridges the gap between academic learning and industry-ready solutions.",
-    "objectives": "1. Provide a platform for student innovators to present working prototypes.\n2. Encourage interdisciplinary collaboration across engineering domains.\n3. Connect participants with industry mentors and incubation opportunities.\n4. Recognize outstanding innovations with merit awards and certificates."
-  },
+  "about_content": null,
   "project_domains": [
     {
       "id": "ai-software",
@@ -149,7 +144,7 @@
     {
       "id": "faq-1",
       "question": "Who is eligible to participate in PRAGATHI 2K26?",
-      "answer": "PRAGATHI 2K26 is a National Level Expo open to both School students (Classes 8–12) and College/University students (Diploma, B.Tech, M.Tech, Degree, B.Sc) from recognized institutions across India.",
+      "answer": "PRAGATHI 2K26 is a National Level Expo open to both School students  and College/University students (Diploma, B.Tech, M.Tech, Degree, B.Sc) from recognized institutions across India.",
       "category": "Registration",
       "active": true,
       "order": 1
@@ -203,46 +198,57 @@
       "order": 7
     }
   ],
-  "sponsors": [
+  "sponsors": [],
+  "contact_people": [
     {
-      "id": "sponsor-1",
-      "name": "SRiX Incubator",
-      "type": "Incubation Partner",
-      "role": "Startup Seed Grants & Mentorship",
-      "logo_text": "SRiX",
-      "website": "",
-      "active": true,
-      "order": 1
+      "id": "cp-lead-1",
+      "category": "leadership",
+      "name": "Dr. CH. Hussaian Basha",
+      "designation": "Dean-Project Show Case",
+      "mobile": "9514418276",
+      "email": "dean.psc@sru.edu.in",
+      "display_order": 1,
+      "is_active": true
     },
     {
-      "id": "sponsor-2",
-      "name": "Institution's Innovation Council (IIC)",
-      "type": "Government Partner",
-      "role": "Ministry of Education Initiative",
-      "logo_text": "MIC IIC",
-      "website": "",
-      "active": true,
-      "order": 2
+      "id": "cp-lead-2",
+      "category": "leadership",
+      "name": "Dr. Markala Karthik Reddy",
+      "designation": "Associate Dean Project Show Case",
+      "mobile": "7842227172",
+      "email": "m.karthik@sru.edu.in",
+      "display_order": 2,
+      "is_active": true
     },
     {
-      "id": "sponsor-3",
-      "name": "IEEE SRU Student Branch",
-      "type": "Technical Partner",
-      "role": "Technical Quality & Standards",
-      "logo_text": "IEEE",
-      "website": "",
-      "active": true,
-      "order": 3
+      "id": "cp-lead-3",
+      "category": "leadership",
+      "name": "Dr. Shravan Kumar Yadav",
+      "designation": "Associate Dean Project Show Case",
+      "mobile": "9040316409",
+      "email": "shravan.kumar@sru.edu.in",
+      "display_order": 3,
+      "is_active": true
     },
     {
-      "id": "sponsor-4",
-      "name": "SR University R&D Cell",
-      "type": "Academic Sponsor",
-      "role": "Research & Prototyping Support",
-      "logo_text": "SRU R&D",
-      "website": "",
-      "active": true,
-      "order": 4
+      "id": "cp-coord-1",
+      "category": "coordinator",
+      "name": "Mr. Mohammad Afzal",
+      "designation": "Coordinator",
+      "mobile": "9100726799",
+      "email": "",
+      "display_order": 1,
+      "is_active": true
+    },
+    {
+      "id": "cp-coord-2",
+      "category": "coordinator",
+      "name": "Mr. Algol Sumanth",
+      "designation": "Coordinator",
+      "mobile": "7842421505",
+      "email": "",
+      "display_order": 2,
+      "is_active": true
     }
   ]
 }

@@ -355,7 +355,7 @@
   .no-print,
   .no-print *,
   #printbtn,
-  #5m2e7p,
+  [id="5m2e7p"],
   button,
   header,
   footer,
@@ -370,5 +370,34 @@
     border: 1px solid #cbd5e1 !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+}
+
+/* ─── Seamless Right-to-Left Carousel Marquee ───────────────────────────────── */
+@keyframes marquee-rtl {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.marquee-animation {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 28s linear infinite;
+}
+
+@media (hover: hover) {
+  .marquee-animation:hover {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-animation {
+    animation: none !important;
+    transform: none !important;
   }
 }

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Save, RotateCcw, Info } from 'lucide-react';
+import { Save, RotateCcw, Info, Undo2 } from 'lucide-react';
 import { ToastContainer } from '../../../components/ui/Toast';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
-import { getAboutContent, updateAboutContent } from '../../../services/contentService';
+import { getAboutContent, updateAboutContent, resetAboutContent, DEFAULT_ABOUT } from '../../../services/contentService';
 import { useContent } from '../../../context/ContentContext';
 
 interface AboutFormData {
@@ -14,13 +14,10 @@ interface AboutFormData {
 }
 
 const INITIAL: AboutFormData = {
-  title: 'About PRAGATHI 2K26',
-  description:
-    'PRAGATHI 2K26 is SR University\'s flagship National Level Project Expo, designed to ignite youth innovation, foster interdisciplinary engineering solutions, and provide a stage for high-impact prototypes. Over 500 student teams from across India showcase hardware models, software applications, renewable energy solutions, and biotech inventions evaluated by senior academicians, scientists, and incubation mentors from the SRiX (SR Innovation Exchange) ecosystem.',
-  vision:
-    'To create a nationally recognized platform that nurtures engineering talent, fosters innovation culture, and bridges the gap between academic learning and industry-ready solutions.',
-  objectives:
-    '1. Provide a platform for student innovators to present working prototypes.\n2. Encourage interdisciplinary collaboration across engineering domains.\n3. Connect participants with industry mentors and incubation opportunities.\n4. Recognize outstanding innovations with merit awards and certificates.',
+  title: DEFAULT_ABOUT.title,
+  description: DEFAULT_ABOUT.description,
+  vision: DEFAULT_ABOUT.vision,
+  objectives: DEFAULT_ABOUT.objectives,
 };
 
 const TextArea: React.FC<{
@@ -49,6 +46,7 @@ const TextArea: React.FC<{
 export const AboutAdmin: React.FC = () => {
   const [form, setForm] = useState<AboutFormData>(INITIAL);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const { toasts, addToast, dismissToast } = useAdminToast();
   const { refreshContent } = useContent();
 
@@ -78,13 +76,34 @@ export const AboutAdmin: React.FC = () => {
     try {
       await updateAboutContent(form);
       await refreshContent();
-      addToast('success', 'About section saved', 'Changes saved to Supabase database.');
+      addToast('success', 'About section saved', 'Admin override saved to database.');
     } catch (err: unknown) {
       console.error('Save about content error:', err);
       const msg = err instanceof Error ? err.message : 'Unknown error';
       addToast('error', 'Failed to save changes', msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRestoreDefault = async () => {
+    setResetting(true);
+    try {
+      const restored = await resetAboutContent();
+      setForm({
+        title: restored.title,
+        description: restored.description,
+        vision: restored.vision,
+        objectives: restored.objectives,
+      });
+      await refreshContent();
+      addToast('success', 'Original Content Restored', 'Admin override removed. Public page now displays default content.');
+    } catch (err: unknown) {
+      console.error('Reset about content error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      addToast('error', 'Failed to restore default', msg);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -147,26 +166,38 @@ export const AboutAdmin: React.FC = () => {
           hint="Each objective on a new line."
         />
 
-        <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 bg-[#004182] hover:bg-[#003366] disabled:opacity-60 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all cursor-pointer"
-          >
-            {saving ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            Save Changes
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={saving || resetting}
+              className="flex items-center gap-2 bg-[#004182] hover:bg-[#003366] disabled:opacity-60 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all cursor-pointer"
+            >
+              {saving ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={() => { setForm(INITIAL); addToast('info', 'Reset Form', 'Form reset to original baseline.'); }}
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-sm transition-all cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset Form
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={() => { setForm(INITIAL); addToast('info', 'Reset', 'Fields restored to original values.'); }}
-            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-sm transition-all cursor-pointer"
+            disabled={saving || resetting}
+            onClick={handleRestoreDefault}
+            className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold px-4 py-2.5 rounded-xl text-sm transition-all cursor-pointer"
           >
-            <RotateCcw className="w-4 h-4" />
-            Cancel
+            <Undo2 className="w-4 h-4" />
+            Restore Original Default
           </button>
         </div>
       </form>

@@ -250,7 +250,7 @@ export const FAQsAdmin: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">Category</label>
-            <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as FAQItem['category'] }))} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white">
+            <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as FAQEntry['category'] }))} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white">
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>

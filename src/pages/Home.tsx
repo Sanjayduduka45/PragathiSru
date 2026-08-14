@@ -681,6 +681,7 @@ import {
 import { CountdownTimer } from '../components/CountdownTimer';
 import { HeroVisual } from '../components/HeroVisual';
 import { TestimonialsSection } from '../components/TestimonialsSection';
+import { HomeContactCarousel } from '../components/HomeContactCarousel';
 import { useContent } from '../context/ContentContext';
 import { formatPrizeShort } from '../utils/formatters';
 
@@ -1499,6 +1500,9 @@ export const Home: React.FC = () => {
 
         </div>
       </section>
+
+      {/* QUICK CONTACT CAROUSEL (IMMEDIATELY AFTER FAQ) */}
+      <HomeContactCarousel />
 
       {/* FINAL REGISTRATION CALL TO ACTION BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">

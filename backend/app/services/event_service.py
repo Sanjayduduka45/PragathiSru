@@ -41,23 +41,30 @@ class EventService:
 
     @staticmethod
     async def update_event_details(data: EventDetails) -> EventDetails:
-        payload = data.model_dump()
+        # Load existing record to merge partial updates
+        current = await EventService.get_event_details()
+        merged_dict = current.model_dump()
+        incoming = data.model_dump(exclude_unset=True)
+        for k, v in incoming.items():
+            if v is not None and v != "":
+                merged_dict[k] = v
+
+        if not merged_dict.get("target_date_iso"):
+            merged_dict["target_date_iso"] = "2026-10-09T09:00:00+05:30"
+
+        # Update Supabase
         existing = await db.fetch_supabase("site_settings", "limit=1")
         if existing and len(existing) > 0:
-            existing_row = existing[0]
-            row_id = existing_row.get("id")
-            if not payload.get("target_date_iso"):
-                payload["target_date_iso"] = existing_row.get("target_date_iso", "2026-10-09T09:00:00+05:30")
-            await db.update_supabase("site_settings", "id", str(row_id), payload)
+            row_id = existing[0].get("id")
+            await db.update_supabase("site_settings", "id", str(row_id), merged_dict)
         else:
-            if not payload.get("target_date_iso"):
-                payload["target_date_iso"] = "2026-10-09T09:00:00+05:30"
-            await db.insert_supabase("site_settings", payload)
+            await db.insert_supabase("site_settings", merged_dict)
 
-        data.target_date_iso = payload["target_date_iso"]
+        # Update local storage
         local = db.load_local()
-        local["site_settings"] = payload
+        local["site_settings"] = merged_dict
         db.save_local(local)
-        return data
+        
+        return EventDetails(**merged_dict)
 
 event_service = EventService()

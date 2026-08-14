@@ -2,18 +2,19 @@ from pydantic import BaseModel
 from typing import Optional
 
 class EventDetails(BaseModel):
-    event_name: str
-    full_title: str
-    tagline: str
-    event_date: str
-    target_date_iso: Optional[str] = None
-    venue: str
-    institution: str
-    location: str
-    prize_pool: str
-    contact_email: str
-    helpline: str
+    event_name: Optional[str] = "PRAGATHI 2K26"
+    full_title: Optional[str] = "PRAGATHI 2K26 — National Level Project Expo"
+    tagline: Optional[str] = "Innovate. Create. Inspire."
+    event_date: Optional[str] = "09 October 2026"
+    target_date_iso: Optional[str] = "2026-10-09T09:00:00+05:30"
+    venue: Optional[str] = "SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371"
+    institution: Optional[str] = "SR University"
+    location: Optional[str] = "Warangal, Telangana"
+    prize_pool: Optional[str] = "₹1,50,000"
+    contact_email: Optional[str] = "pragathi2k26@sru.edu.in"
+    helpline: Optional[str] = "+91 870 281 8333"
 
 class EventResponse(BaseModel):
     success: bool = True
     data: EventDetails
+    message: Optional[str] = None

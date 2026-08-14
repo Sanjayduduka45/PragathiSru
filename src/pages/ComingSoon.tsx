@@ -5,6 +5,7 @@ import {
   Clock,
   Sparkles,
   ArrowLeft,
+  ArrowRight,
   LayoutDashboard,
   FolderKanban,
   Award,

@@ -52,6 +52,14 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    delete: () =>
+      request<{ success: boolean; data: any }>('/api/admin/about', {
+        method: 'DELETE',
+      }),
+    reset: () =>
+      request<{ success: boolean; data: any }>('/api/admin/about/reset', {
+        method: 'POST',
+      }),
   },
   domains: {
     get: () => request<{ success: boolean; data: any[] }>('/api/domains'),
@@ -130,11 +138,26 @@ export const api = {
       }),
   },
   contact: {
-    get: () => request<{ success: boolean; data: any }>('/api/contact'),
-    update: (data: any) =>
+    getSettings: () => request<{ success: boolean; data: any }>('/api/contact'),
+    updateSettings: (data: any) =>
       request<{ success: boolean; data: any }>('/api/admin/contact', {
         method: 'PUT',
         body: JSON.stringify(data),
+      }),
+    getPeople: () => request<{ success: boolean; data: any[] }>('/api/contact/people'),
+    createPerson: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/contact/people', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updatePerson: (id: string, data: any) =>
+      request<{ success: boolean; data: any }>(`/api/admin/contact/people/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deletePerson: (id: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/contact/people/${id}`, {
+        method: 'DELETE',
       }),
   },
   testimonials: {

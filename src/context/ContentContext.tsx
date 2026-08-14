@@ -22,6 +22,7 @@ import {
   getFaqs,
   getSponsors,
   getTestimonials,
+  getContactPeople,
   type SiteSettings,
   type AboutContent,
   type DomainItem,
@@ -29,8 +30,10 @@ import {
   type FAQEntry,
   type SponsorEntry,
   type TestimonialEntry,
+  type ContactPerson,
   DEFAULT_SITE_SETTINGS,
   DEFAULT_ABOUT,
+  DEFAULT_CONTACT_PEOPLE,
 } from '../services/contentService';
 import {
   PROJECT_CATEGORIES,
@@ -50,6 +53,7 @@ interface ContentContextValue {
   faqs: FAQEntry[];
   sponsors: SponsorEntry[];
   testimonials: TestimonialEntry[];
+  contactPeople: ContactPerson[];
   contentLoading: boolean;
   /** Call after an admin save to force public data to re-fetch */
   refreshContent: () => Promise<void>;
@@ -110,6 +114,7 @@ const ContentContext = createContext<ContentContextValue>({
   faqs: defaultFaqs,
   sponsors: defaultSponsors,
   testimonials: [],
+  contactPeople: DEFAULT_CONTACT_PEOPLE,
   contentLoading: false,
   refreshContent: async () => {},
 });
@@ -127,6 +132,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [faqs, setFaqs] = useState<FAQEntry[]>(defaultFaqs);
   const [sponsors, setSponsors] = useState<SponsorEntry[]>(defaultSponsors);
   const [testimonials, setTestimonials] = useState<TestimonialEntry[]>([]);
+  const [contactPeople, setContactPeople] = useState<ContactPerson[]>(DEFAULT_CONTACT_PEOPLE);
   const [contentLoading, setContentLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
@@ -141,6 +147,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
         faqsData,
         sponsorsData,
         testimonialsData,
+        contactPeopleData,
       ] = await Promise.all([
         getEventSettings(),
         getAboutContent(),
@@ -150,6 +157,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
         getFaqs(),
         getSponsors(),
         getTestimonials(),
+        getContactPeople(),
       ]);
 
       setEventSettings(settingsData);
@@ -160,6 +168,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
       setFaqs(faqsData);
       setSponsors(sponsorsData);
       setTestimonials(testimonialsData);
+      setContactPeople(contactPeopleData);
     } catch (err) {
       console.error('[ContentContext] Failed to fetch content:', err);
       // Keep defaults on error
@@ -183,6 +192,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({
         faqs,
         sponsors,
         testimonials,
+        contactPeople,
         contentLoading,
         refreshContent: fetchAll,
       }}

@@ -245,7 +245,32 @@ CREATE POLICY "Allow public insert testimonials" ON public.testimonials FOR INSE
 CREATE POLICY "Allow public update testimonials" ON public.testimonials FOR UPDATE USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public delete testimonials" ON public.testimonials FOR DELETE USING (true);
 
-INSERT INTO public.testimonials (title, description, person_name, designation, event_name, event_year, image_url, image_alt, image_aspect_ratio, image_position, display_order) VALUES
-('PRAGATHI 2K25 — Project Expo Showcase', 'PRAGATHI gave our team the platform to present our AI Agriculture sensor prototype to industry mentors. The feedback helped us convert our project into a patent-pending startup!', 'Ananya Rao', 'Team Lead, AgriSense IoT', 'PRAGATHI 2K25', '2025', 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80', 'PRAGATHI 2K25 Presentation', '16:9', 'center', 1),
-('Hardware & Robotics Exhibition', 'Organization and infrastructure at SR University Warangal was top tier. The exhibition stalls, judge interaction, and seamless digital management made it a memorable experience.', 'K. Vikram Reddy', 'Student Researcher, NIT Warangal', 'PRAGATHI 2K25', '2025', 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', 'Smart Grid Exhibition', '16:9', 'center', 2),
-('Innovation & Entrepreneurship Mentorship', 'PRAGATHI is designed to foster a culture of creative problem solving, cross-disciplinary collaboration, and real-world engineering impact among young minds across India.', 'Dr. P. Srinivas', 'Incubation Coordinator, SR University', 'PRAGATHI 2K25', '2025', 'https://images.unsplash.com/photo-1577962917302-cd874c4e31d2?auto=format&fit=crop&w=800&q=80', 'SR University Faculty Panel', '16:9', 'center', 3);
+-- ─── 9. CONTACT PEOPLE (Leadership & Coordinators) ────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.contact_people (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category TEXT NOT NULL CHECK (category IN ('leadership', 'coordinator')),
+  name TEXT NOT NULL,
+  designation TEXT NOT NULL,
+  mobile TEXT NOT NULL,
+  email TEXT DEFAULT '',
+  display_order INT NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.contact_people ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read contact_people" ON public.contact_people FOR SELECT USING (true);
+CREATE POLICY "Admin insert contact_people" ON public.contact_people FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Admin update contact_people" ON public.contact_people FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Admin delete contact_people" ON public.contact_people FOR DELETE TO authenticated USING (true);
+
+INSERT INTO public.contact_people (category, name, designation, mobile, email, display_order, is_active) VALUES
+('leadership', 'Dr. CH. Hussaian Basha', 'Dean-Project Show Case', '9514418276', 'dean.psc@sru.edu.in', 1, true),
+('leadership', 'Dr. Markala Karthik Reddy', 'Associate Dean Project Show Case', '7842227172', 'm.karthik@sru.edu.in', 2, true),
+('leadership', 'Dr. Shravan Kumar Yadav', 'Associate Dean Project Show Case', '9040316409', 'shravan.kumar@sru.edu.in', 3, true),
+('coordinator', 'Mr. Mohammad Afzal', 'Coordinator', '9100726799', '', 1, true),
+('coordinator', 'Mr. Algol Sumanth', 'Coordinator', '7842421505', '', 2, true);
+
