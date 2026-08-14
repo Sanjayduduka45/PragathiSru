@@ -1180,8 +1180,9 @@ export const Home: React.FC = () => {
             <span>Exhibition Domains</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight">
-            Project Categories & Domains
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight leading-tight">
+            <span className="block">Project Categories &</span>
+            <span className="block">Domains</span>
           </h2>
 
           <p className="text-sm text-slate-500">
