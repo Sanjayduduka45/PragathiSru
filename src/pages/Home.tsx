@@ -1173,7 +1173,7 @@ export const Home: React.FC = () => {
         id="categories"
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24"
       >
-        <div className="text-center max-w-2xl mx-auto space-y-2">
+        <div className="text-center max-w-3xl mx-auto space-y-2">
 
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100 shadow-2xs">
             <Layers className="w-3.5 h-3.5" />
@@ -1181,11 +1181,11 @@ export const Home: React.FC = () => {
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight leading-tight">
-            <span className="block">Project Categories &</span>
+            <span className="block sm:whitespace-nowrap">Project Categories &</span>
             <span className="block">Domains</span>
           </h2>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 max-w-xl mx-auto">
             Select your project domain to register your team in the appropriate national track
           </p>
         </div>
