@@ -44,17 +44,15 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16 sm:h-20">
           
           {/* SR University Brand Logo (Far Left) */}
-          <a
-            href="https://sru.edu.in"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/"
             className="flex items-center shrink-0 group focus:outline-hidden mr-4 lg:mr-6"
-            aria-label="SR University Official Website"
+            aria-label="Home"
           >
-            <div className="h-10 sm:h-12 flex items-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+            <div className="h-10 sm:h-12 flex items-center shrink-0 transition-transform duration-200">
               <img src={sruLogo} alt="SR University Logo" className="h-7 sm:h-9 w-auto object-contain" />
             </div>
-          </a>
+          </Link>
 
           {/* Mobile PRAGATHI Logo */}
           <div className="flex md:hidden items-center shrink-0">
