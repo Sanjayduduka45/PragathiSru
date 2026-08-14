@@ -48,7 +48,7 @@ export const Navbar: React.FC = () => {
             href="https://sru.edu.in"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center shrink-0 group focus:outline-hidden"
+            className="flex items-center shrink-0 group focus:outline-hidden mr-4 lg:mr-6"
             aria-label="SR University Official Website"
           >
             <div className="h-10 sm:h-12 flex items-center shrink-0 group-hover:scale-105 transition-transform duration-200">
@@ -64,7 +64,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Desktop Navigation & PRAGATHI Logo */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2.5 xl:gap-3.5">
+          <nav className="hidden md:flex items-center gap-1 lg:gap-2.5 xl:gap-3.5 mr-auto">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.path);
               return (
@@ -99,7 +99,7 @@ export const Navbar: React.FC = () => {
             {/* PRAGATHI Logo Container immediately after Contact */}
             <Link
               to="/"
-              className="flex items-center shrink-0 focus:outline-hidden ml-1.5 lg:ml-3"
+              className="flex items-center shrink-0 focus:outline-hidden ml-1"
               aria-label="PRAGATHI 2K26 Home"
             >
               <div className="h-12 sm:h-14 px-2.5 py-1 rounded-2xl bg-slate-50/60 hover:bg-blue-50/50 border border-slate-200/60 hover:border-blue-200/60 flex items-center shrink-0 transition-all duration-200 hover:-translate-y-0.5 shadow-xs hover:shadow-sm group">
@@ -109,7 +109,7 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Actions: Login (secondary) + Register Now (primary) — Far Right */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0 ml-3 lg:ml-5 xl:ml-6">
+          <div className="hidden lg:flex items-center gap-3 shrink-0 ml-6 lg:ml-7 xl:ml-8">
             <Link
               to="/login"
               className="relative text-[#004182] hover:bg-blue-50/80 border border-[#004182]/25 hover:border-[#004182]/50 px-4 py-2.5 rounded-[16px] text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2 whitespace-nowrap"
