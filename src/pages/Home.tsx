@@ -782,13 +782,19 @@ export const Home: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
           <div className="max-w-2xl lg:max-w-3xl space-y-3.5 text-center lg:text-left">
 
-            {/* Event Badge */}
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-50/90 border border-blue-100/90 text-[#004182] px-3.5 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide shadow-2xs hover:shadow-md transition-all duration-200 ease-out cursor-default">
+            {/* Event Badge / Location Pill */}
+            <a
+              href="https://maps.apple/p/SE1HGWp-h_PDYi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-50/90 border border-blue-100/90 text-[#004182] px-3.5 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wide shadow-2xs hover:shadow-md hover:border-blue-300/80 hover:bg-blue-100/90 transition-all duration-200 ease-out cursor-pointer group"
+              aria-label="Open SR University location on Apple Maps"
+            >
               <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#004182] shrink-0" />
               <span className="truncate whitespace-nowrap">
                 {eventSettings.institution} • Warangal, Telangana
               </span>
-            </div>
+            </a>
 
             {/* Main Headline */}
             <div className="space-y-1.5">
@@ -828,10 +834,16 @@ export const Home: React.FC = () => {
                 </span>
               </div>
 
-              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full border border-slate-200/80 text-xs font-bold text-slate-700 shadow-2xs hover:shadow-md transition-all duration-200 cursor-default">
+              <a
+                href="https://maps.apple/p/SE1HGWp-h_PDYi"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2.5 sm:px-3.5 sm:py-2 rounded-full border border-slate-200/80 text-xs font-bold text-slate-700 shadow-2xs hover:shadow-md hover:border-blue-300/80 hover:text-[#004182] transition-all duration-200 cursor-pointer"
+                aria-label="Open SR University location on Apple Maps"
+              >
                 <MapPin className="w-4 h-4 text-[#004182] shrink-0" />
                 <span>SR University Campus</span>
-              </div>
+              </a>
             </div>
 
             {/* Live Countdown Timer */}
@@ -1044,18 +1056,33 @@ export const Home: React.FC = () => {
                 {eventSettings.venue}
               </p>
 
-              <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-100 text-[#004182] font-semibold flex items-center justify-between gap-2">
-                <span className="text-xs">Helpline / Query Cell:</span>
-                <span className="font-mono text-xs font-bold">
-                  {eventSettings.helpline}
-                </span>
-              </div>
+              {/* Live Location Box */}
+              <div className="bg-blue-50/70 p-3.5 sm:p-4 rounded-xl border border-blue-100 text-slate-700 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-[#004182]">
+                  <MapPin className="w-3.5 h-3.5 text-[#004182] shrink-0" />
+                  <span>LIVE LOCATION</span>
+                </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600 text-[11px] sm:text-xs">
-                Support Email:{' '}
-                <strong className="text-slate-900">
-                  {eventSettings.contactEmail}
-                </strong>
+                <div className="space-y-1 text-xs sm:text-sm">
+                  <p className="font-bold text-slate-900 leading-snug">
+                    SR University Campus
+                  </p>
+                  <p className="text-slate-600 text-xs leading-relaxed">
+                    Ananthasagar, Hasanparthy, Warangal, Telangana – 506371
+                  </p>
+                </div>
+
+                <div className="pt-1">
+                  <a
+                    href="https://maps.apple/p/SE1HGWp-h_PDYi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#004182] hover:text-blue-900 transition-colors group/loc"
+                  >
+                    <span>View Live Location</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover/loc:translate-x-1 transition-transform duration-200" />
+                  </a>
+                </div>
               </div>
             </div>
 

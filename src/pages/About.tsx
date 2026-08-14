@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
 
+const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
+
 export const About: React.FC = () => {
   const { eventSettings, aboutContent } = useContent();
   const location = useLocation();
@@ -142,9 +144,11 @@ export const About: React.FC = () => {
 
           <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-md hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-300 ease-out space-y-5 cursor-default">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-[#004182] text-white flex items-center justify-center font-bold font-display text-xl shrink-0 shadow-md">
-                SRU
-              </div>
+              <img
+                src={sruLogo}
+                alt="SR University Logo"
+                className="h-10 sm:h-12 w-auto object-contain shrink-0"
+              />
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 font-display leading-snug">
                   {eventSettings.institution}, {eventSettings.location}
@@ -159,15 +163,25 @@ export const About: React.FC = () => {
               {eventSettings.institution} is a pioneering institution in Telangana renowned for its multidisciplinary research, Center for AI & Robotics, and modern incubation exchange (SRiX).
             </p>
 
-            <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-100 space-y-2 text-xs">
-              <div className="flex items-center gap-2 font-bold text-[#004182]">
-                <MapPin className="w-4 h-4 text-[#004182] shrink-0" />
-                <span>Expo Venue & Location</span>
+            <a
+              href="https://maps.apple/p/SE1HGWp-h_PDYi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block bg-blue-50/80 hover:bg-blue-100/70 p-4 rounded-xl border border-blue-100 hover:border-blue-200 space-y-2 text-xs transition-colors group/loc"
+            >
+              <div className="flex items-center justify-between gap-2 font-bold text-[#004182]">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[#004182] shrink-0 group-hover/loc:scale-110 transition-transform duration-200" />
+                  <span>Expo Venue & Location</span>
+                </div>
+                <span className="text-[11px] font-extrabold text-[#004182] opacity-90 group-hover/loc:translate-x-0.5 transition-transform duration-200">
+                  Open Map &rarr;
+                </span>
               </div>
               <p className="text-slate-700 leading-relaxed">
                 {eventSettings.venue}
               </p>
-            </div>
+            </a>
 
             <div className="pt-2 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100">
               <span>Date: <strong className="text-slate-900">{eventSettings.eventDate}</strong></span>
@@ -279,7 +293,7 @@ export const About: React.FC = () => {
                     School Category
                   </span>
                   <h3 className="text-base sm:text-lg font-bold text-slate-900 mt-2">
-                    School Students (Classes 8–12)
+                    School Students
                   </h3>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">

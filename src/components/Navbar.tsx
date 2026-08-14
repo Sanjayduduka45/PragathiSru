@@ -109,7 +109,7 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Actions: Login (secondary) + Register Now (primary) — Far Right */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0">
+          <div className="hidden lg:flex items-center gap-3 shrink-0 ml-3 lg:ml-5 xl:ml-6">
             <Link
               to="/login"
               className="relative text-[#004182] hover:bg-blue-50/80 border border-[#004182]/25 hover:border-[#004182]/50 px-4 py-2.5 rounded-[16px] text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2 whitespace-nowrap"

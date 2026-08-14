@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 
+const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
+
 export const AdminLogin: React.FC = () => {
   const { signIn } = useAdminAuth();
   const navigate = useNavigate();
@@ -36,18 +38,12 @@ export const AdminLogin: React.FC = () => {
 
         {/* Brand */}
         <div className="text-center space-y-3">
-          <Link to="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-xl bg-[#004182] text-white flex items-center justify-center font-bold font-display text-xl shadow-md">
-              SR
-            </div>
-            <div className="text-left">
-              <p className="text-lg font-extrabold text-[#004182] uppercase tracking-tight leading-none">
-                PRAGATHI 2K26
-              </p>
-              <p className="text-[10px] text-slate-400 font-semibold tracking-wider mt-0.5">
-                SR University, Warangal
-              </p>
-            </div>
+          <Link to="/" className="inline-block group" aria-label="SR University Home">
+            <img
+              src={sruLogo}
+              alt="SR University Logo"
+              className="h-10 sm:h-12 w-auto mx-auto object-contain group-hover:scale-105 transition-transform duration-200"
+            />
           </Link>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Admin Sign In</h1>
