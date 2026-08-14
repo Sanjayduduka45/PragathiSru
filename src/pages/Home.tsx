@@ -1508,17 +1508,18 @@ export const Home: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
         <div className="bg-[#004182] text-white rounded-3xl p-6 sm:p-10 lg:p-12 text-center space-y-6 shadow-xl relative overflow-hidden">
 
-          <div className="space-y-3 max-w-2xl mx-auto">
+          <div className="space-y-3 max-w-3xl mx-auto">
 
             <span className="text-xs font-bold uppercase tracking-widest text-blue-200 bg-white/10 px-3.5 py-1 rounded-full border border-white/20 shadow-2xs">
               National Level Stage Awaits
             </span>
 
-            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold font-display uppercase text-white tracking-tight leading-tight">
-              Ready to Innovate, Create, and Inspire?
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-display uppercase text-white tracking-tight leading-tight">
+              <span className="block">Ready to Innovate,</span>
+              <span className="block">Create, and Inspire?</span>
             </h2>
 
-            <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
+            <p className="text-xs sm:text-sm text-blue-100 leading-relaxed max-w-xl mx-auto">
               Register your project team today and showcase your innovation
               on a national stage. Open to school and college students from
               institutions across India.
