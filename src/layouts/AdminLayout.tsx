@@ -69,6 +69,8 @@ const NAV_STRUCTURE: Array<NavLinkItem | { group: string; items: NavLinkItem[] }
   },
 ];
 
+const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
+
 interface SidebarContentProps {
   onClose?: () => void;
 }
@@ -105,8 +107,12 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
       {/* Brand Header */}
       <div className="p-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#004182] text-white flex items-center justify-center font-bold font-display text-base shrink-0">
-            SR
+          <div className="h-9 w-9 flex items-center justify-center shrink-0">
+            <img
+              src={sruLogo}
+              alt="SR University Logo"
+              className="h-8 w-auto max-w-[36px] object-contain"
+            />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-extrabold text-[#004182] uppercase tracking-tight leading-none truncate">
