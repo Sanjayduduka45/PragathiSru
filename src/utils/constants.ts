@@ -13,6 +13,9 @@ export const EVENT_DETAILS = {
   sruDomain: 'sru.edu.in',
   contactEmail: 'pragathi2k26@sru.edu.in',
   helpline: '+91 870 281 8333',
+  linkedinUrl: 'https://www.linkedin.com/in/sru-pragathi-73a876429/',
+  facebookUrl: 'https://www.facebook.com/share/19D3TK5Yae/',
+  instagramUrl: 'https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1',
 };
 
 export interface NavItem {

@@ -72,7 +72,10 @@ class ContactService:
                 contact_email=s_row.get("contact_email", "pragathi2k26@sru.edu.in"),
                 helpline=s_row.get("helpline", "+91 870 281 8333"),
                 institution=s_row.get("institution", "SR University"),
-                venue=s_row.get("venue", "SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371")
+                venue=s_row.get("venue", "SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371"),
+                linkedin_url=s_row.get("linkedin_url", "https://www.linkedin.com/in/sru-pragathi-73a876429/"),
+                facebook_url=s_row.get("facebook_url", "https://www.facebook.com/share/19D3TK5Yae/"),
+                instagram_url=s_row.get("instagram_url", "https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1")
             )
 
         local = db.load_local()
@@ -81,7 +84,10 @@ class ContactService:
             contact_email=ev.get("contact_email", "pragathi2k26@sru.edu.in"),
             helpline=ev.get("helpline", "+91 870 281 8333"),
             institution=ev.get("institution", "SR University"),
-            venue=ev.get("venue", "SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371")
+            venue=ev.get("venue", "SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371"),
+            linkedin_url=ev.get("linkedin_url", "https://www.linkedin.com/in/sru-pragathi-73a876429/"),
+            facebook_url=ev.get("facebook_url", "https://www.facebook.com/share/19D3TK5Yae/"),
+            instagram_url=ev.get("instagram_url", "https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1")
         )
 
     @staticmethod
@@ -89,15 +95,26 @@ class ContactService:
         current = await ContactService.get_contact_details()
         merged_dict = current.model_dump()
         incoming = data.model_dump(exclude_unset=True)
+
         for k, v in incoming.items():
-            if v is not None and v != "":
-                merged_dict[k] = v
+            if v is not None:
+                # URL validation for social fields
+                if k in ("linkedin_url", "facebook_url", "instagram_url") and v != "":
+                    val_str = str(v).strip()
+                    if not (val_str.startswith("http://") or val_str.startswith("https://")):
+                        raise ValueError(f"Invalid URL for {k}: Must start with http:// or https://")
+                    merged_dict[k] = val_str
+                elif v != "":
+                    merged_dict[k] = v
 
         site_payload = {
             "contact_email": merged_dict["contact_email"],
             "helpline": merged_dict["helpline"],
             "institution": merged_dict["institution"],
-            "venue": merged_dict["venue"]
+            "venue": merged_dict["venue"],
+            "linkedin_url": merged_dict.get("linkedin_url", "https://www.linkedin.com/in/sru-pragathi-73a876429/"),
+            "facebook_url": merged_dict.get("facebook_url", "https://www.facebook.com/share/19D3TK5Yae/"),
+            "instagram_url": merged_dict.get("instagram_url", "https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1")
         }
         
         # Update Supabase site_settings

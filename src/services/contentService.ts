@@ -35,6 +35,9 @@ export interface SiteSettings {
   prizePool: string;
   contactEmail: string;
   helpline: string;
+  linkedinUrl: string;
+  facebookUrl: string;
+  instagramUrl: string;
 }
 
 export interface AboutContent {
@@ -120,6 +123,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   prizePool: EVENT_DETAILS.prizePool,
   contactEmail: EVENT_DETAILS.contactEmail,
   helpline: EVENT_DETAILS.helpline,
+  linkedinUrl: EVENT_DETAILS.linkedinUrl,
+  facebookUrl: EVENT_DETAILS.facebookUrl,
+  instagramUrl: EVENT_DETAILS.instagramUrl,
 };
 
 export const DEFAULT_ABOUT: AboutContent = {
@@ -186,6 +192,9 @@ export async function getEventSettings(): Promise<SiteSettings> {
         prizePool: d.prize_pool ?? DEFAULT_SITE_SETTINGS.prizePool,
         contactEmail: d.contact_email ?? DEFAULT_SITE_SETTINGS.contactEmail,
         helpline: d.helpline ?? DEFAULT_SITE_SETTINGS.helpline,
+        linkedinUrl: d.linkedin_url ?? DEFAULT_SITE_SETTINGS.linkedinUrl,
+        facebookUrl: d.facebook_url ?? DEFAULT_SITE_SETTINGS.facebookUrl,
+        instagramUrl: d.instagram_url ?? DEFAULT_SITE_SETTINGS.instagramUrl,
       };
     }
   } catch (err) {
@@ -209,6 +218,9 @@ export async function getEventSettings(): Promise<SiteSettings> {
           prizePool: d.prize_pool ?? DEFAULT_SITE_SETTINGS.prizePool,
           contactEmail: d.contact_email ?? DEFAULT_SITE_SETTINGS.contactEmail,
           helpline: d.helpline ?? DEFAULT_SITE_SETTINGS.helpline,
+          linkedinUrl: d.linkedin_url ?? DEFAULT_SITE_SETTINGS.linkedinUrl,
+          facebookUrl: d.facebook_url ?? DEFAULT_SITE_SETTINGS.facebookUrl,
+          instagramUrl: d.instagram_url ?? DEFAULT_SITE_SETTINGS.instagramUrl,
         };
       }
     } catch (sErr) {
@@ -233,6 +245,9 @@ export async function updateEventSettings(settings: Partial<SiteSettings>): Prom
     prizePool: settings.prizePool ?? current.prizePool,
     contactEmail: settings.contactEmail ?? current.contactEmail,
     helpline: settings.helpline ?? current.helpline,
+    linkedinUrl: settings.linkedinUrl ?? current.linkedinUrl,
+    facebookUrl: settings.facebookUrl ?? current.facebookUrl,
+    instagramUrl: settings.instagramUrl ?? current.instagramUrl,
   };
 
   const payload = {
@@ -247,6 +262,9 @@ export async function updateEventSettings(settings: Partial<SiteSettings>): Prom
     prize_pool: merged.prizePool,
     contact_email: merged.contactEmail,
     helpline: merged.helpline,
+    linkedin_url: merged.linkedinUrl,
+    facebook_url: merged.facebookUrl,
+    instagram_url: merged.instagramUrl,
   };
 
   try {

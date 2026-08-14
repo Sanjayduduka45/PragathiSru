@@ -39,6 +39,9 @@ interface SettingsFormData {
   helpline: string;
   institution: string;
   venue: string;
+  linkedinUrl: string;
+  facebookUrl: string;
+  instagramUrl: string;
 }
 
 const INITIAL_SETTINGS: SettingsFormData = {
@@ -46,6 +49,9 @@ const INITIAL_SETTINGS: SettingsFormData = {
   helpline: EVENT_DETAILS.helpline,
   institution: EVENT_DETAILS.institution,
   venue: EVENT_DETAILS.venue,
+  linkedinUrl: EVENT_DETAILS.linkedinUrl,
+  facebookUrl: EVENT_DETAILS.facebookUrl,
+  instagramUrl: EVENT_DETAILS.instagramUrl,
 };
 
 interface PersonFormData {
@@ -105,6 +111,9 @@ export const ContactAdmin: React.FC = () => {
         helpline: settings.helpline,
         institution: settings.institution,
         venue: settings.venue,
+        linkedinUrl: settings.linkedinUrl || INITIAL_SETTINGS.linkedinUrl,
+        facebookUrl: settings.facebookUrl || INITIAL_SETTINGS.facebookUrl,
+        instagramUrl: settings.instagramUrl || INITIAL_SETTINGS.instagramUrl,
       });
 
       setPeople(peopleList);
@@ -127,16 +136,33 @@ export const ContactAdmin: React.FC = () => {
       addToast('error', 'Validation error', 'Support Email and Helpline Number are required.');
       return;
     }
-    setSavingSettings(true);
+
+    // Validate social URLs
+    const validateUrl = (url: string, label: string) => {
+      const trimmed = url.trim();
+      if (trimmed && !trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+        throw new Error(`${label} must start with http:// or https://`);
+      }
+      return trimmed;
+    };
+
     try {
+      const validLinkedin = validateUrl(settingsForm.linkedinUrl, 'LinkedIn URL');
+      const validFacebook = validateUrl(settingsForm.facebookUrl, 'Facebook URL');
+      const validInstagram = validateUrl(settingsForm.instagramUrl, 'Instagram URL');
+
+      setSavingSettings(true);
       await updateEventSettings({
         contactEmail: settingsForm.contactEmail.trim(),
         helpline: settingsForm.helpline.trim(),
         institution: settingsForm.institution.trim(),
         venue: settingsForm.venue.trim(),
+        linkedinUrl: validLinkedin,
+        facebookUrl: validFacebook,
+        instagramUrl: validInstagram,
       });
       await refreshContent();
-      addToast('success', 'Support details saved', 'Official channels and venue updated.');
+      addToast('success', 'Support details saved', 'Official channels, venue, and social links updated.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       addToast('error', 'Failed to save support details', msg);
@@ -153,10 +179,13 @@ export const ContactAdmin: React.FC = () => {
         helpline: INITIAL_SETTINGS.helpline,
         institution: INITIAL_SETTINGS.institution,
         venue: INITIAL_SETTINGS.venue,
+        linkedinUrl: INITIAL_SETTINGS.linkedinUrl,
+        facebookUrl: INITIAL_SETTINGS.facebookUrl,
+        instagramUrl: INITIAL_SETTINGS.instagramUrl,
       });
       setSettingsForm(INITIAL_SETTINGS);
       await refreshContent();
-      addToast('success', 'Defaults Restored', 'Support & Venue fields restored to original defaults.');
+      addToast('success', 'Defaults Restored', 'Support, Venue, and Social Media links restored to original defaults.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       addToast('error', 'Failed to restore default settings', msg);
@@ -395,6 +424,71 @@ export const ContactAdmin: React.FC = () => {
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 resize-y bg-white"
               placeholder="e.g. SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371"
             />
+          </div>
+
+          {/* ─── Social Media Channels ────────────────────────────────────────── */}
+          <div className="pt-2 border-t border-slate-100 space-y-4">
+            <div>
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                Official Social Media Channels
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                These URLs power the social links on both the public Contact page and the global Footer.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* LinkedIn */}
+              <div>
+                <label htmlFor="adm-ct-linkedin" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <span className="text-[#0077b5]">LinkedIn URL</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="adm-ct-linkedin"
+                    type="url"
+                    value={settingsForm.linkedinUrl}
+                    onChange={(e) => setSettingsForm((f) => ({ ...f, linkedinUrl: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
+                    placeholder="https://www.linkedin.com/in/..."
+                  />
+                </div>
+              </div>
+
+              {/* Facebook */}
+              <div>
+                <label htmlFor="adm-ct-facebook" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <span className="text-[#1877f2]">Facebook URL</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="adm-ct-facebook"
+                    type="url"
+                    value={settingsForm.facebookUrl}
+                    onChange={(e) => setSettingsForm((f) => ({ ...f, facebookUrl: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
+                    placeholder="https://www.facebook.com/..."
+                  />
+                </div>
+              </div>
+
+              {/* Instagram */}
+              <div>
+                <label htmlFor="adm-ct-instagram" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <span className="text-pink-600">Instagram URL</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="adm-ct-instagram"
+                    type="url"
+                    value={settingsForm.instagramUrl}
+                    onChange={(e) => setSettingsForm((f) => ({ ...f, instagramUrl: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
+                    placeholder="https://www.instagram.com/..."
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">

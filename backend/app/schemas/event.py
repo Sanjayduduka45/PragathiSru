@@ -13,6 +13,9 @@ class EventDetails(BaseModel):
     prize_pool: Optional[str] = "₹1,50,000"
     contact_email: Optional[str] = "pragathi2k26@sru.edu.in"
     helpline: Optional[str] = "+91 870 281 8333"
+    linkedin_url: Optional[str] = "https://www.linkedin.com/in/sru-pragathi-73a876429/"
+    facebook_url: Optional[str] = "https://www.facebook.com/share/19D3TK5Yae/"
+    instagram_url: Optional[str] = "https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1"
 
 class EventResponse(BaseModel):
     success: bool = True

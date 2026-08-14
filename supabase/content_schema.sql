@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   prize_pool TEXT NOT NULL DEFAULT '₹1,50,000',
   contact_email TEXT NOT NULL DEFAULT 'pragathi2k26@sru.edu.in',
   helpline TEXT NOT NULL DEFAULT '+91 870 281 8333',
+  linkedin_url TEXT DEFAULT 'https://www.linkedin.com/in/sru-pragathi-73a876429/',
+  facebook_url TEXT DEFAULT 'https://www.facebook.com/share/19D3TK5Yae/',
+  instagram_url TEXT DEFAULT 'https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -6,6 +6,9 @@ class ContactDetails(BaseModel):
     helpline: Optional[str] = "+91 870 281 8333"
     institution: Optional[str] = "SR University"
     venue: Optional[str] = "SR University Campus, Ananthasagar, Hasanparthy, Warangal, Telangana - 506371"
+    linkedin_url: Optional[str] = "https://www.linkedin.com/in/sru-pragathi-73a876429/"
+    facebook_url: Optional[str] = "https://www.facebook.com/share/19D3TK5Yae/"
+    instagram_url: Optional[str] = "https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1"
 
 class ContactResponse(BaseModel):
     success: bool = True

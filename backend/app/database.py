@@ -20,7 +20,10 @@ INITIAL_DATA: Dict[str, Any] = {
         "location": "Warangal, Telangana",
         "prize_pool": "₹1,50,000",
         "contact_email": "pragathi2k26@sru.edu.in",
-        "helpline": "+91 870 281 8333"
+        "helpline": "+91 870 281 8333",
+        "linkedin_url": "https://www.linkedin.com/in/sru-pragathi-73a876429/",
+        "facebook_url": "https://www.facebook.com/share/19D3TK5Yae/",
+        "instagram_url": "https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1"
     },
     "about_content": {
         "title": "About PRAGATHI 2K26",
