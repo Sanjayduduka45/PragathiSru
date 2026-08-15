@@ -190,6 +190,12 @@ export const api = {
         method: 'DELETE',
       }),
     stats: () => request<{ success: boolean; data: any }>('/api/admin/stats'),
+    getEmailLogs: (id: string) => request<{ success: boolean; data: any[] }>(`/api/admin/registrations/${id}/emails`),
+    resendEmail: (id: string, memberId?: string) =>
+      request<{ success: boolean; message: string; results?: any }>(
+        `/api/admin/registrations/${id}/resend-email${memberId ? `?member_id=${memberId}` : ''}`,
+        { method: 'POST' }
+      ),
   },
 
   // Named Admin API Namespace

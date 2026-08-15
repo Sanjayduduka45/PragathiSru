@@ -181,6 +181,73 @@ class RegistrationService:
         return True
 
     @staticmethod
+    async def get_email_logs(reg_id: str) -> List[Dict[str, Any]]:
+        # Resolve target UUID / registration_code
+        clean_id = reg_id.strip()
+        target_uuid = clean_id
+        
+        # Check if reg_id is registration_code or UUID
+        rows = await db.fetch_supabase(
+            "registration_email_logs",
+            f"or=(registration_id.eq.{clean_id},registration_code.eq.{clean_id})&order=created_at.desc"
+        )
+        if not rows:
+            rows = await db.fetch_supabase(
+                "registration_email_logs",
+                f"registration_code=eq.{clean_id}&order=created_at.desc"
+            )
+        return rows or []
+
+    @staticmethod
+    async def resend_confirmation_email(reg_id: str, member_id: Optional[str] = None) -> Dict[str, Any]:
+        # Verify registration exists
+        reg = await RegistrationService.get_registration(reg_id)
+        if not reg:
+            raise HTTPException(status_code=404, detail="Registration not found")
+
+        # Invoke Supabase Edge Function: send-registration-confirmation
+        function_url = f"{db.settings.supabase_url if hasattr(db, 'settings') else 'https://ajoixggemnuokpcwomnn.supabase.co'}/functions/v1/send-registration-confirmation"
+        from app.config import settings
+        function_url = f"{settings.supabase_url}/functions/v1/send-registration-confirmation"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": settings.supabase_key,
+            "Authorization": f"Bearer {settings.supabase_key}"
+        }
+        
+        payload = {
+            "registrationId": reg.registration_id,
+            "forceResend": True
+        }
+        if member_id:
+            payload["memberId"] = member_id
+
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                res = await client.post(function_url, headers=headers, json=payload)
+                data = res.json()
+                if res.status_code in (200, 201) and data.get("success"):
+                    return {
+                        "success": True,
+                        "message": f"Confirmation email process triggered for {reg.registration_id}",
+                        "results": data.get("results")
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": data.get("error", f"Edge Function returned HTTP {res.status_code}"),
+                        "results": data.get("results")
+                    }
+        except Exception as e:
+            print(f"[RegistrationService] Error calling send-registration-confirmation function: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to contact email service: {str(e)}"
+            }
+
+    @staticmethod
     async def get_stats() -> RegistrationStats:
         regs = await RegistrationService.get_registrations()
         total = len(regs)
@@ -204,3 +271,4 @@ class RegistrationService:
         )
 
 registration_service = RegistrationService()
+

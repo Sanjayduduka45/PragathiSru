@@ -21,9 +21,13 @@ import {
   AlertCircle,
   Loader2,
   ShieldAlert,
+  Mail,
+  Send,
+  Clock,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { api } from '../../services/api';
+import { RegistrationService } from '../../services/registrationService';
 import { Modal } from '../../components/ui/Modal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
@@ -197,6 +201,9 @@ export const RegistrationsAdmin: React.FC = () => {
 
   // View modal
   const [selectedReg, setSelectedReg] = useState<JoinedRegistrationRecord | null>(null);
+  const [emailLogs, setEmailLogs] = useState<any[]>([]);
+  const [loadingEmailLogs, setLoadingEmailLogs] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   // Edit modal
   const [editReg, setEditReg] = useState<JoinedRegistrationRecord | null>(null);
@@ -251,6 +258,60 @@ export const RegistrationsAdmin: React.FC = () => {
   useEffect(() => {
     fetchRegistrations();
   }, [fetchRegistrations]);
+
+  // ── Fetch Email Logs for Selected Registration ─────────────────────────────
+  const fetchEmailLogs = useCallback(async (regCode: string) => {
+    if (!regCode) return;
+    setLoadingEmailLogs(true);
+    try {
+      // First try RegistrationService / Supabase
+      const logs = await RegistrationService.getEmailLogs(regCode);
+      if (logs && logs.length > 0) {
+        setEmailLogs(logs);
+      } else {
+        // Fallback to FastAPI endpoint
+        const res = await api.registrations.getEmailLogs(regCode);
+        if (res && Array.isArray(res.data)) {
+          setEmailLogs(res.data);
+        } else {
+          setEmailLogs([]);
+        }
+      }
+    } catch (err) {
+      console.warn('[RegistrationsAdmin] Error fetching email logs:', err);
+      setEmailLogs([]);
+    } finally {
+      setLoadingEmailLogs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedReg?.registration_id) {
+      fetchEmailLogs(selectedReg.registration_id);
+    } else {
+      setEmailLogs([]);
+    }
+  }, [selectedReg, fetchEmailLogs]);
+
+  // ── Resend Confirmation Email ───────────────────────────────────────────────
+  const handleResendConfirmationEmail = async (memberId?: string) => {
+    if (!selectedReg) return;
+    setResendingEmail(true);
+    try {
+      const res = await RegistrationService.resendConfirmationEmail(selectedReg.registration_id, memberId);
+      if (res.success) {
+        addToast('success', 'Confirmation Email Dispatched', `Confirmation email sent for team ${selectedReg.team_name}.`);
+        await fetchEmailLogs(selectedReg.registration_id);
+      } else {
+        addToast('error', 'Email Delivery Notice', res.message || 'Unable to complete email dispatch.');
+        await fetchEmailLogs(selectedReg.registration_id);
+      }
+    } catch (err: any) {
+      addToast('error', 'Email Failed', err?.message || 'Error occurred during email dispatch.');
+    } finally {
+      setResendingEmail(false);
+    }
+  };
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
 
@@ -801,6 +862,110 @@ export const RegistrationsAdmin: React.FC = () => {
                 <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Amount</span><span className="font-extrabold text-slate-900 text-xs">₹{selectedReg.payment_amount}</span></div>
                 <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Reference</span><span className="font-mono text-slate-700 text-xs">{selectedReg.payment_reference || 'N/A'}</span></div>
               </div>
+            </div>
+
+            {/* Confirmation Email Delivery Status & Tracking */}
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                <div className="flex items-center gap-1.5 text-[#004182] font-bold text-[11px]">
+                  <Mail className="w-3.5 h-3.5" />
+                  <span className="uppercase tracking-wider">Confirmation Emails</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleResendConfirmationEmail()}
+                  disabled={resendingEmail}
+                  className="inline-flex items-center gap-1 bg-[#004182] hover:bg-[#003366] text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  title="Resend confirmation email to all team members"
+                >
+                  {resendingEmail ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3 h-3" />
+                      <span>Resend Confirmation Email</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {loadingEmailLogs ? (
+                <div className="flex items-center justify-center py-3 gap-2 text-slate-400">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="text-[11px]">Loading email delivery records...</span>
+                </div>
+              ) : emailLogs && emailLogs.length > 0 ? (
+                <div className="space-y-1.5">
+                  {emailLogs.map((log) => {
+                    const isSent = log.status === 'sent';
+                    const isPending = log.status === 'pending';
+                    const isFailed = log.status === 'failed';
+                    return (
+                      <div
+                        key={log.id || `${log.recipient_email}-${log.created_at}`}
+                        className="bg-slate-50/90 p-2.5 rounded-lg border border-slate-200/70 flex flex-wrap items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 text-xs truncate">{log.recipient_name}</span>
+                            <span className="text-[10px] font-bold text-[#004182] bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
+                              {log.recipient_role || 'Member'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block truncate">{log.recipient_email}</span>
+                          {log.error_message && (
+                            <span className="text-[10px] text-rose-600 block mt-0.5 font-medium truncate max-w-sm">
+                              Error: {log.error_message}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          {isSent ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Sent
+                            </span>
+                          ) : isPending ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              Pending
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full">
+                              <AlertCircle className="w-3 h-3 text-rose-600" />
+                              Failed
+                            </span>
+                          )}
+                          <span className="text-[9px] text-slate-400 block mt-0.5">
+                            {log.sent_at
+                              ? new Date(log.sent_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                              : log.created_at
+                              ? new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                              : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/60 text-center space-y-1">
+                  <p className="text-slate-400 italic text-[11px]">
+                    No email logs found yet. Confirmation emails trigger automatically upon submission.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleResendConfirmationEmail()}
+                    disabled={resendingEmail}
+                    className="text-[11px] text-[#004182] font-bold hover:underline cursor-pointer"
+                  >
+                    Click here to send confirmation email now
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -321,6 +321,29 @@ export class RegistrationService {
         // Save local copy ONLY AFTER successful database insert of all records
         this.saveToLocalStorage(record);
 
+        // 3. Trigger registration confirmation email process (non-blocking)
+        // Email failure must NEVER fail or invalidate registration.
+        try {
+          console.log(`[EMAIL] Registration confirmed: ${publicRegistrationId}`);
+          console.log('[EMAIL] Invoking send-registration-confirmation');
+          supabase.functions
+            .invoke('send-registration-confirmation', {
+              body: { registrationId: publicRegistrationId },
+            })
+            .then(({ data, error }) => {
+              if (error) {
+                console.error('[EMAIL] Function invocation failed:', error.message || error);
+              } else {
+                console.log('[EMAIL] Function response received:', data);
+              }
+            })
+            .catch((emailErr) => {
+              console.error('[EMAIL] Function invocation failed:', emailErr?.message || emailErr);
+            });
+        } catch (emailTriggerErr: any) {
+          console.error('[EMAIL] Function invocation failed:', emailTriggerErr?.message || emailTriggerErr);
+        }
+
         return {
           success: true,
           registrationId: publicRegistrationId,
@@ -410,6 +433,63 @@ export class RegistrationService {
     }
   }
 
+  public static async resendConfirmationEmail(
+    registrationId: string,
+    memberId?: string
+  ): Promise<{ success: boolean; message: string; results?: any }> {
+    if (!registrationId) return { success: false, message: 'Missing Registration ID.' };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        console.log(`[EMAIL] Invoking send-registration-confirmation for resend: ${registrationId}`);
+        const { data, error } = await supabase.functions.invoke('send-registration-confirmation', {
+          body: { registrationId, memberId, forceResend: true },
+        });
+
+        if (error) {
+          console.error('[EMAIL] Function invocation failed:', error.message || error);
+          return { success: false, message: error.message || 'Failed to trigger confirmation email.' };
+        }
+
+        console.log('[EMAIL] Function response received:', data);
+        return {
+          success: true,
+          message: 'Confirmation email process triggered successfully.',
+          results: data?.results,
+        };
+      } catch (err: any) {
+        console.error('[EMAIL] Function invocation failed:', err?.message || err);
+        return {
+          success: false,
+          message: err?.message || 'Network error while triggering confirmation email.',
+        };
+      }
+    }
+
+    return { success: false, message: 'Supabase database is offline.' };
+  }
+
+  public static async getEmailLogs(registrationId: string): Promise<any[]> {
+    if (!registrationId || !isSupabaseConfigured || !supabase) return [];
+    try {
+      let q = supabase.from('registration_email_logs').select('*');
+      if (registrationId.length === 36 && registrationId.includes('-')) {
+        q = q.or(`registration_id.eq.${registrationId},registration_code.eq.${registrationId}`);
+      } else {
+        q = q.eq('registration_code', registrationId);
+      }
+      const { data, error } = await q.order('created_at', { ascending: false });
+      if (error) {
+        console.warn('Failed to fetch registration email logs:', error);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.warn('Exception fetching email logs:', err);
+      return [];
+    }
+  }
+
   public static getLocalRegistrations(): RegistrationRecord[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -419,4 +499,5 @@ export class RegistrationService {
     }
   }
 }
+
 

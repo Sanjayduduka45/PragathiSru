@@ -65,3 +65,30 @@ class RegistrationResponse(BaseModel):
 class RegistrationListResponse(BaseModel):
     success: bool = True
     data: List[RegistrationItem]
+
+class EmailLogItem(BaseModel):
+    id: Optional[str] = None
+    registration_id: Optional[str] = None
+    registration_code: Optional[str] = None
+    member_id: Optional[str] = None
+    recipient_name: str
+    recipient_email: str
+    recipient_role: str
+    email_type: str = "registration_confirmation"
+    subject: str
+    status: str
+    provider: Optional[str] = "resend"
+    provider_message_id: Optional[str] = None
+    error_message: Optional[str] = None
+    sent_at: Optional[str] = None
+    created_at: Optional[str] = None
+
+class EmailLogListResponse(BaseModel):
+    success: bool = True
+    data: List[EmailLogItem]
+
+class ResendEmailResponse(BaseModel):
+    success: bool
+    message: str
+    results: Optional[Any] = None
+
