@@ -25,16 +25,13 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({ childr
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Role verification: ensure user is admin or superadmin
+  // Role verification: ensure user is admin
   if (!isAdmin) {
     if (role === 'participant') {
       return <Navigate to="/participant" replace />;
     }
-    if (role === 'jury' || role === 'judge') {
-      return <Navigate to="/coming-soon?module=judges" replace />;
-    }
-    if (role === 'coordinator') {
-      return <Navigate to="/coming-soon?module=coordinator" replace />;
+    if (role === 'judge' || role === 'jury') {
+      return <Navigate to="/judge" replace />;
     }
     return <Navigate to="/login" replace />;
   }

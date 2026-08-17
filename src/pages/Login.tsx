@@ -23,31 +23,13 @@ import { Mail, Lock, AlertCircle, Eye, EyeOff, Info } from 'lucide-react';
 import { useParticipantAuth } from '../context/ParticipantAuthContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { AppRole } from '../types';
+import { AuthService } from '../services/authService';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
-// ---------------------------------------------------------------------------
-// ROLE REDIRECT MAP
-// Current active roles: participant, admin
-// Future roles: extend here when jury/coordinator dashboards are ready.
-// ---------------------------------------------------------------------------
-type AppRole = 'participant' | 'admin' | 'superadmin' | 'jury' | 'judge' | 'coordinator';
-
 function getRedirectPath(role: string): string {
-  switch (role.toLowerCase()) {
-    case 'participant':
-      return '/participant';
-    case 'admin':
-    case 'superadmin':
-      return '/admin';
-    case 'jury':
-    case 'judge':
-      return '/coming-soon?module=judges';
-    case 'coordinator':
-      return '/coming-soon?module=coordinator';
-    default:
-      return '/';
-  }
+  return AuthService.getRoleRedirectPath(role as AppRole);
 }
 
 // Generic error - never reveals which specific check (participant or admin) failed.

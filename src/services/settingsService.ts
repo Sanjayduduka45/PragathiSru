@@ -47,7 +47,7 @@ export interface FullSettings {
 export interface UserRoleItem {
   id: string;
   userEmail: string;
-  role: 'admin' | 'coordinator' | 'jury' | 'participant';
+  role: 'admin' | 'superadmin' | 'coordinator' | 'jury' | 'judge' | 'participant';
   displayName: string;
   department: string;
   isActive: boolean;
@@ -348,7 +348,7 @@ export async function getUserRoles(): Promise<UserRoleItem[]> {
 
 export async function createUserRole(data: {
   userEmail: string;
-  role: 'admin' | 'coordinator' | 'jury' | 'participant';
+  role: 'admin' | 'superadmin' | 'coordinator' | 'jury' | 'judge' | 'participant';
   displayName?: string;
   department?: string;
   isActive?: boolean;

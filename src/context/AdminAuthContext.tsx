@@ -7,6 +7,7 @@ interface AdminAuthContextType {
   session: Session | null;
   role: string | null;
   isAdmin: boolean;
+  isJudge: boolean;
   loading: boolean;
   isSupabaseReady: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null; role?: string }>;
@@ -25,23 +26,51 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!userObj || !userObj.email) return null;
     const email = userObj.email.trim().toLowerCase();
 
-    if (!supabase) return 'admin';
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role, is_active')
+          .ilike('user_email', email)
+          .limit(1);
 
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, is_active')
-        .ilike('user_email', email)
-        .limit(1);
-
-      if (!error && data && data.length > 0) {
-        if (data[0].is_active === false) {
-          return 'inactive';
+        if (!error && data && data.length > 0) {
+          if (data[0].is_active === false) {
+            return 'inactive';
+          }
+          const rawRole = (data[0].role || '').toLowerCase();
+          if (rawRole === 'judge' || rawRole === 'jury') return 'judge';
+          if (rawRole === 'admin' || rawRole === 'superadmin' || rawRole === 'coordinator') return 'admin';
+          if (rawRole === 'participant') return 'participant';
+          return 'admin';
         }
-        return data[0].role;
+      } catch (err) {
+        console.warn('[AdminAuthContext] Role lookup failed:', err);
       }
-    } catch (err) {
-      console.warn('[AdminAuthContext] Role lookup failed:', err);
+    }
+
+    // Check user_metadata from auth token
+    const metaRole = userObj.user_metadata?.role;
+    if (metaRole) {
+      const lower = String(metaRole).toLowerCase();
+      if (lower === 'judge' || lower === 'jury') return 'judge';
+      if (lower === 'participant') return 'participant';
+      return 'admin';
+    }
+
+    // Local Storage judges check
+    try {
+      const localJudgesRaw = localStorage.getItem('pragathi_local_judges');
+      if (localJudgesRaw) {
+        const parsed = JSON.parse(localJudgesRaw);
+        const match = parsed.find((j: any) => (j.userEmail || '').toLowerCase() === email);
+        if (match) {
+          if (match.isActive === false) return 'inactive';
+          return 'judge';
+        }
+      }
+    } catch {
+      // ignore
     }
 
     // Default to admin for authenticated Supabase admin users if no specific role assigned
@@ -102,6 +131,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const isAdmin = role === 'admin' || role === 'superadmin';
+  const isJudge = role === 'judge' || role === 'jury';
 
   return (
     <AdminAuthContext.Provider
@@ -110,6 +140,7 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         session,
         role,
         isAdmin,
+        isJudge,
         loading,
         isSupabaseReady: isSupabaseConfigured,
         signIn,

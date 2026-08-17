@@ -11,6 +11,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { AdminPageSkeleton } from './components/admin/AdminSkeleton';
 import { ParticipantAuthProvider } from './context/ParticipantAuthContext';
 import { ProtectedParticipantRoute } from './pages/ProtectedParticipantRoute';
+import { ProtectedJudgeRoute } from './pages/judge/ProtectedJudgeRoute';
 
 // Lazy-loaded Public Secondary & Participant Routes
 const About = React.lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
@@ -21,6 +22,7 @@ const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then((m) => ({ 
 const ParticipantLogin = React.lazy(() => import('./pages/ParticipantLogin').then((m) => ({ default: m.ParticipantLogin })));
 const Login = React.lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const ParticipantDashboard = React.lazy(() => import('./pages/ParticipantDashboard').then((m) => ({ default: m.ParticipantDashboard })));
+const JudgeDashboard = React.lazy(() => import('./pages/judge/JudgeDashboard').then((m) => ({ default: m.JudgeDashboard })));
 
 // Lazy-loaded Admin Routes for code splitting & faster initial page load
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
@@ -36,6 +38,8 @@ const ContactAdmin = React.lazy(() => import('./pages/admin/content/ContactAdmin
 const TestimonialsAdmin = React.lazy(() => import('./pages/admin/content/TestimonialsAdmin').then((m) => ({ default: m.TestimonialsAdmin })));
 const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon').then((m) => ({ default: m.AdminComingSoon })));
 const PostersAdmin = React.lazy(() => import('./pages/admin/PostersAdmin').then((m) => ({ default: m.PostersAdmin })));
+const JudgesAdmin = React.lazy(() => import('./pages/admin/JudgesAdmin').then((m) => ({ default: m.JudgesAdmin })));
+const ResultsAdmin = React.lazy(() => import('./pages/admin/ResultsAdmin').then((m) => ({ default: m.ResultsAdmin })));
 const SettingsAdmin = React.lazy(() => import('./pages/admin/SettingsAdmin').then((m) => ({ default: m.SettingsAdmin })));
 
 export default function App() {
@@ -72,7 +76,7 @@ export default function App() {
             }
           />
 
-          {/* Participant Routes (outside MainLayout) */}
+          {/* Common Single Login */}
           <Route
             path="/login"
             element={
@@ -81,6 +85,8 @@ export default function App() {
               </Suspense>
             }
           />
+
+          {/* Participant Protected Dashboard */}
           <Route
             path="/participant"
             element={
@@ -92,8 +98,22 @@ export default function App() {
             }
           />
 
-          {/* /admin/login redirects to common login - no longer a standalone page */}
+          {/* Judge Protected Single-Page Dashboard */}
+          <Route
+            path="/judge"
+            element={
+              <ProtectedJudgeRoute>
+                <Suspense fallback={neutralLoader}>
+                  <JudgeDashboard />
+                </Suspense>
+              </ProtectedJudgeRoute>
+            }
+          />
+
+          {/* Legacy Login Redirects */}
           <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+          <Route path="/judge/login" element={<Navigate to="/login" replace />} />
+          <Route path="/participant/login" element={<Navigate to="/login" replace />} />
 
           {/* Admin Protected Routes wrapped in AdminLayout */}
           <Route
@@ -119,8 +139,8 @@ export default function App() {
                       <Route path="/registrations" element={<RegistrationsAdmin />} />
                       <Route path="/posters" element={<PostersAdmin />} />
                       <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
-                      <Route path="/judges" element={<AdminComingSoon module="Judges Portal" />} />
-                      <Route path="/results" element={<AdminComingSoon module="Results & Leaders" />} />
+                      <Route path="/judges" element={<JudgesAdmin />} />
+                      <Route path="/results" element={<ResultsAdmin />} />
                       <Route path="/settings" element={<SettingsAdmin />} />
 
                       <Route path="*" element={<Navigate to="/admin" replace />} />

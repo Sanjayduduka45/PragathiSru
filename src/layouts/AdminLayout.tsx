@@ -219,22 +219,35 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
                 <FileImage className="w-4 h-4 shrink-0" />
                 Project Posters
               </NavLink>
-              {[
-                { label: 'Participants', path: '/admin/participants', icon: <Users className="w-4 h-4" /> },
-                { label: 'Judges', path: '/admin/judges', icon: <GraduationCap className="w-4 h-4" /> },
-                { label: 'Results', path: '/admin/results', icon: <Trophy className="w-4 h-4" /> },
-              ].map((item) => (
-                <div
-                  key={item.path}
-                  className={`${linkBase} pl-4 ${linkDisabled} group`}
-                >
-                  <span className="shrink-0">{item.icon}</span>
-                  {item.label}
-                  <span className="ml-auto text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                    Soon
-                  </span>
-                </div>
-              ))}
+              <NavLink
+                to="/admin/judges"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <GraduationCap className="w-4 h-4 shrink-0" />
+                Judges
+              </NavLink>
+              <NavLink
+                to="/admin/results"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Trophy className="w-4 h-4 shrink-0" />
+                Results
+              </NavLink>
+              <div
+                className={`${linkBase} pl-4 ${linkDisabled} group`}
+              >
+                <Users className="w-4 h-4 shrink-0" />
+                Participants
+                <span className="ml-auto text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                  Soon
+                </span>
+              </div>
             </div>
           )}
         </div>
