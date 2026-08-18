@@ -85,12 +85,13 @@ class DomainService:
 
     @staticmethod
     async def delete_domain(domain_id: str) -> bool:
-        await db.delete_supabase("project_domains", "id", domain_id)
+        supa_success = await db.delete_supabase("project_domains", "id", domain_id)
         local = db.load_local()
         items = local.get("project_domains", [])
+        orig_len = len(items)
         filtered = [item for item in items if str(item.get("id")) != str(domain_id)]
         local["project_domains"] = filtered
         db.save_local(local)
-        return True
+        return supa_success or (len(filtered) < orig_len)
 
 domain_service = DomainService()

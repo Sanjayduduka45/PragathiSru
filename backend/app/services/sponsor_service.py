@@ -83,12 +83,13 @@ class SponsorService:
 
     @staticmethod
     async def delete_sponsor(sponsor_id: str) -> bool:
-        await db.delete_supabase("sponsors", "id", sponsor_id)
+        supa_success = await db.delete_supabase("sponsors", "id", sponsor_id)
         local = db.load_local()
         items = local.get("sponsors", [])
+        orig_len = len(items)
         filtered = [item for item in items if str(item.get("id")) != str(sponsor_id)]
         local["sponsors"] = filtered
         db.save_local(local)
-        return True
+        return supa_success or (len(filtered) < orig_len)
 
 sponsor_service = SponsorService()

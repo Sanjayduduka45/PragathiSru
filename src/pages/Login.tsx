@@ -64,8 +64,8 @@ export const Login: React.FC = () => {
       navigate(getRedirectPath('participant'), { replace: true });
       return;
     }
-    if (adminUser) {
-      navigate(getRedirectPath(adminRole || 'admin'), { replace: true });
+    if (adminUser && adminRole) {
+      navigate(getRedirectPath(adminRole), { replace: true });
     }
   }, [participantSession, adminUser, adminRole, participantLoading, adminLoading, navigate]);
 
@@ -143,32 +143,17 @@ export const Login: React.FC = () => {
         }
       } else {
         // =================================================================
-        // ADMIN / ROLE-BASED PATH
+        // ADMIN / JURY / ROLE-BASED PATH
         // Email NOT in registrations table. Authenticate via Supabase.
         // =================================================================
         const { error: adminError, role: returnedRole } = await adminSignIn(trimmedEmail, trimmedPassword);
 
         if (!adminError) {
-          let resolvedRole = returnedRole || 'admin';
-
-          // Query user_roles table to double-verify role
-          if (isSupabaseConfigured && supabase) {
-            try {
-              const { data: roleRows } = await supabase
-                .from('user_roles')
-                .select('role, is_active')
-                .ilike('user_email', trimmedEmail)
-                .limit(1);
-
-              if (roleRows && roleRows.length > 0 && roleRows[0].is_active !== false) {
-                resolvedRole = roleRows[0].role;
-              }
-            } catch (rErr) {
-              console.warn('[Login] DB role check fallback:', rErr);
-            }
+          if (returnedRole) {
+            navigate(getRedirectPath(returnedRole), { replace: true });
+          } else {
+            setError('Your account has no assigned role in the system. Please contact the administrator.');
           }
-
-          navigate(getRedirectPath(resolvedRole), { replace: true });
         } else {
           setError(GENERIC_ERROR);
         }

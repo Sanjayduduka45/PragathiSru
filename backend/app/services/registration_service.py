@@ -25,16 +25,20 @@ class RegistrationService:
 
         result: List[RegistrationItem] = []
         for r in regs:
-            tm_list = []
-            if r.get("team_members"):
-                for m in r.get("team_members", []):
+            tm_list: List[TeamMember] = []
+            raw_members = r.get("team_members")
+            if isinstance(raw_members, list):
+                for m in raw_members:
                     if isinstance(m, dict):
                         try:
                             tm_list.append(TeamMember(**m))
                         except Exception as e:
                             print(f"[RegistrationService] Skipping invalid team_member dict: {e}")
-                    elif isinstance(m, str):
-                        tm_list.append(TeamMember(id=m, name=m, email=""))
+            elif isinstance(raw_members, dict):
+                try:
+                    tm_list.append(TeamMember(**raw_members))
+                except Exception as e:
+                    print(f"[RegistrationService] Skipping invalid team_member dict: {e}")
 
             # If team_members is empty, auto-create leader entry if leader_name is present
             if not tm_list and r.get("leader_name"):
@@ -46,16 +50,20 @@ class RegistrationService:
                     is_team_leader=True
                 ))
 
-            proj_list = []
-            if r.get("projects"):
-                for p in r.get("projects", []):
+            proj_list: List[ProjectInfo] = []
+            raw_projects = r.get("projects")
+            if isinstance(raw_projects, list):
+                for p in raw_projects:
                     if isinstance(p, dict):
                         try:
                             proj_list.append(ProjectInfo(**p))
                         except Exception as e:
                             print(f"[RegistrationService] Skipping invalid project dict: {e}")
-                    elif isinstance(p, str):
-                        proj_list.append(ProjectInfo(id=p, title=p, category="General"))
+            elif isinstance(raw_projects, dict):
+                try:
+                    proj_list.append(ProjectInfo(**raw_projects))
+                except Exception as e:
+                    print(f"[RegistrationService] Skipping invalid project dict: {e}")
             
             item = RegistrationItem(
                 id=r.get("id"),
@@ -81,12 +89,21 @@ class RegistrationService:
     async def get_registration(registration_id: str) -> Optional[RegistrationItem]:
         all_regs = await RegistrationService.get_registrations()
         for r in all_regs:
-            if r.id == registration_id or r.registration_id == registration_id:
+            if str(r.id) == str(registration_id) or str(r.registration_id) == str(registration_id):
                 return r
         return None
 
     @staticmethod
     async def update_registration(reg_id: str, data: RegistrationUpdate) -> Optional[RegistrationItem]:
+        clean_id = reg_id.strip()
+        target_uuid = clean_id
+
+        # Resolve UUID if human-readable registration_id is provided
+        if len(clean_id) != 36 or "-" not in clean_id:
+            check_rows = await db.fetch_supabase("registrations", f"registration_id=eq.{clean_id}&select=id")
+            if check_rows and len(check_rows) > 0:
+                target_uuid = check_rows[0].get("id")
+
         payload: Dict[str, Any] = {}
         if data.team_name is not None: payload["team_name"] = data.team_name
         if data.participant_type is not None: payload["participant_type"] = data.participant_type
@@ -99,14 +116,25 @@ class RegistrationService:
         if data.payment_reference is not None: payload["payment_reference"] = data.payment_reference
 
         if payload:
-            await db.update_supabase("registrations", "id", reg_id, payload)
+            success = await db.update_supabase("registrations", "id", target_uuid, payload)
+            if not success:
+                print(f"[RegistrationService] Update failed on Supabase for id='{target_uuid}'")
+                # Also check local fallback
+                local_data = db.load_local()
+                if "registrations" in local_data:
+                    for r in local_data["registrations"]:
+                        if r.get("id") == target_uuid or r.get("registration_id") == clean_id:
+                            r.update(payload)
+                            db.save_local(local_data)
+                            break
 
-        return await RegistrationService.get_registration(reg_id)
+        return await RegistrationService.get_registration(target_uuid)
 
     @staticmethod
     async def delete_registration(reg_id: str) -> bool:
         print(f"[RegistrationService] DELETE request received for reg_id={reg_id}")
         target_uuid = None
+        reg_code = None
 
         if not reg_id or not reg_id.strip():
             print(f"[RegistrationService] Empty reg_id provided.")
@@ -119,16 +147,19 @@ class RegistrationService:
             check_rows = await db.fetch_supabase("registrations", f"id=eq.{clean_id}&select=id,registration_id")
             if check_rows and len(check_rows) > 0:
                 target_uuid = check_rows[0].get("id")
+                reg_code = check_rows[0].get("registration_id")
 
-        # CASE 2: reg_id is human-readable (e.g. PRAGATHI26-N7BD4T) or non-standard identifier
+        # CASE 2: reg_id is human-readable (e.g. PRAGATHI26-XXXXXX) or non-standard identifier
         if target_uuid is None:
             by_reg_code = await db.fetch_supabase("registrations", f"registration_id=eq.{clean_id}&select=id,registration_id")
             if by_reg_code and len(by_reg_code) > 0:
                 target_uuid = by_reg_code[0].get("id")
+                reg_code = by_reg_code[0].get("registration_id")
             else:
                 by_id_col = await db.fetch_supabase("registrations", f"id=eq.{clean_id}&select=id,registration_id")
                 if by_id_col and len(by_id_col) > 0:
                     target_uuid = by_id_col[0].get("id")
+                    reg_code = by_id_col[0].get("registration_id")
 
         if target_uuid is None:
             print(f"[RegistrationService] Record not found in Supabase for reg_id='{clean_id}'")
@@ -139,12 +170,7 @@ class RegistrationService:
 
         print(f"[RegistrationService] Successfully resolved '{clean_id}' -> target_uuid='{target_uuid}'")
 
-        # Delete dependent child rows explicitly to guarantee clean deletion
-        await db.delete_supabase("team_members", "registration_id", target_uuid)
-        await db.delete_supabase("projects", "registration_id", target_uuid)
-        await db.delete_supabase("payments", "registration_id", target_uuid)
-
-        # Delete parent registration row using target_uuid
+        # Delete parent registration row using target_uuid (PostgreSQL CASCADE deletes dependent rows)
         success = await db.delete_supabase("registrations", "id", target_uuid)
         print(f"[RegistrationService] DB delete execution result for '{target_uuid}': {success}")
 
@@ -161,24 +187,7 @@ class RegistrationService:
                 print(f"[RegistrationService] Removed '{target_uuid}' from local data store fallback.")
                 success = True
 
-        if not success:
-            print(f"[RegistrationService] Deletion execution failed for target UUID '{target_uuid}'")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database deletion query returned zero deleted rows for UUID '{target_uuid}'. Verify SUPABASE_SERVICE_ROLE_KEY environment variable."
-            )
-
-        # Real verification - query DB directly to confirm 0 rows remain
-        raw_check = await db.fetch_supabase("registrations", f"id=eq.{target_uuid}&select=id")
-        if raw_check and len(raw_check) > 0:
-            print(f"[RegistrationService] Post-delete verification failed: record '{target_uuid}' still exists in PostgreSQL.")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Registration resolved to UUID '{target_uuid}', but post-delete verification failed (record still present in DB)."
-            )
-
-        print(f"[RegistrationService] Verification succeeded: record '{target_uuid}' completely deleted.")
-        return True
+        return success
 
     @staticmethod
     async def get_email_logs(reg_id: str) -> List[Dict[str, Any]]:

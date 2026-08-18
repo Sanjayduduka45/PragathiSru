@@ -271,7 +271,7 @@ class ContactService:
     @staticmethod
     async def delete_contact_person(person_id: str) -> bool:
         # Delete from Supabase
-        await db.delete_supabase("contact_people", "id", str(person_id))
+        supa_success = await db.delete_supabase("contact_people", "id", str(person_id))
 
         # Delete from local
         local = db.load_local()
@@ -279,11 +279,12 @@ class ContactService:
         if not cp:
             cp = list(DEFAULT_CONTACT_PEOPLE)
         
+        orig_len = len(cp)
         filtered = [p for p in cp if str(p.get("id")) != str(person_id)]
         local["contact_people"] = filtered
         db.save_local(local)
 
-        return True
+        return supa_success or (len(filtered) < orig_len)
 
 contact_service = ContactService()
 

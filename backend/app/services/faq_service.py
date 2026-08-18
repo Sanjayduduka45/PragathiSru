@@ -77,12 +77,13 @@ class FAQService:
 
     @staticmethod
     async def delete_faq(faq_id: str) -> bool:
-        await db.delete_supabase("faqs", "id", faq_id)
+        supa_success = await db.delete_supabase("faqs", "id", faq_id)
         local = db.load_local()
         items = local.get("faqs", [])
+        orig_len = len(items)
         filtered = [item for item in items if str(item.get("id")) != str(faq_id)]
         local["faqs"] = filtered
         db.save_local(local)
-        return True
+        return supa_success or (len(filtered) < orig_len)
 
 faq_service = FAQService()

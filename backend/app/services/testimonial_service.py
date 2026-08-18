@@ -322,7 +322,8 @@ class TestimonialService:
         content_type: str,
     ) -> Optional[str]:
 
-        if not settings.supabase_url or not settings.supabase_key:
+        key = settings.get_effective_key()
+        if not settings.supabase_url or not key:
             return None
 
         bucket_url = (
@@ -335,9 +336,9 @@ class TestimonialService:
         )
 
         headers = {
-            "apikey": settings.supabase_key,
+            "apikey": key,
             "Authorization": (
-                f"Bearer {settings.supabase_key}"
+                f"Bearer {key}"
             ),
         }
 

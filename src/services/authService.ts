@@ -31,9 +31,12 @@ export class AuthService {
   public static getRoleRedirectPath(role: AppRole | string): string {
     switch (role?.toLowerCase()) {
       case 'admin':
+      case 'superadmin':
+      case 'coordinator':
         return '/admin';
+      case 'jury':
       case 'judge':
-        return '/judge';
+        return '/jury';
       case 'participant':
         return '/participant';
       default:
@@ -93,22 +96,49 @@ export class AuthService {
         });
 
         if (!error && data.user) {
-          // Resolve role from user_roles
-          let resolvedRole: AppRole = 'admin';
-          const { data: roleData } = await supabase
+          // Resolve role strictly by authenticated user UUID from user_roles
+          let resolvedRole: AppRole | undefined = undefined;
+          const { data: roleRow, error: roleError } = await supabase
             .from('user_roles')
-            .select('role, is_active, display_name, department')
-            .ilike('user_email', cleanEmail)
-            .limit(1);
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
 
-          if (roleData && roleData.length > 0) {
-            if (roleData[0].is_active === false) {
-              return { success: false, error: 'Your account is currently inactive. Please contact the administrator.' };
+          console.log('=== ROLE DEBUG (authService) ===');
+          console.log('Auth user ID:', data.user.id);
+          console.log('Auth email:', data.user.email);
+          console.log('Role row:', roleRow);
+          console.log('Role error:', roleError);
+          console.log('================================');
+
+          if (roleRow && roleRow.role) {
+            const dbRole = roleRow.role.toLowerCase();
+            if (dbRole === 'jury' || dbRole === 'judge') {
+              resolvedRole = 'jury';
+            } else if (dbRole === 'admin' || dbRole === 'superadmin' || dbRole === 'coordinator') {
+              resolvedRole = 'admin';
+            } else if (dbRole === 'participant') {
+              resolvedRole = 'participant';
             }
-            const dbRole = (roleData[0].role || '').toLowerCase();
-            if (dbRole === 'judge') resolvedRole = 'judge';
-            else if (dbRole === 'participant') resolvedRole = 'participant';
-            else resolvedRole = 'admin';
+          }
+
+          // Fallback check metadata from JWT token
+          if (!resolvedRole) {
+            const metaRole = String(data.user.user_metadata?.role || '').toLowerCase();
+            if (metaRole === 'jury' || metaRole === 'judge') {
+              resolvedRole = 'jury';
+            } else if (metaRole === 'admin' || metaRole === 'superadmin' || metaRole === 'coordinator') {
+              resolvedRole = 'admin';
+            } else if (metaRole === 'participant') {
+              resolvedRole = 'participant';
+            }
+          }
+
+          if (!resolvedRole) {
+            return {
+              success: false,
+              error: 'Your account has no assigned role. Please contact the administrator.',
+            };
           }
 
           return {
@@ -118,8 +148,8 @@ export class AuthService {
               id: data.user.id,
               email: cleanEmail,
               role: resolvedRole,
-              displayName: roleData?.[0]?.display_name || cleanEmail.split('@')[0],
-              department: roleData?.[0]?.department || '',
+              displayName: data.user.user_metadata?.name || cleanEmail.split('@')[0],
+              department: data.user.user_metadata?.department || '',
               isActive: true,
             },
           };

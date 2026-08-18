@@ -462,13 +462,52 @@ export const RegistrationsAdmin: React.FC = () => {
 
     setDeleteLoading(true);
     try {
-      await api.registrations.delete(deleteTarget.id);
+      try {
+        await api.registrations.delete(deleteTarget.id);
+      } catch (fastApiErr: any) {
+        console.warn('[RegistrationsAdmin] FastAPI delete notice, attempting direct Supabase deletion:', fastApiErr);
+        if (isSupabaseConfigured && supabase) {
+          const { data: deletedRows, error: delErr } = await supabase
+            .from('registrations')
+            .delete()
+            .eq('id', deleteTarget.id)
+            .select('id, registration_id');
+
+          if (delErr) {
+            throw new Error(`Database error: ${delErr.message}`);
+          }
+
+          if (!deletedRows || deletedRows.length === 0) {
+            throw new Error(`Deletion failed: Zero rows were deleted. Please verify admin permissions or session.`);
+          }
+        } else {
+          throw fastApiErr;
+        }
+      }
+
+      // Explicit verification check (confirm parent row no longer exists in PostgreSQL)
+      if (isSupabaseConfigured && supabase) {
+        const { data: verifyRow, error: verifyErr } = await supabase
+          .from('registrations')
+          .select('id')
+          .eq('id', deleteTarget.id)
+          .maybeSingle();
+
+        if (verifyErr) {
+          console.warn('[RegistrationsAdmin] Verification query warning:', verifyErr);
+        }
+
+        if (verifyRow) {
+          throw new Error(`Deletion verification failed: Record ${deleteTarget.registration_id} is still present in PostgreSQL.`);
+        }
+      }
+
       addToast('success', 'Registration deleted', 'Registration deleted successfully from database.');
       closeDelete();
       await fetchRegistrations();
     } catch (err: any) {
       console.error('Registration deletion error:', err);
-      addToast('error', 'Deletion failed', err?.message || 'Unable to delete registration via FastAPI backend.');
+      addToast('error', 'Deletion failed', err?.message || 'Unable to delete registration. Please try again.');
     } finally {
       setDeleteLoading(false);
     }

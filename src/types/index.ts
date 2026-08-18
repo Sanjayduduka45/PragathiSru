@@ -5,7 +5,7 @@
 
 // ─── ROLES & USERS ─────────────────────────────────────────────────────────────
 
-export type AppRole = 'admin' | 'judge' | 'participant';
+export type AppRole = 'admin' | 'jury' | 'judge' | 'participant';
 
 export interface User {
   id: string;
@@ -20,6 +20,7 @@ export interface User {
 
 export interface Judge {
   id: string;
+  userId?: string;
   name: string;
   email: string;
   department: string;
@@ -29,6 +30,8 @@ export interface Judge {
   createdAt?: string;
 }
 
+export type Jury = Judge;
+
 export interface CreateJudgeInput {
   name: string;
   email: string;
@@ -37,12 +40,16 @@ export interface CreateJudgeInput {
   isActive?: boolean;
 }
 
+export type CreateJuryInput = CreateJudgeInput;
+
 export interface JudgeStats {
   totalJudges: number;
   activeJudges: number;
   totalEvaluations: number;
   pendingEvaluations: number;
 }
+
+export type JuryStats = JudgeStats;
 
 // ─── PARTICIPANTS & PROJECTS ───────────────────────────────────────────────────
 
@@ -111,6 +118,7 @@ export interface SubmitEvaluationPayload {
   projectTitle: string;
   teamName: string;
   category: string;
+  judgeId?: string;
   judgeEmail: string;
   judgeName: string;
   scores: Record<string, number>;

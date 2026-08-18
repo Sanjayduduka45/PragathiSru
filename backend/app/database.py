@@ -284,11 +284,7 @@ class Database:
 
     # --- SUPABASE REST CLIENT ---
     def get_headers(self) -> Dict[str, str]:
-        key = (
-            settings.supabase_key
-            or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-            or os.getenv("SUPABASE_KEY", "")
-        )
+        key = settings.get_effective_key()
         if not key:
             print("[Database Warning] SUPABASE_SERVICE_ROLE_KEY is not configured! Privileged database operations may fail.")
         return {
@@ -299,14 +295,15 @@ class Database:
         }
 
     async def fetch_supabase(self, table: str, query_params: str = "") -> Optional[List[Dict[str, Any]]]:
-        url = f"{settings.supabase_url}/rest/v1/{table}?{query_params}"
+        url = f"{settings.supabase_url}/rest/v1/{table}?{query_params}" if query_params else f"{settings.supabase_url}/rest/v1/{table}"
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.get(url, headers=self.get_headers())
                 if res.status_code == 200:
                     return res.json()
+                print(f"[Supabase] GET '{table}' returned HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
-            print(f"[Supabase] Query error on {table}: {e}")
+            print(f"[Supabase] Query exception on '{table}': {e}")
         return None
 
     async def delete_supabase(self, table: str, eq_column: str, eq_value: str) -> bool:
@@ -319,34 +316,51 @@ class Database:
                 if res.status_code in (200, 204):
                     try:
                         deleted = res.json()
-                        if isinstance(deleted, list) and len(deleted) > 0:
-                            print(f"[Supabase] Successfully deleted {len(deleted)} row(s) from {table}")
-                            return True
+                        if isinstance(deleted, list):
+                            if len(deleted) > 0:
+                                print(f"[Supabase] Successfully deleted {len(deleted)} row(s) from '{table}'")
+                                return True
+                            else:
+                                print(f"[Supabase] DELETE on '{table}' ({eq_column}={eq_value}) affected 0 rows")
+                                return False
                     except Exception:
                         pass
 
-                    check_url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
+                    check_url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}&select={eq_column}"
                     check_res = await client.get(check_url, headers=self.get_headers())
                     if check_res.status_code == 200:
                         data = check_res.json()
                         return len(data) == 0
                     return True
-                print(f"[Supabase] Delete failed on {table} HTTP {res.status_code}: {res.text}")
+                print(f"[Supabase] DELETE failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
-            print(f"[Supabase] Delete error on {table}: {e}")
+            print(f"[Supabase] Delete exception on '{table}': {e}")
         return False
 
     async def update_supabase(self, table: str, eq_column: str, eq_value: str, payload: Dict[str, Any]) -> bool:
         url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.patch(url, headers=self.get_headers(), json=payload)
+                headers = self.get_headers()
+                headers["Prefer"] = "return=representation"
+                res = await client.patch(url, headers=headers, json=payload)
                 if res.status_code in (200, 204):
+                    try:
+                        updated = res.json()
+                        if isinstance(updated, list):
+                            if len(updated) > 0:
+                                print(f"[Supabase] Successfully updated {len(updated)} row(s) in '{table}'")
+                                return True
+                            else:
+                                print(f"[Supabase] UPDATE on '{table}' ({eq_column}={eq_value}) affected 0 rows")
+                                return False
+                    except Exception:
+                        pass
                     return True
-                print(f"[Supabase] Update failed on {table} HTTP {res.status_code}: {res.text}")
+                print(f"[Supabase] UPDATE failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
                 return False
         except Exception as e:
-            print(f"[Supabase] Update error on {table}: {e}")
+            print(f"[Supabase] Update exception on '{table}': {e}")
             return False
 
     async def insert_supabase(self, table: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -359,12 +373,14 @@ class Database:
                 if res.status_code in (200, 201):
                     data = res.json()
                     if isinstance(data, list) and len(data) > 0:
+                        print(f"[Supabase] Successfully inserted row into '{table}'")
                         return data[0]
                     elif isinstance(data, dict):
+                        print(f"[Supabase] Successfully inserted row into '{table}'")
                         return data
-                print(f"[Supabase] Insert failed on {table} HTTP {res.status_code}: {res.text}")
+                print(f"[Supabase] INSERT failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
-            print(f"[Supabase] Insert error on {table}: {e}")
+            print(f"[Supabase] Insert exception on '{table}': {e}")
         return None
 
     async def upsert_supabase(self, table: str, payload: Dict[str, Any], on_conflict: str = "id") -> Optional[Dict[str, Any]]:
@@ -387,19 +403,20 @@ class Database:
                     patch_res = await client.patch(patch_url, headers=self.get_headers(), json=payload)
                     if patch_res.status_code in (200, 204):
                         return payload
-                print(f"[Supabase] Upsert failed on {table} HTTP {res.status_code}: {res.text}")
+                print(f"[Supabase] Upsert failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
-            print(f"[Supabase] Upsert error on {table}: {e}")
+            print(f"[Supabase] Upsert exception on '{table}': {e}")
         return None
 
     async def upload_supabase_storage(self, bucket: str, path: str, content: bytes, content_type: str) -> Optional[str]:
-        if not settings.supabase_url or not settings.supabase_key:
+        key = settings.get_effective_key()
+        if not settings.supabase_url or not key:
             return None
         bucket_url = f"{settings.supabase_url}/storage/v1/bucket"
         upload_url = f"{settings.supabase_url}/storage/v1/object/{bucket}/{path}"
         headers = {
-            "apikey": settings.supabase_key,
-            "Authorization": f"Bearer {settings.supabase_key}",
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
         }
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -417,7 +434,7 @@ class Database:
                 if res.status_code in (200, 201):
                     return f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
                 else:
-                    print(f"[Supabase Storage] Status {res.status_code}: {res.text}")
+                    print(f"[Supabase Storage] Status {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase Storage] Error uploading: {e}")
         return None

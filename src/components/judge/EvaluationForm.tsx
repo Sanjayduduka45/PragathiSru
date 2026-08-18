@@ -16,6 +16,7 @@ interface EvaluationFormProps {
   projectTitle: string;
   teamName: string;
   category: string;
+  judgeId?: string;
   judgeName: string;
   judgeEmail: string;
   criteria?: EvaluationCriterion[];
@@ -31,6 +32,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({
   projectTitle,
   teamName,
   category,
+  judgeId,
   judgeName,
   judgeEmail,
   criteria = DEFAULT_EVALUATION_CRITERIA,
@@ -89,6 +91,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({
         projectTitle,
         teamName,
         category,
+        judgeId,
         judgeName,
         judgeEmail,
         scores,

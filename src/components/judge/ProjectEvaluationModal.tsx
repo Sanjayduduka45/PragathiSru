@@ -41,12 +41,13 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
   // Check if current judge has already evaluated this project
   useEffect(() => {
     let isMounted = true;
-    if (isOpen && project && currentJudge.email) {
+    if (isOpen && project && (currentJudge.userId || currentJudge.id || currentJudge.email)) {
       setCheckingExisting(true);
 
+      const judgeIdentifier = currentJudge.userId || currentJudge.id || currentJudge.email;
       Promise.all([
         EvaluationService.getEvaluationForJudgeAndProject(
-          currentJudge.email,
+          judgeIdentifier,
           project.registrationId
         ),
         EvaluationService.getCriteria(),
@@ -69,7 +70,7 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, project, currentJudge.email]);
+  }, [isOpen, project, currentJudge.userId, currentJudge.id, currentJudge.email]);
 
   const handleFormSuccess = (newEval: Evaluation) => {
     setExistingEval(newEval);
@@ -166,6 +167,7 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
               projectTitle={project.title}
               teamName={project.teamName}
               category={project.category}
+              judgeId={currentJudge.userId || currentJudge.id}
               judgeName={currentJudge.name}
               judgeEmail={currentJudge.email}
               criteria={criteria}
@@ -193,6 +195,7 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
             projectTitle={project.title}
             teamName={project.teamName}
             category={project.category}
+            judgeId={currentJudge.userId || currentJudge.id}
             judgeName={currentJudge.name}
             judgeEmail={currentJudge.email}
             criteria={criteria}

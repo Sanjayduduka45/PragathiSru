@@ -30,8 +30,8 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({ childr
     if (role === 'participant') {
       return <Navigate to="/participant" replace />;
     }
-    if (role === 'judge' || role === 'jury') {
-      return <Navigate to="/judge" replace />;
+    if (role === 'jury' || role === 'judge') {
+      return <Navigate to="/jury" replace />;
     }
     return <Navigate to="/login" replace />;
   }

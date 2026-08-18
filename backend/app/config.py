@@ -1,3 +1,4 @@
+import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,10 +25,19 @@ class Settings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=(".env", "../.env", "../../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
+    def get_effective_key(self) -> str:
+        return (
+            self.supabase_key
+            or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+            or os.getenv("SUPABASE_KEY", "")
+            or os.getenv("VITE_SUPABASE_SERVICE_ROLE_KEY", "")
+        )
+
 
 settings = Settings()
+

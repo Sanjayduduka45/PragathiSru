@@ -9,7 +9,7 @@ interface ProtectedParticipantRouteProps {
 
 export const ProtectedParticipantRoute: React.FC<ProtectedParticipantRouteProps> = ({ children }) => {
   const { session, loading: participantLoading } = useParticipantAuth();
-  const { user, isAdmin, isJudge, loading: adminLoading } = useAdminAuth();
+  const { user, role, isAdmin, isJury, isJudge, loading: adminLoading } = useAdminAuth();
 
   if (participantLoading || adminLoading) {
     return (
@@ -19,10 +19,14 @@ export const ProtectedParticipantRoute: React.FC<ProtectedParticipantRouteProps>
     );
   }
 
-  // If authenticated as admin or judge, block access to participant portal
+  // If authenticated as admin, jury, or judge, block access to participant portal
   if (user) {
-    if (isAdmin) return <Navigate to="/admin" replace />;
-    if (isJudge) return <Navigate to="/judge" replace />;
+    if (isAdmin || role === 'admin' || role === 'superadmin' || role === 'coordinator') {
+      return <Navigate to="/admin" replace />;
+    }
+    if (isJury || isJudge || role === 'jury' || role === 'judge') {
+      return <Navigate to="/jury" replace />;
+    }
   }
 
   if (!session) {

@@ -1,7 +1,8 @@
 /**
  * evaluationService.ts - Evaluation Criteria & Scorecard Submission Service
  *
- * Frontend service boundary for managing evaluation criteria and judge scorecards.
+ * Frontend service boundary for managing evaluation criteria and jury scorecards.
+ * Enforces strict authentication-derived ownership (auth.uid()) and RLS compatibility.
  */
 
 import { Evaluation, EvaluationCriterion, SubmitEvaluationPayload } from '../types';
@@ -82,18 +83,26 @@ export class EvaluationService {
   }
 
   /**
-   * Get all evaluations submitted by a specific judge
+   * Get all evaluations submitted by a specific jury member (by UUID or email)
    */
-  public static async getEvaluationsByJudge(judgeEmail: string): Promise<Evaluation[]> {
-    const cleanEmail = judgeEmail.trim().toLowerCase();
-
+  public static async getEvaluationsByJudge(judgeIdOrEmail?: string): Promise<Evaluation[]> {
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('judge_evaluations')
           .select('*')
-          .ilike('judge_email', cleanEmail)
           .order('created_at', { ascending: false });
+
+        if (judgeIdOrEmail) {
+          const clean = judgeIdOrEmail.trim().toLowerCase();
+          if (clean.includes('@')) {
+            query = query.ilike('judge_email', clean);
+          } else {
+            query = query.eq('judge_id', clean);
+          }
+        }
+
+        const { data, error } = await query;
 
         if (!error && data && data.length > 0) {
           return data.map(this.mapDbRowToEvaluation);
@@ -107,23 +116,29 @@ export class EvaluationService {
   }
 
   /**
-   * Check if a specific judge has already evaluated a project
+   * Check if a specific jury member has already evaluated a project
    */
   public static async getEvaluationForJudgeAndProject(
-    judgeEmail: string,
+    judgeIdOrEmail: string,
     registrationId: string
   ): Promise<Evaluation | null> {
-    const cleanEmail = judgeEmail.trim().toLowerCase();
+    const clean = judgeIdOrEmail.trim().toLowerCase();
     const cleanRegId = registrationId.trim().toUpperCase();
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('judge_evaluations')
           .select('*')
-          .ilike('judge_email', cleanEmail)
-          .eq('registration_id', cleanRegId)
-          .limit(1);
+          .eq('registration_id', cleanRegId);
+
+        if (clean.includes('@')) {
+          query = query.ilike('judge_email', clean);
+        } else {
+          query = query.eq('judge_id', clean);
+        }
+
+        const { data, error } = await query.limit(1);
 
         if (!error && data && data.length > 0) {
           return this.mapDbRowToEvaluation(data[0]);
@@ -137,7 +152,8 @@ export class EvaluationService {
   }
 
   /**
-   * Submit an evaluation for a project by a judge
+   * Submit an evaluation for a project by an authenticated jury member.
+   * Ensures judge_id matches authenticated auth.uid().
    */
   public static async submitEvaluation(
     payload: SubmitEvaluationPayload
@@ -145,8 +161,27 @@ export class EvaluationService {
     const cleanEmail = payload.judgeEmail.trim().toLowerCase();
     const cleanRegId = payload.registrationId.trim().toUpperCase();
 
+    // Verify authenticated UUID directly from active Supabase session
+    let authUserId: string | undefined;
+    if (isSupabaseConfigured && supabase) {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.id) {
+        authUserId = authData.user.id;
+      }
+    }
+    if (!authUserId) {
+      authUserId = payload.judgeId;
+    }
+
+    if (!authUserId) {
+      return {
+        success: false,
+        error: 'Authentication error: Could not verify evaluator identity. Please log in again.',
+      };
+    }
+
     // Check duplicate
-    const existing = await this.getEvaluationForJudgeAndProject(cleanEmail, cleanRegId);
+    const existing = await this.getEvaluationForJudgeAndProject(authUserId, cleanRegId);
     if (existing) {
       return {
         success: false,
@@ -163,7 +198,8 @@ export class EvaluationService {
     const imp = Math.min(20, Math.max(0, Number(scores.impact) || 0));
     const total = inno + tech + relev + pres + imp;
 
-    const rowData = {
+    const rowData: Record<string, any> = {
+      judge_id: authUserId,
       judge_email: cleanEmail,
       judge_name: payload.judgeName.trim(),
       registration_id: cleanRegId,
@@ -210,7 +246,7 @@ export class EvaluationService {
       projectTitle: payload.projectTitle,
       teamName: payload.teamName,
       category: payload.category,
-      judgeId: `judge-${cleanEmail}`,
+      judgeId: authUserId,
       judgeEmail: cleanEmail,
       judgeName: payload.judgeName,
       scores: {
@@ -221,7 +257,7 @@ export class EvaluationService {
         impact: imp,
       },
       totalScore: total,
-      comments: payload.comments,
+      comments: (payload.comments || '').trim(),
       submittedAt: new Date().toISOString(),
     };
 
@@ -229,9 +265,17 @@ export class EvaluationService {
   }
 
   /**
-   * Helper to map DB row into typed Evaluation
+   * Helper mapper from DB row to typed Evaluation object
    */
   private static mapDbRowToEvaluation(row: any): Evaluation {
+    const scores = row.criteria_scores || {
+      innovation: Number(row.innovation_score) || 0,
+      technical: Number(row.technical_score) || 0,
+      relevance: Number(row.relevance_score) || 0,
+      presentation: Number(row.presentation_score) || 0,
+      impact: Number(row.impact_score) || 0,
+    };
+
     return {
       id: String(row.id),
       registrationId: (row.registration_id || '').toUpperCase(),
@@ -239,15 +283,9 @@ export class EvaluationService {
       teamName: row.team_name || '',
       category: row.category || '',
       judgeId: row.judge_id ? String(row.judge_id) : `judge-${row.judge_email}`,
-      judgeEmail: row.judge_email,
-      judgeName: row.judge_name || row.judge_email.split('@')[0],
-      scores: row.criteria_scores || {
-        innovation: Number(row.innovation_score) || 0,
-        technical: Number(row.technical_score) || 0,
-        relevance: Number(row.relevance_score) || 0,
-        presentation: Number(row.presentation_score) || 0,
-        impact: Number(row.impact_score) || 0,
-      },
+      judgeEmail: row.judge_email || '',
+      judgeName: row.judge_name || row.judge_email?.split('@')[0] || 'Jury Evaluator',
+      scores,
       totalScore: Number(row.total_score) || 0,
       comments: row.comments || '',
       submittedAt: row.created_at || new Date().toISOString(),

@@ -12,6 +12,7 @@ import { AdminPageSkeleton } from './components/admin/AdminSkeleton';
 import { ParticipantAuthProvider } from './context/ParticipantAuthContext';
 import { ProtectedParticipantRoute } from './pages/ProtectedParticipantRoute';
 import { ProtectedJudgeRoute } from './pages/judge/ProtectedJudgeRoute';
+import { ProtectedJuryRoute } from './pages/jury/ProtectedJuryRoute';
 
 // Lazy-loaded Public Secondary & Participant Routes
 const About = React.lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
@@ -22,6 +23,7 @@ const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then((m) => ({ 
 const ParticipantLogin = React.lazy(() => import('./pages/ParticipantLogin').then((m) => ({ default: m.ParticipantLogin })));
 const Login = React.lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const ParticipantDashboard = React.lazy(() => import('./pages/ParticipantDashboard').then((m) => ({ default: m.ParticipantDashboard })));
+const JuryDashboard = React.lazy(() => import('./pages/jury/JuryDashboard').then((m) => ({ default: m.JuryDashboard })));
 const JudgeDashboard = React.lazy(() => import('./pages/judge/JudgeDashboard').then((m) => ({ default: m.JudgeDashboard })));
 
 // Lazy-loaded Admin Routes for code splitting & faster initial page load
@@ -38,7 +40,6 @@ const ContactAdmin = React.lazy(() => import('./pages/admin/content/ContactAdmin
 const TestimonialsAdmin = React.lazy(() => import('./pages/admin/content/TestimonialsAdmin').then((m) => ({ default: m.TestimonialsAdmin })));
 const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon').then((m) => ({ default: m.AdminComingSoon })));
 const PostersAdmin = React.lazy(() => import('./pages/admin/PostersAdmin').then((m) => ({ default: m.PostersAdmin })));
-const JudgesAdmin = React.lazy(() => import('./pages/admin/JudgesAdmin').then((m) => ({ default: m.JudgesAdmin })));
 const ResultsAdmin = React.lazy(() => import('./pages/admin/ResultsAdmin').then((m) => ({ default: m.ResultsAdmin })));
 const SettingsAdmin = React.lazy(() => import('./pages/admin/SettingsAdmin').then((m) => ({ default: m.SettingsAdmin })));
 
@@ -98,20 +99,33 @@ export default function App() {
             }
           />
 
-          {/* Judge Protected Single-Page Dashboard */}
+          {/* Jury Protected Single-Page Portal */}
+          <Route
+            path="/jury"
+            element={
+              <ProtectedJuryRoute>
+                <Suspense fallback={neutralLoader}>
+                  <JuryDashboard />
+                </Suspense>
+              </ProtectedJuryRoute>
+            }
+          />
+
+          {/* Judge Protected Dashboard (compatibility alias to /jury) */}
           <Route
             path="/judge"
             element={
-              <ProtectedJudgeRoute>
+              <ProtectedJuryRoute>
                 <Suspense fallback={neutralLoader}>
-                  <JudgeDashboard />
+                  <JuryDashboard />
                 </Suspense>
-              </ProtectedJudgeRoute>
+              </ProtectedJuryRoute>
             }
           />
 
           {/* Legacy Login Redirects */}
           <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+          <Route path="/jury/login" element={<Navigate to="/login" replace />} />
           <Route path="/judge/login" element={<Navigate to="/login" replace />} />
           <Route path="/participant/login" element={<Navigate to="/login" replace />} />
 
@@ -139,7 +153,6 @@ export default function App() {
                       <Route path="/registrations" element={<RegistrationsAdmin />} />
                       <Route path="/posters" element={<PostersAdmin />} />
                       <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
-                      <Route path="/judges" element={<JudgesAdmin />} />
                       <Route path="/results" element={<ResultsAdmin />} />
                       <Route path="/settings" element={<SettingsAdmin />} />
 

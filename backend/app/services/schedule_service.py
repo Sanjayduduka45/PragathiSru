@@ -83,12 +83,13 @@ class ScheduleService:
 
     @staticmethod
     async def delete_schedule_item(item_id: str) -> bool:
-        await db.delete_supabase("schedule_items", "id", item_id)
+        supa_success = await db.delete_supabase("schedule_items", "id", item_id)
         local = db.load_local()
         items = local.get("schedule_items", [])
+        orig_len = len(items)
         filtered = [item for item in items if str(item.get("id")) != str(item_id)]
         local["schedule_items"] = filtered
         db.save_local(local)
-        return True
+        return supa_success or (len(filtered) < orig_len)
 
 schedule_service = ScheduleService()

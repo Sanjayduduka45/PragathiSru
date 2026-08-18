@@ -3,7 +3,6 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
-  Calendar,
   HelpCircle,
   Users,
   Trophy,
@@ -20,7 +19,6 @@ import {
   BookOpen,
   Phone,
   Star,
-  GraduationCap,
   MessageSquare,
   FileImage,
 } from 'lucide-react';
@@ -63,7 +61,6 @@ const NAV_STRUCTURE: Array<NavLinkItem | { group: string; items: NavLinkItem[] }
     items: [
       { label: 'Registrations', path: '/admin/registrations', icon: <FileText className="w-4 h-4" />, comingSoon: true },
       { label: 'Participants', path: '/admin/participants', icon: <Users className="w-4 h-4" />, comingSoon: true },
-      { label: 'Judges', path: '/admin/judges', icon: <GraduationCap className="w-4 h-4" />, comingSoon: true },
       { label: 'Results', path: '/admin/results', icon: <Trophy className="w-4 h-4" />, comingSoon: true },
     ],
   },
@@ -86,7 +83,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
     location.pathname.startsWith('/admin/registrations') ||
     location.pathname.startsWith('/admin/posters') ||
     location.pathname.startsWith('/admin/participants') ||
-    location.pathname.startsWith('/admin/judges') ||
     location.pathname.startsWith('/admin/results')
   );
 
@@ -110,24 +106,20 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
           <div className="h-9 w-9 flex items-center justify-center shrink-0">
             <img
               src={sruLogo}
-              alt="SR University Logo"
-              className="h-8 w-auto max-w-[36px] object-contain"
+              alt="SR University"
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-extrabold text-[#004182] uppercase tracking-tight leading-none truncate">
-              PRAGATHI 2K26
-            </p>
-            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-              Admin Dashboard
-            </p>
+            <p className="text-xs font-bold text-slate-900 truncate">PRAGATHI 2K26</p>
+            <p className="text-[10px] text-slate-500 font-medium">Expo Administration</p>
           </div>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
-        {/* Dashboard */}
+      {/* Nav List */}
+      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        {/* Dashboard Link */}
         <NavLink
           to="/admin"
           end
@@ -140,61 +132,128 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
           Dashboard
         </NavLink>
 
-        {/* Content Group */}
-        <div className="pt-3 pb-1">
+        {/* Content Section (Collapsible) */}
+        <div className="pt-2">
           <button
             type="button"
             onClick={() => setContentExpanded((v) => !v)}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
           >
             <span>Content</span>
             {contentExpanded ? (
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className="w-3.5 h-3.5" />
             ) : (
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRight className="w-3.5 h-3.5" />
             )}
           </button>
           {contentExpanded && (
             <div className="space-y-0.5 mt-1">
-              {[
-                { label: 'Event Details', path: '/admin/content/event-details', icon: <Building2 className="w-4 h-4" /> },
-                { label: 'About', path: '/admin/content/about', icon: <Info className="w-4 h-4" /> },
-                { label: 'Domains', path: '/admin/content/domains', icon: <Layers className="w-4 h-4" /> },
-                { label: 'Schedule', path: '/admin/content/schedule', icon: <Clock className="w-4 h-4" /> },
-                { label: 'Rules & Guidelines', path: '/admin/content/rules', icon: <BookOpen className="w-4 h-4" /> },
-                { label: 'FAQs', path: '/admin/content/faqs', icon: <HelpCircle className="w-4 h-4" /> },
-                { label: 'Testimonials', path: '/admin/content/testimonials', icon: <MessageSquare className="w-4 h-4" /> },
-                { label: 'Sponsors', path: '/admin/content/sponsors', icon: <Star className="w-4 h-4" /> },
-                { label: 'Contact', path: '/admin/content/contact', icon: <Phone className="w-4 h-4" /> },
-              ].map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
-                  }
-                >
-                  <span className="shrink-0">{item.icon}</span>
-                  {item.label}
-                </NavLink>
-              ))}
+              <NavLink
+                to="/admin/content/event-details"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Building2 className="w-4 h-4 shrink-0" />
+                Event Details
+              </NavLink>
+              <NavLink
+                to="/admin/content/about"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Info className="w-4 h-4 shrink-0" />
+                About
+              </NavLink>
+              <NavLink
+                to="/admin/content/domains"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Layers className="w-4 h-4 shrink-0" />
+                Domains
+              </NavLink>
+              <NavLink
+                to="/admin/content/schedule"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                Schedule
+              </NavLink>
+              <NavLink
+                to="/admin/content/rules"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <BookOpen className="w-4 h-4 shrink-0" />
+                Rules & Guidelines
+              </NavLink>
+              <NavLink
+                to="/admin/content/testimonials"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                Testimonials
+              </NavLink>
+              <NavLink
+                to="/admin/content/faqs"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <HelpCircle className="w-4 h-4 shrink-0" />
+                FAQs
+              </NavLink>
+              <NavLink
+                to="/admin/content/sponsors"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Star className="w-4 h-4 shrink-0" />
+                Sponsors
+              </NavLink>
+              <NavLink
+                to="/admin/content/contact"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Phone className="w-4 h-4 shrink-0" />
+                Contact
+              </NavLink>
             </div>
           )}
         </div>
 
-        {/* Operations Group */}
-        <div className="pt-1 pb-1">
+        {/* Operations Section (Collapsible) */}
+        <div className="pt-2">
           <button
             type="button"
             onClick={() => setOpsExpanded((v) => !v)}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
           >
             <span>Operations</span>
             {opsExpanded ? (
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className="w-3.5 h-3.5" />
             ) : (
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRight className="w-3.5 h-3.5" />
             )}
           </button>
           {opsExpanded && (
@@ -218,16 +277,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
               >
                 <FileImage className="w-4 h-4 shrink-0" />
                 Project Posters
-              </NavLink>
-              <NavLink
-                to="/admin/judges"
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
-                }
-              >
-                <GraduationCap className="w-4 h-4 shrink-0" />
-                Judges
               </NavLink>
               <NavLink
                 to="/admin/results"
