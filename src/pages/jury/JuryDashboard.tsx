@@ -8,53 +8,217 @@ import {
   Clock,
   AlertCircle,
   Search,
-  Building,
-  Users,
-  Eye,
   RefreshCw,
-  Sparkles,
-  Layers,
   ChevronRight,
-  Filter,
-  Check,
-  BookOpen,
+  ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { Project, Evaluation, Judge } from '../../types';
 import { ProjectService } from '../../services/projectService';
 import { EvaluationService } from '../../services/evaluationService';
-import { PROJECT_CATEGORIES } from '../../data/eventData';
 import { QRScannerModal } from '../../components/judge/QRScannerModal';
 import { ProjectEvaluationModal } from '../../components/judge/ProjectEvaluationModal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { EvaluationHistoryView } from './components/EvaluationHistoryView';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return '—';
+  }
+}
+
+function scoreColor(score: number): string {
+  if (score >= 85) return 'text-emerald-700';
+  if (score >= 70) return 'text-[#004182]';
+  if (score >= 50) return 'text-amber-700';
+  return 'text-rose-700';
+}
+
+// ─── Project Confirmation Card ────────────────────────────────────────────────
+
+interface ProjectConfirmCardProps {
+  project: Project;
+  existingEval: Evaluation | null;
+  onStartEvaluation: () => void;
+  onViewEvaluation: () => void;
+  onDismiss: () => void;
+}
+
+const ProjectConfirmCard: React.FC<ProjectConfirmCardProps> = ({
+  project,
+  existingEval,
+  onStartEvaluation,
+  onViewEvaluation,
+  onDismiss,
+}) => {
+  const isEvaluated = existingEval !== null;
+
+  return (
+    <div
+      className={`rounded-2xl border p-5 space-y-4 ${
+        isEvaluated
+          ? 'bg-emerald-50 border-emerald-200'
+          : 'bg-white border-[#004182]/20 shadow-sm'
+      }`}
+    >
+      {/* Status badge */}
+      <div className="flex items-center justify-between gap-2">
+        {isEvaluated ? (
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+              Already Evaluated
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-[#004182] animate-pulse" />
+            <span className="text-xs font-bold text-[#004182] uppercase tracking-wide">
+              Project Found
+            </span>
+          </div>
+        )}
+        <button
+          onClick={onDismiss}
+          className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Project info */}
+      <div className="space-y-1">
+        <p className="font-mono text-xs font-extrabold text-slate-500">
+          {project.registrationId}
+        </p>
+        <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+          {project.title}
+        </h3>
+        <p className="text-xs text-slate-500">
+          Team:{' '}
+          <span className="font-bold text-slate-800">{project.teamName}</span>
+        </p>
+        {isEvaluated && existingEval && (
+          <div className="flex items-center gap-3 pt-1">
+            <span
+              className={`text-sm font-black font-mono ${scoreColor(existingEval.totalScore)}`}
+            >
+              Score: {existingEval.totalScore}
+              <span className="text-slate-400 font-bold text-xs">/100</span>
+            </span>
+            <span className="text-[11px] text-slate-400">
+              · {formatTime(existingEval.submittedAt)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* CTA */}
+      <div className="pt-1">
+        {isEvaluated ? (
+          <button
+            onClick={onViewEvaluation}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white hover:bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-300 transition-colors"
+          >
+            <Award className="w-4 h-4" />
+            View Evaluation
+          </button>
+        ) : (
+          <button
+            onClick={onStartEvaluation}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+          >
+            <Award className="w-4 h-4 text-amber-300" />
+            Start Evaluation
+            <ArrowRight className="w-4 h-4 text-blue-200" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Recent Evaluation Row ────────────────────────────────────────────────────
+
+interface RecentEvalRowProps {
+  evaluation: Evaluation;
+  onClick: () => void;
+}
+
+const RecentEvalRow: React.FC<RecentEvalRowProps> = ({ evaluation, onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-full text-left flex items-center gap-3 py-3 px-4 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors group"
+  >
+    <div className="flex-1 min-w-0">
+      <p className="text-xs font-bold text-slate-900 truncate">{evaluation.projectTitle}</p>
+      <p className="font-mono text-[11px] text-slate-400 mt-0.5">{evaluation.registrationId}</p>
+    </div>
+    <div className="text-right shrink-0">
+      <p className={`text-sm font-black font-mono ${scoreColor(evaluation.totalScore)}`}>
+        {evaluation.totalScore}
+        <span className="text-[10px] text-slate-400 font-bold">/100</span>
+      </p>
+      <div className="flex items-center justify-end gap-1 mt-0.5">
+        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+        <span className="text-[10px] font-semibold text-emerald-700">Evaluated</span>
+      </div>
+    </div>
+    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
+  </button>
+);
+
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export const JuryDashboard: React.FC = () => {
   const { user, signOut } = useAdminAuth();
   const navigate = useNavigate();
   const { toasts, addToast, dismissToast } = useAdminToast();
 
+  // ── Core data state ──────────────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
   const [myEvaluations, setMyEvaluations] = useState<Evaluation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
 
-  // Modals state
+  // ── Lookup state ─────────────────────────────────────────────────────────────
+  const [lookupId, setLookupId] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  // ── Found project (after QR or manual lookup) ────────────────────────────────
+  const [foundProject, setFoundProject] = useState<Project | null>(null);
+  const [foundProjectEval, setFoundProjectEval] = useState<Evaluation | null>(null);
+
+  // ── Modal state ──────────────────────────────────────────────────────────────
   const [scannerOpen, setScannerOpen] = useState(false);
   const [evalModalOpen, setEvalModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  // ── History view ─────────────────────────────────────────────────────────────
+  const [showHistory, setShowHistory] = useState(false);
+  const [historySelectedEval, setHistorySelectedEval] = useState<Evaluation | null>(null);
+
+  // ── Derived jury info ────────────────────────────────────────────────────────
   const juryEmail = user?.email || 'jury@sru.edu.in';
   const juryName =
     user?.user_metadata?.display_name ||
     user?.user_metadata?.name ||
-    user?.email?.split('@')[0].replace('.', ' ') ||
+    user?.email?.split('@')[0]?.replace('.', ' ') ||
     'Jury Evaluator';
 
+  // ── Load data ────────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -66,7 +230,7 @@ export const JuryDashboard: React.FC = () => {
       setMyEvaluations(evals);
     } catch (err) {
       console.error('[JuryDashboard] Failed to load data:', err);
-      addToast('error', 'Load Error', 'Could not refresh projects list.');
+      addToast('error', 'Load Error', 'Could not refresh data.');
     } finally {
       setLoading(false);
     }
@@ -76,73 +240,141 @@ export const JuryDashboard: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Set of registration IDs evaluated by this jury member
-  const myEvaluatedIds = useMemo(() => {
-    return new Set(myEvaluations.map((e) => e.registrationId.toUpperCase()));
-  }, [myEvaluations]);
+  // ── Derived sets ─────────────────────────────────────────────────────────────
+  const myEvaluatedIds = useMemo(
+    () => new Set(myEvaluations.map((e) => e.registrationId.toUpperCase())),
+    [myEvaluations]
+  );
 
-  // Score map for quick lookup
-  const myScoreMap = useMemo(() => {
-    const map = new Map<string, number>();
-    myEvaluations.forEach((e) => map.set(e.registrationId.toUpperCase(), e.totalScore));
+  const myEvalMap = useMemo(() => {
+    const map = new Map<string, Evaluation>();
+    myEvaluations.forEach((e) => map.set(e.registrationId.toUpperCase(), e));
     return map;
   }, [myEvaluations]);
 
-  // Stats calculation
+  // ── Stats ────────────────────────────────────────────────────────────────────
   const totalProjects = projects.length;
   const completedCount = myEvaluations.length;
   const pendingCount = Math.max(0, totalProjects - completedCount);
-  const progressPercent = totalProjects > 0 ? Math.round((completedCount / totalProjects) * 100) : 0;
+  const progressPercent =
+    totalProjects > 0 ? Math.round((completedCount / totalProjects) * 100) : 0;
 
-  // Filter projects list
-  const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
-      const isEvaluated = myEvaluatedIds.has(p.registrationId.toUpperCase());
+  // ── Recent evaluations (last 4) ───────────────────────────────────────────────
+  const recentEvaluations = useMemo(() => myEvaluations.slice(0, 4), [myEvaluations]);
 
-      // Tab filter
-      if (activeTab === 'pending' && isEvaluated) return false;
-      if (activeTab === 'completed' && !isEvaluated) return false;
+  // ── Project lookup helper ─────────────────────────────────────────────────────
+  const resolveProject = useCallback(
+    async (registrationId: string): Promise<Project | null> => {
+      const cleanId = registrationId.trim().toUpperCase();
 
-      // Category filter
-      if (categoryFilter !== 'ALL' && p.category.toLowerCase() !== categoryFilter.toLowerCase()) {
-        return false;
+      // Try from already-loaded list first (fast path)
+      const fromCache = projects.find(
+        (p) => p.registrationId.toUpperCase() === cleanId
+      );
+      if (fromCache) return fromCache;
+
+      // Fall back to direct DB lookup
+      return ProjectService.getProjectByRegistrationId(cleanId);
+    },
+    [projects]
+  );
+
+  // ── Set found project with evaluation status ──────────────────────────────────
+  const setFoundProjectWithEval = useCallback(
+    (project: Project) => {
+      setFoundProject(project);
+      const existingEval = myEvalMap.get(project.registrationId.toUpperCase()) || null;
+      setFoundProjectEval(existingEval);
+    },
+    [myEvalMap]
+  );
+
+  // ── QR scan handler ───────────────────────────────────────────────────────────
+  const handleQRScanSuccess = useCallback(
+    async (registrationId: string) => {
+      setScannerOpen(false);
+      setLookupError(null);
+      setFoundProject(null);
+      setFoundProjectEval(null);
+      setLookupLoading(true);
+
+      try {
+        const project = await resolveProject(registrationId);
+        if (project) {
+          setFoundProjectWithEval(project);
+          addToast('success', 'Project Located', `${project.title} — ${project.teamName}`);
+        } else {
+          addToast(
+            'error',
+            'Not Found',
+            `No project found for ${registrationId}. Check the QR code.`
+          );
+        }
+      } catch {
+        addToast('error', 'Lookup Failed', 'Could not look up the project. Try again.');
+      } finally {
+        setLookupLoading(false);
       }
+    },
+    [resolveProject, setFoundProjectWithEval, addToast]
+  );
 
-      // Search keyword
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase();
-        const matches =
-          p.teamName.toLowerCase().includes(query) ||
-          p.registrationId.toLowerCase().includes(query) ||
-          p.title.toLowerCase().includes(query) ||
-          p.leaderName.toLowerCase().includes(query);
-        if (!matches) return false;
+  // ── Manual lookup ─────────────────────────────────────────────────────────────
+  const handleManualLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const raw = lookupId.trim();
+    if (!raw) return;
+
+    // Accept bare 6-char codes or full PRAGATHI26-XXXXXX
+    const cleanId = /^PRAGATHI(?:26)?-/i.test(raw)
+      ? raw.toUpperCase()
+      : `PRAGATHI26-${raw.toUpperCase()}`;
+
+    setLookupError(null);
+    setFoundProject(null);
+    setFoundProjectEval(null);
+    setLookupLoading(true);
+
+    try {
+      const project = await resolveProject(cleanId);
+      if (project) {
+        setFoundProjectWithEval(project);
+      } else {
+        setLookupError(`No project found for "${cleanId}". Please verify the Registration ID.`);
       }
+    } catch {
+      setLookupError('Lookup failed. Please try again.');
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
-      return true;
-    });
-  }, [projects, myEvaluatedIds, activeTab, categoryFilter, searchTerm]);
-
-  // Handle opening evaluation modal
+  // ── Open evaluation modal ─────────────────────────────────────────────────────
   const handleOpenEvaluation = (project: Project) => {
     setSelectedProject(project);
     setEvalModalOpen(true);
   };
 
-  // Handle QR code scan result
-  const handleQRScanSuccess = (project: Project) => {
-    setScannerOpen(false);
-    handleOpenEvaluation(project);
-    addToast('success', 'Project Located', `Ready to evaluate ${project.teamName} (${project.registrationId}).`);
-  };
-
-  // Handle successful evaluation submission
+  // ── Evaluation submitted ──────────────────────────────────────────────────────
   const handleEvaluationSubmitted = (newEval: Evaluation) => {
     setMyEvaluations((prev) => {
-      const filtered = prev.filter((e) => e.registrationId.toUpperCase() !== newEval.registrationId.toUpperCase());
+      const filtered = prev.filter(
+        (e) => e.registrationId.toUpperCase() !== newEval.registrationId.toUpperCase()
+      );
       return [newEval, ...filtered];
     });
-    addToast('success', 'Scorecard Submitted', `Evaluation for ${newEval.teamName} has been recorded.`);
+    // Update found project eval if the confirmation card is still visible
+    if (
+      foundProject &&
+      foundProject.registrationId.toUpperCase() === newEval.registrationId.toUpperCase()
+    ) {
+      setFoundProjectEval(newEval);
+    }
+    addToast(
+      'success',
+      'Scorecard Submitted',
+      `Evaluation for ${newEval.teamName} has been recorded.`
+    );
     setEvalModalOpen(false);
   };
 
@@ -151,26 +383,40 @@ export const JuryDashboard: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
-  const currentJuryObj: Judge = useMemo(() => ({
-    id: user?.id || 'jury-current',
-    userId: user?.id,
-    name: juryName,
-    email: juryEmail,
-    department: (user?.user_metadata?.department as string) || 'Jury Panel',
-    isActive: true,
-    evaluationsCompleted: completedCount,
-  }), [user, juryName, juryEmail, completedCount]);
+  const currentJuryObj: Judge = useMemo(
+    () => ({
+      id: user?.id || 'jury-current',
+      userId: user?.id,
+      name: juryName,
+      email: juryEmail,
+      department: (user?.user_metadata?.department as string) || 'Jury Panel',
+      isActive: true,
+      evaluationsCompleted: completedCount,
+    }),
+    [user, juryName, juryEmail, completedCount]
+  );
 
+  // ── Recent eval click — open history eval detail ──────────────────────────────
+  const handleRecentEvalClick = (ev: Evaluation) => {
+    setHistorySelectedEval(ev);
+    setShowHistory(true);
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       <ToastContainer toasts={toasts} dismissToast={dismissToast} />
 
-      {/* ── TOP HEADER / NAVBAR ───────────────────────────────────────────── */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      {/* ── HEADER ─────────────────────────────────────────────────────────────── */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Logo & Title */}
           <div className="flex items-center gap-3">
-            <img src={sruLogo} alt="SR University" className="h-9 w-auto object-contain rounded-sm" />
+            <img
+              src={sruLogo}
+              alt="SR University"
+              className="h-9 w-auto object-contain rounded-sm"
+            />
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
             <div>
               <div className="flex items-center gap-2">
@@ -182,29 +428,34 @@ export const JuryDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 hidden sm:block">
-                National Level Project Expo &bull; SR University
+                National Level Project Expo · SR University
               </p>
             </div>
           </div>
 
-          {/* User Profile & Actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          {/* Actions */}
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-bold text-slate-900 leading-none">{juryName}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[180px]">{juryEmail}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[180px]">
+                {juryEmail}
+              </p>
             </div>
 
-            {/* Scan QR Button */}
             <button
-              onClick={() => setScannerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-gradient-to-r from-[#004182] to-blue-700 hover:from-[#003366] hover:to-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+              onClick={() => {
+                setScannerOpen(true);
+                setFoundProject(null);
+                setFoundProjectEval(null);
+                setLookupError(null);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
               title="Scan Project QR Code"
             >
               <QrCode className="w-4 h-4" />
               <span className="hidden sm:inline">Scan QR</span>
             </button>
 
-            {/* Logout Button */}
             <button
               onClick={handleSignOut}
               className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 border border-slate-200 hover:border-red-200 hover:bg-red-50 text-slate-600 hover:text-red-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
@@ -217,284 +468,247 @@ export const JuryDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
-        {/* Welcome Banner & Quick Stats */}
-        <div className="bg-gradient-to-r from-[#004182] via-[#004182] to-indigo-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
-          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 skew-x-12 transform origin-top-right pointer-events-none" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-blue-100 text-xs font-semibold backdrop-blur-xs">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Jury Scorecard Panel</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
-                Welcome, {juryName}
-              </h2>
-              <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
-                Evaluate student projects across Innovation, Technical Depth, Problem Relevance, Presentation, and Feasibility.
-              </p>
-            </div>
+      {/* ── MAIN ───────────────────────────────────────────────────────────────── */}
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-5">
 
-            {/* Quick Summary Cards */}
-            <div className="grid grid-cols-3 gap-3 shrink-0 bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/10">
-              <div className="text-center px-3 py-1.5">
-                <p className="text-xl sm:text-2xl font-black text-white">{totalProjects}</p>
-                <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-wider mt-0.5">
-                  Projects
-                </p>
-              </div>
-              <div className="text-center px-3 py-1.5 border-x border-white/15">
-                <p className="text-xl sm:text-2xl font-black text-emerald-300">{completedCount}</p>
-                <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-wider mt-0.5">
-                  Evaluated
-                </p>
-              </div>
-              <div className="text-center px-3 py-1.5">
-                <p className="text-xl sm:text-2xl font-black text-amber-300">{pendingCount}</p>
-                <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-wider mt-0.5">
-                  Pending
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mt-6 pt-5 border-t border-white/15">
-            <div className="flex items-center justify-between text-xs font-bold mb-2">
-              <span className="text-blue-100">Evaluation Progress</span>
-              <span className="text-white">{completedCount} of {totalProjects} Projects ({progressPercent}%)</span>
-            </div>
-            <div className="w-full h-2.5 bg-white/15 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 transition-all duration-500 rounded-full"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ── CONTROLS & FILTER BAR ────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-4">
-          {/* Top Row: Search & Status Tabs */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by team, title, or ID (e.g. PRAGATHI26-000001)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#004182]/20 focus:border-[#004182] transition-all"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Status Filter Tabs */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto">
-              <button
-                onClick={() => setActiveTab('all')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'all'
-                    ? 'bg-white text-[#004182] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All ({totalProjects})
-              </button>
-              <button
-                onClick={() => setActiveTab('pending')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'pending'
-                    ? 'bg-white text-amber-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Pending ({pendingCount})
-              </button>
-              <button
-                onClick={() => setActiveTab('completed')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'completed'
-                    ? 'bg-white text-emerald-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Evaluated ({completedCount})
-              </button>
-            </div>
-          </div>
-
-          {/* Category Filter Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
-            <span className="text-slate-500 font-bold shrink-0 flex items-center gap-1">
-              <Filter className="w-3 h-3" /> Category:
-            </span>
-            <button
-              onClick={() => setCategoryFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg font-bold shrink-0 transition-all cursor-pointer ${
-                categoryFilter === 'ALL'
-                  ? 'bg-[#004182] text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              All Domains
-            </button>
-            {PROJECT_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setCategoryFilter(cat.title)}
-                className={`px-2.5 py-1 rounded-lg font-medium shrink-0 transition-all cursor-pointer ${
-                  categoryFilter.toLowerCase() === cat.title.toLowerCase()
-                    ? 'bg-[#004182] text-white font-bold'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {cat.title}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── PROJECTS LIST / GRID ─────────────────────────────────────────── */}
+        {/* Loading skeleton */}
         {loading ? (
-          <div className="bg-white rounded-2xl p-12 border border-slate-200 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="w-8 h-8 text-[#004182] animate-spin" />
-            <p className="text-xs font-bold text-slate-600">Loading project directory...</p>
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center gap-3">
+            <RefreshCw className="w-7 h-7 text-[#004182] animate-spin" />
+            <p className="text-xs font-semibold text-slate-500">Loading dashboard...</p>
           </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 border border-slate-200 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-              <Layers className="w-6 h-6" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">No Projects Found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              {searchTerm || categoryFilter !== 'ALL' || activeTab !== 'all'
-                ? 'No projects match your current filter criteria. Try resetting filters.'
-                : 'No projects have registered yet.'}
-            </p>
-            {(searchTerm || categoryFilter !== 'ALL' || activeTab !== 'all') && (
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setCategoryFilter('ALL');
-                  setActiveTab('all');
-                }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-              >
-                Reset Filters
-              </button>
-            )}
-          </div>
+        ) : showHistory ? (
+          /* ── HISTORY VIEW ─────────────────────────────────────────────────── */
+          <EvaluationHistoryView
+            evaluations={myEvaluations}
+            onBack={() => {
+              setShowHistory(false);
+              setHistorySelectedEval(null);
+            }}
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredProjects.map((project) => {
-              const isEvaluated = myEvaluatedIds.has(project.registrationId.toUpperCase());
-              const evalScore = myScoreMap.get(project.registrationId.toUpperCase());
-
-              return (
-                <div
-                  key={project.id || project.registrationId}
-                  className={`bg-white rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md ${
-                    isEvaluated ? 'border-emerald-200/80 bg-emerald-50/10' : 'border-slate-200 hover:border-blue-300'
-                  }`}
-                >
-                  <div className="p-5 space-y-3">
-                    {/* Card Top: ID and Status */}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11px] font-extrabold bg-slate-100 text-[#004182] px-2 py-0.5 rounded-md border border-slate-200">
-                        {project.registrationId}
-                      </span>
-                      {isEvaluated ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                          <Check className="w-3 h-3 text-emerald-600" />
-                          <span>Score: {evalScore}/100</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                          <Clock className="w-3 h-3 text-amber-600" />
-                          <span>Pending</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Project Title */}
+          /* ── MAIN DASHBOARD ───────────────────────────────────────────────── */
+          <>
+            {/* ── WELCOME & PROGRESS ──────────────────────────────────────────── */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              {/* Blue left accent strip */}
+              <div className="flex">
+                <div className="w-1 bg-[#004182] shrink-0" />
+                <div className="flex-1 p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2">
-                        {project.title}
-                      </h3>
-                      <p className="text-xs text-slate-500 font-medium mt-1">
-                        Team: <span className="text-slate-800 font-bold">{project.teamName}</span>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        Jury Scorecard Panel
+                      </p>
+                      <h2 className="text-base font-extrabold text-slate-900 mt-1">
+                        Welcome, {juryName}
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Evaluate student projects efficiently.
                       </p>
                     </div>
 
-                    {/* Category Badge */}
-                    <div>
-                      <span className="inline-block text-[10px] font-bold bg-blue-50 text-[#004182] border border-blue-100 px-2 py-0.5 rounded-md">
-                        {project.category}
-                      </span>
-                    </div>
-
-                    {/* Metadata summary */}
-                    <div className="text-[11px] text-slate-600 space-y-1 pt-1 border-t border-slate-100">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{project.institutionName || 'SR University'}</span>
+                    {/* Stats pills */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-center px-4 py-2 rounded-xl bg-slate-50 border border-slate-200">
+                        <p className="text-lg font-black text-slate-800">{totalProjects}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Projects</p>
                       </div>
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">
-                          Leader: {project.leaderName} ({project.members?.length || 1} members)
-                        </span>
+                      <div className="text-center px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <p className="text-lg font-black text-emerald-700">{completedCount}</p>
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Evaluated</p>
+                      </div>
+                      <div className="text-center px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+                        <p className="text-lg font-black text-amber-700">{pendingCount}</p>
+                        <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">Remaining</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Card Bottom CTA */}
-                  <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2">
-                    {isEvaluated ? (
-                      <button
-                        onClick={() => handleOpenEvaluation(project)}
-                        className="w-full py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-slate-500" />
-                        <span>View Scorecard</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleOpenEvaluation(project)}
-                        className="w-full py-2 px-3 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-                      >
-                        <Award className="w-3.5 h-3.5 text-amber-300" />
-                        <span>Evaluate Project</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-blue-200" />
-                      </button>
-                    )}
-                  </div>
+                  {/* Progress bar */}
+                  {totalProjects > 0 && (
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between text-[11px] font-semibold mb-1.5">
+                        <span className="text-slate-500">Evaluation Progress</span>
+                        <span className="text-slate-700 font-bold">{progressPercent}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#004182] rounded-full transition-all duration-500"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {completedCount} of {totalProjects} projects evaluated
+                      </p>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            </div>
+
+            {/* ── PRIMARY ACTION AREA ──────────────────────────────────────────── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {/* Section: Scan QR */}
+              <div className="p-6 text-center border-b border-slate-100">
+                <div className="w-14 h-14 rounded-2xl bg-[#004182]/8 flex items-center justify-center mx-auto mb-3">
+                  <QrCode className="w-7 h-7 text-[#004182]" />
+                </div>
+                <h3 className="text-sm font-extrabold text-slate-900">Scan Project QR</h3>
+                <p className="text-xs text-slate-500 mt-1 mb-4 max-w-xs mx-auto">
+                  Scan the QR code displayed at the project stall to begin evaluation.
+                </p>
+                <button
+                  onClick={() => {
+                    setScannerOpen(true);
+                    setFoundProject(null);
+                    setFoundProjectEval(null);
+                    setLookupError(null);
+                    setLookupId('');
+                  }}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
+                >
+                  <QrCode className="w-4 h-4" />
+                  Scan QR Code
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 px-6 py-3 bg-slate-50">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">or</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+
+              {/* Section: Manual ID */}
+              <div className="p-6 pt-4">
+                <h3 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+                  <Search className="w-3.5 h-3.5 text-slate-400" />
+                  Enter Registration ID
+                </h3>
+                <form onSubmit={handleManualLookup} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={lookupId}
+                    onChange={(e) => {
+                      setLookupId(e.target.value);
+                      setLookupError(null);
+                    }}
+                    placeholder="PRAGATHI26-XXXXXX"
+                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#004182]/20 focus:border-[#004182] text-xs font-mono font-bold uppercase tracking-wider transition-all"
+                  />
+                  <button
+                    type="submit"
+                    disabled={lookupLoading || !lookupId.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-[#004182] hover:bg-[#003366] disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shrink-0"
+                  >
+                    {lookupLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="w-4 h-4" />
+                    )}
+                    {lookupLoading ? 'Looking up…' : 'Find Project'}
+                  </button>
+                </form>
+
+                {lookupError && (
+                  <div className="mt-3 flex items-start gap-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{lookupError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── PROJECT CONFIRMATION CARD ────────────────────────────────────── */}
+            {lookupLoading && !foundProject && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-8 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-6 h-6 text-[#004182] animate-spin" />
+                <p className="text-xs font-semibold text-slate-500">Looking up project…</p>
+              </div>
+            )}
+
+            {foundProject && !lookupLoading && (
+              <ProjectConfirmCard
+                project={foundProject}
+                existingEval={foundProjectEval}
+                onStartEvaluation={() => handleOpenEvaluation(foundProject)}
+                onViewEvaluation={() => handleOpenEvaluation(foundProject)}
+                onDismiss={() => {
+                  setFoundProject(null);
+                  setFoundProjectEval(null);
+                }}
+              />
+            )}
+
+            {/* ── RECENT EVALUATIONS ───────────────────────────────────────────── */}
+            {myEvaluations.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <h3 className="text-sm font-extrabold text-slate-900">
+                      Evaluation History
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowHistory(true)}
+                    className="flex items-center gap-1 text-xs font-bold text-[#004182] hover:text-[#003366] transition-colors"
+                  >
+                    View All
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div>
+                  {recentEvaluations.map((ev) => (
+                    <RecentEvalRow
+                      key={ev.id}
+                      evaluation={ev}
+                      onClick={() => handleRecentEvalClick(ev)}
+                    />
+                  ))}
+                </div>
+
+                {myEvaluations.length > 4 && (
+                  <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 text-center">
+                    <button
+                      onClick={() => setShowHistory(true)}
+                      className="text-xs font-bold text-[#004182] hover:text-[#003366] transition-colors"
+                    >
+                      + {myEvaluations.length - 4} more evaluations — View All History
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Empty state when no evals yet */}
+            {!loading && myEvaluations.length === 0 && (
+              <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                  <Clock className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="text-sm font-bold text-slate-600">No evaluations yet</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Scan a project QR code or enter a Registration ID above to begin.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </main>
 
-      {/* ── MODALS ───────────────────────────────────────────────────────── */}
-      {/* 1. QR Code Scanner Modal */}
+      {/* ── MODALS ─────────────────────────────────────────────────────────────── */}
+
+      {/* QR Scanner */}
       <QRScannerModal
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScanSuccess={handleQRScanSuccess}
       />
 
-      {/* 2. Project Evaluation Scorecard Modal */}
+      {/* Project Evaluation Modal */}
       {selectedProject && (
         <ProjectEvaluationModal
           isOpen={evalModalOpen}
