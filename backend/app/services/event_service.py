@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from app.database import db
 from app.schemas.event import EventDetails
 
@@ -62,11 +63,30 @@ class EventService:
         existing = await db.fetch_supabase("site_settings", "limit=1")
         if existing and len(existing) > 0:
             row_id = existing[0].get("id")
-            await db.update_supabase("site_settings", "id", str(row_id), merged_dict)
-        else:
-            await db.insert_supabase("site_settings", merged_dict)
+            update_payload = {k: v for k, v in merged_dict.items() if k != "id"}
+            success = await db.update_supabase("site_settings", "id", str(row_id), update_payload)
+            if not success:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to update event details in Supabase for row ID '{row_id}'."
+                )
 
-        # Update local storage
+            # Verification: fetch persisted row by ID
+            verified_rows = await db.fetch_supabase("site_settings", f"id=eq.{row_id}")
+            if not verified_rows or len(verified_rows) == 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Verification failed: updated site_settings row '{row_id}' could not be retrieved from Supabase."
+                )
+        else:
+            inserted = await db.insert_supabase("site_settings", merged_dict)
+            if not inserted:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to insert event details into Supabase."
+                )
+
+        # Update local storage only after successful Supabase persistence
         local = db.load_local()
         local["site_settings"] = merged_dict
         db.save_local(local)

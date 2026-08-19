@@ -21,7 +21,7 @@ import {
   Info,
   Printer,
 } from 'lucide-react';
-import { EVENT_DETAILS } from '../utils/constants';
+import { useContent } from '../context/ContentContext';
 import { PROJECT_CATEGORIES } from '../data/eventData';
 import { SRUPaymentService } from '../services/paymentService';
 import { RegistrationService, TeamMember } from '../services/registrationService';
@@ -29,6 +29,7 @@ import { RegistrationReviewConfirmation } from '../components/RegistrationReview
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { eventSettings } = useContent();
 
   // Step flow:
   // 1: Primary Email Entry
@@ -235,13 +236,13 @@ export const Register: React.FC = () => {
         <div className="text-center space-y-2 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-blue-50 text-[#004182] border border-blue-100 px-3.5 py-1 rounded-full text-xs font-bold">
             <GraduationCap className="w-4 h-4 text-[#004182]" />
-            <span>{EVENT_DETAILS.institution}, Warangal, Telangana</span>
+            <span>{eventSettings.institution}, {eventSettings.location}</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight">
             PRAGATHI 2K26 REGISTRATION
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            A National Level Project Expo • 09 October 2026
+            A National Level Project Expo • {eventSettings.eventDate}
           </p>
         </div>
       </div>
@@ -255,13 +256,13 @@ export const Register: React.FC = () => {
           {/* Print-only Event Header Branding */}
           <div className="hidden print:block text-center space-y-1 pb-4 border-b border-slate-200 mb-2">
             <div className="text-xs font-extrabold uppercase tracking-widest text-[#004182]">
-              SR University • Warangal, Telangana
+              {eventSettings.institution} • {eventSettings.location}
             </div>
             <h1 className="text-2xl font-black text-[#004182] font-display uppercase tracking-tight">
-              PRAGATHI 2K26 — REGISTRATION CONFIRMATION
+              {eventSettings.eventName} — REGISTRATION CONFIRMATION
             </h1>
             <p className="text-xs text-slate-500 font-medium">
-              National Level Project Expo • 09 October 2026
+              National Level Project Expo • {eventSettings.eventDate}
             </p>
           </div>
 
@@ -277,7 +278,7 @@ export const Register: React.FC = () => {
               Registration Confirmed!
             </h2>
             <p className="text-sm text-slate-600 max-w-lg mx-auto">
-              Your team is registered for <strong>PRAGATHI 2K26</strong> at SR University, Warangal.
+              Your team is registered for <strong>{eventSettings.eventName}</strong> at {eventSettings.institution}, {eventSettings.location}.
             </p>
           </div>
 
@@ -310,7 +311,7 @@ export const Register: React.FC = () => {
               </div>
               <div className="text-right">
                 <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Expo Date</span>
-                <div className="font-bold text-slate-900">09 Oct 2026</div>
+                <div className="font-bold text-slate-900">{eventSettings.eventDate}</div>
               </div>
             </div>
 
@@ -334,7 +335,7 @@ export const Register: React.FC = () => {
             </div>
 
             <div className="pt-2 border-t border-slate-200 text-slate-500 text-[11px] flex items-center justify-between">
-              <span>Venue: SR University Campus, Warangal</span>
+              <span>Venue: {eventSettings.venue}</span>
               <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 Status: Active
               </span>

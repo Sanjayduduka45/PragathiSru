@@ -66,27 +66,27 @@ export const EventDetailsAdmin: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toasts, addToast, dismissToast } = useAdminToast();
-  const { refreshContent } = useContent();
+  const { refreshContent, eventSettings, contentLoading } = useContent();
 
+  // Sync form from ContentContext when public content finishes loading.
+  // This removes the duplicate getEventSettings() fetch that ContentContext already performs.
   useEffect(() => {
-    getEventSettings()
-      .then((s) => {
-        setForm({
-          name: s.eventName,
-          fullTitle: s.fullTitle,
-          tagline: s.tagline,
-          eventDate: s.eventDate,
-          venue: s.venue,
-          institution: s.institution,
-          location: s.location,
-          prizePool: s.prizePool,
-          contactEmail: s.contactEmail,
-          helpline: s.helpline,
-        });
-      })
-      .catch((err) => console.error('Failed to load event settings:', err))
-      .finally(() => setLoading(false));
-  }, []);
+    if (!contentLoading) {
+      setForm({
+        name: eventSettings.eventName,
+        fullTitle: eventSettings.fullTitle,
+        tagline: eventSettings.tagline,
+        eventDate: eventSettings.eventDate,
+        venue: eventSettings.venue,
+        institution: eventSettings.institution,
+        location: eventSettings.location,
+        prizePool: eventSettings.prizePool,
+        contactEmail: eventSettings.contactEmail,
+        helpline: eventSettings.helpline,
+      });
+      setLoading(false);
+    }
+  }, [contentLoading, eventSettings]);
 
   const set = (key: keyof EventFormData) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -179,7 +179,7 @@ export const EventDetailsAdmin: React.FC = () => {
         <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || loading}
             className="flex items-center gap-2 bg-[#004182] hover:bg-[#003366] disabled:opacity-60 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all cursor-pointer"
           >
             {saving ? (
