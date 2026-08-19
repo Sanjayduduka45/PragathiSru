@@ -6,7 +6,8 @@ from app.schemas.registration import (
     RegistrationUpdate,
     RegistrationStats,
     TeamMember,
-    ProjectInfo
+    ProjectInfo,
+    InstitutionInfo
 )
 from app.services.domain_service import domain_service
 from app.services.faq_service import faq_service
@@ -14,8 +15,8 @@ from app.services.faq_service import faq_service
 class RegistrationService:
     @staticmethod
     async def get_registrations() -> List[RegistrationItem]:
-        # Fetch registrations from Supabase with relational join
-        regs = await db.fetch_supabase("registrations", "select=*,team_members(*),projects(*)&order=created_at.desc")
+        # Fetch registrations from Supabase with relational join including institutions
+        regs = await db.fetch_supabase("registrations", "select=*,institutions(*),team_members(*),projects(*)&order=created_at.desc")
         # Fallback to simple select=* if relational join query returned empty/None
         if not regs:
             print("[RegistrationService] Relational query returned empty/None. Falling back to select=*")
@@ -25,6 +26,42 @@ class RegistrationService:
 
         result: List[RegistrationItem] = []
         for r in regs:
+            # Resolve institution relation
+            raw_inst = r.get("institutions")
+            inst_obj: Optional[InstitutionInfo] = None
+            inst_name: Optional[str] = None
+            inst_type: Optional[str] = None
+
+            if isinstance(raw_inst, list) and len(raw_inst) > 0:
+                first_inst = raw_inst[0]
+                if isinstance(first_inst, dict):
+                    try:
+                        inst_obj = InstitutionInfo(**first_inst)
+                        inst_name = first_inst.get("name")
+                        inst_type = first_inst.get("institution_type")
+                    except Exception as e:
+                        print(f"[RegistrationService] Institution parse error: {e}")
+            elif isinstance(raw_inst, dict):
+                try:
+                    inst_obj = InstitutionInfo(**raw_inst)
+                    inst_name = raw_inst.get("name")
+                    inst_type = raw_inst.get("institution_type")
+                except Exception as e:
+                    print(f"[RegistrationService] Institution parse error: {e}")
+
+            # Fallback only if relation was not present
+            if not inst_name:
+                inst_name = r.get("institution_name") or r.get("institution")
+            if not inst_type:
+                inst_type = r.get("institution_type")
+
+            if inst_name and not inst_obj:
+                inst_obj = InstitutionInfo(
+                    id=r.get("institution_id"),
+                    name=inst_name,
+                    institution_type=inst_type
+                )
+
             tm_list: List[TeamMember] = []
             raw_members = r.get("team_members")
             if isinstance(raw_members, list):
@@ -71,6 +108,10 @@ class RegistrationService:
                 team_name=r.get("team_name", "Untitled Team"),
                 participant_type=r.get("participant_type", "external_student"),
                 team_size=r.get("team_size", 1),
+                institution_id=r.get("institution_id"),
+                institution_name=inst_name,
+                institution_type=inst_type,
+                institutions=inst_obj,
                 leader_name=r.get("leader_name", ""),
                 leader_email=r.get("leader_email", ""),
                 leader_mobile=r.get("leader_mobile"),

@@ -16,6 +16,15 @@ class ProjectInfo(BaseModel):
     category: str = "General"
     problem_statement: Optional[str] = None
 
+class InstitutionInfo(BaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
+    institution_type: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = "India"
+
 class RegistrationItem(BaseModel):
     id: str
     registration_id: str
@@ -29,6 +38,10 @@ class RegistrationItem(BaseModel):
     payment_status: str = "not_required"
     payment_amount: Optional[float] = 0
     payment_reference: Optional[str] = None
+    institution_id: Optional[str] = None
+    institution_name: Optional[str] = None
+    institution_type: Optional[str] = None
+    institutions: Optional[InstitutionInfo] = None
     team_members: Optional[List[TeamMember]] = []
     projects: Optional[List[ProjectInfo]] = []
     created_at: Optional[str] = None
