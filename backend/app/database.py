@@ -344,15 +344,12 @@ class Database:
                 headers = self.get_headers()
                 headers["Prefer"] = "return=representation"
                 res = await client.patch(url, headers=headers, json=payload)
-                print(f"[Supabase PATCH] Table: '{table}', Filter: {eq_column}={eq_value}, HTTP Status: {res.status_code}, Body: {res.text[:300]}")
                 if res.status_code in (200, 204):
                     try:
                         updated = res.json()
                         if isinstance(updated, list):
-                            rows_count = len(updated)
-                            print(f"[Supabase PATCH] Returned {rows_count} row(s) for '{table}'")
-                            if rows_count > 0:
-                                print(f"[Supabase] Successfully updated {rows_count} row(s) in '{table}'")
+                            if len(updated) > 0:
+                                print(f"[Supabase] Successfully updated {len(updated)} row(s) in '{table}'")
                                 return True
                             else:
                                 print(f"[Supabase] UPDATE on '{table}' ({eq_column}={eq_value}) affected 0 rows")
@@ -360,8 +357,7 @@ class Database:
                         elif isinstance(updated, dict):
                             print(f"[Supabase] Successfully updated 1 row in '{table}'")
                             return True
-                    except Exception as json_err:
-                        print(f"[Supabase PATCH] JSON parse warning on '{table}' ({eq_column}={eq_value}): {json_err}")
+                    except Exception:
                         pass
                     return False
                 print(f"[Supabase] UPDATE failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
