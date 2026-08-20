@@ -53,6 +53,7 @@ app.include_router(testimonials.router)
 app.include_router(settings_api.router)
 
 @app.get("/")
+@app.get("/api")
 async def root():
     return {
         "status": "online",
@@ -61,5 +62,6 @@ async def root():
     }
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "ok"}
