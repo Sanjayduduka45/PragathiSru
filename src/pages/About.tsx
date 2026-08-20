@@ -23,6 +23,23 @@ import { useContent } from '../context/ContentContext';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
+const renderFormattedDescription = (text: string, eventName: string) => {
+  if (!text) return null;
+  const terms = [eventName, 'National Level Project Expo'].filter(
+    (t): t is string => Boolean(t && t.trim())
+  );
+  if (terms.length === 0) return text;
+
+  const escapedTerms = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(`(${escapedTerms.join('|')})`, 'gi');
+  const parts = text.split(pattern);
+
+  return parts.map((part, idx) => {
+    const isMatch = terms.some((t) => t.toLowerCase() === part.toLowerCase());
+    return isMatch ? <strong key={idx}>{part}</strong> : part;
+  });
+};
+
 export const About: React.FC = () => {
   const { eventSettings, aboutContent } = useContent();
   const location = useLocation();
@@ -115,7 +132,7 @@ export const About: React.FC = () => {
             </h2>
 
             <p className="text-slate-700 text-sm sm:text-base leading-relaxed">
-              {aboutContent.description}
+              {renderFormattedDescription(aboutContent.description, eventSettings.eventName)}
             </p>
 
             <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
