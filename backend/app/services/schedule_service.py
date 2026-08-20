@@ -76,6 +76,36 @@ class ScheduleService:
                     detail="Failed to update schedule item in Supabase"
                 )
 
+        # Production: Fetch updated record directly from Supabase (source of truth)
+        supa_rows = await db.fetch_supabase("schedule_items", f"id=eq.{item_id}&limit=1")
+        if supa_rows is not None and len(supa_rows) > 0:
+            row = supa_rows[0]
+            updated_item = ScheduleItem(
+                id=str(row.get("id")),
+                time=row.get("time") or row.get("time_slot", ""),
+                event=row.get("event") or row.get("event_title", ""),
+                location=row.get("location", ""),
+                description=row.get("description", ""),
+                badge=row.get("badge", ""),
+                active=row.get("is_active", True),
+                display_order=row.get("display_order", 0)
+            )
+            # Sync local JSON mirror for local development
+            local = db.load_local()
+            items = local.get("schedule_items", [])
+            found = False
+            for i, it in enumerate(items):
+                if str(it.get("id")) == str(item_id):
+                    items[i] = updated_item.model_dump()
+                    found = True
+                    break
+            if not found:
+                items.append(updated_item.model_dump())
+            local["schedule_items"] = items
+            db.save_local(local)
+            return updated_item
+
+        # Fallback for offline local development without Supabase
         local = db.load_local()
         items = local.get("schedule_items", [])
         updated = None
@@ -88,7 +118,16 @@ class ScheduleService:
                 break
 
         if updated is None:
-            updated = ScheduleItem(id=item_id, time="", event="", **update_fields)
+            updated = ScheduleItem(
+                id=item_id,
+                time=update_fields.get("time", ""),
+                event=update_fields.get("event", ""),
+                location=update_fields.get("location", ""),
+                description=update_fields.get("description", ""),
+                badge=update_fields.get("badge", ""),
+                active=update_fields.get("active", True),
+                display_order=update_fields.get("display_order", 0)
+            )
             items.append(updated.model_dump())
 
         local["schedule_items"] = items
