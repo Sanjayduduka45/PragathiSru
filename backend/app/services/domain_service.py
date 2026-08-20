@@ -78,6 +78,36 @@ class DomainService:
             if not supa_success:
                 raise HTTPException(status_code=400, detail="Failed to update domain in Supabase")
 
+        # Production: Fetch updated record directly from Supabase (source of truth)
+        supa_rows = await db.fetch_supabase("project_domains", f"id=eq.{domain_id}&limit=1")
+        if supa_rows is not None and len(supa_rows) > 0:
+            row = supa_rows[0]
+            updated_item = DomainItem(
+                id=str(row.get("id")),
+                title=row.get("title", ""),
+                description=row.get("description", ""),
+                icon_name=row.get("icon_name", "Cpu"),
+                color=row.get("color", "from-blue-600 to-indigo-600"),
+                badge_text=row.get("badge_text", ""),
+                active=row.get("is_active", True),
+                display_order=row.get("display_order", 0)
+            )
+            # Sync local JSON mirror for local development
+            local = db.load_local()
+            items = local.get("project_domains", [])
+            found = False
+            for i, it in enumerate(items):
+                if str(it.get("id")) == str(domain_id):
+                    items[i] = updated_item.model_dump()
+                    found = True
+                    break
+            if not found:
+                items.append(updated_item.model_dump())
+            local["project_domains"] = items
+            db.save_local(local)
+            return updated_item
+
+        # Fallback for offline local development without Supabase
         local = db.load_local()
         items = local.get("project_domains", [])
         updated = None
@@ -90,7 +120,16 @@ class DomainService:
                 break
         
         if updated is None:
-            updated = DomainItem(id=domain_id, title="Domain", description="", **update_fields)
+            updated = DomainItem(
+                id=domain_id,
+                title=update_fields.get("title", "Domain"),
+                description=update_fields.get("description", ""),
+                icon_name=update_fields.get("icon_name", "Cpu"),
+                color=update_fields.get("color", "from-blue-600 to-indigo-600"),
+                badge_text=update_fields.get("badge_text", ""),
+                active=update_fields.get("active", True),
+                display_order=update_fields.get("display_order", 0)
+            )
             items.append(updated.model_dump())
 
         local["project_domains"] = items

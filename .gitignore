@@ -9,3 +9,6 @@ coverage/
 __pycache__/
 *.pyc
 *.pyo
+
+# Local development database/state
+backend/data/
