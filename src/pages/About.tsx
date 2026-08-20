@@ -115,7 +115,7 @@ export const About: React.FC = () => {
             </h2>
 
             <p className="text-slate-700 text-sm sm:text-base leading-relaxed">
-              <strong>{eventSettings.eventName}</strong> is {eventSettings.institution}'s premier <strong>National Level Project Expo</strong> bringing together young minds, student researchers, and creative thinkers to demonstrate tangible, working prototypes that address real-world challenges.
+              {aboutContent.description}
             </p>
 
             <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
@@ -221,7 +221,7 @@ export const About: React.FC = () => {
                 OUR VISION
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                To establish PRAGATHI as India's premier university-led national expo platform that empowers young innovators to translate creative concepts into sustainable, patentable, and commercially viable solutions for societal impact.
+                {aboutContent.vision}
               </p>
             </div>
 
@@ -240,24 +240,9 @@ export const About: React.FC = () => {
                 CORE OBJECTIVES
               </h3>
 
-              <ul className="space-y-3 text-xs sm:text-sm text-slate-600">
-                <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span><strong>Bridge Theory & Practice:</strong> Provide a hands-on arena where students construct working models beyond traditional curricula.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span><strong>Interdisciplinary Collaboration:</strong> Encourage teams to integrate AI, IoT, mechanical design, biotechnology, and green energy.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span><strong>Industry & Academic Interaction:</strong> Connect student teams directly with PhD researchers, industry judges, and investors.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span><strong>Incubation & Mentorship:</strong> Offer shortlisted projects seed grants and incubation support through SRiX Incubator.</span>
-                </li>
-              </ul>
+              <div className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                {aboutContent.objectives}
+              </div>
             </div>
           </div>
 
