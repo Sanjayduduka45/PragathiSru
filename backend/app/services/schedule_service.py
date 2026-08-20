@@ -1,5 +1,6 @@
 import uuid
 from typing import List
+from fastapi import HTTPException
 from app.database import db
 from app.schemas.schedule import ScheduleItem, ScheduleCreate, ScheduleUpdate
 
@@ -26,7 +27,10 @@ class ScheduleService:
 
     @staticmethod
     async def create_schedule_item(data: ScheduleCreate) -> ScheduleItem:
+        row_id = f"sch-{uuid.uuid4().hex[:8]}"
+
         payload = {
+            "id": row_id,
             "time": data.time,
             "event": data.event,
             "location": data.location,
@@ -36,10 +40,15 @@ class ScheduleService:
             "display_order": data.display_order
         }
         res = await db.insert_supabase("schedule_items", payload)
-        row_id = res.get("id") if res else f"sch-{uuid.uuid4().hex[:8]}"
+
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to add schedule item to Supabase"
+            )
 
         new_item = ScheduleItem(
-            id=str(row_id),
+            id=row_id,
             **data.model_dump()
         )
         local = db.load_local()
@@ -60,7 +69,12 @@ class ScheduleService:
         if "display_order" in update_fields: db_payload["display_order"] = update_fields["display_order"]
 
         if db_payload:
-            await db.update_supabase("schedule_items", "id", item_id, db_payload)
+            supa_success = await db.update_supabase("schedule_items", "id", item_id, db_payload)
+            if not supa_success:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Failed to update schedule item in Supabase"
+                )
 
         local = db.load_local()
         items = local.get("schedule_items", [])
