@@ -344,7 +344,10 @@ class Database:
                 headers = self.get_headers()
                 headers["Prefer"] = "return=representation"
                 res = await client.patch(url, headers=headers, json=payload)
-                if res.status_code in (200, 204):
+                if res.status_code == 204:
+                    print(f"[Supabase] Successfully updated row(s) in '{table}' (HTTP 204)")
+                    return True
+                if res.status_code == 200:
                     try:
                         updated = res.json()
                         if isinstance(updated, list):

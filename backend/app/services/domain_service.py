@@ -1,5 +1,6 @@
 import uuid
 from typing import List
+from fastapi import HTTPException
 from app.database import db
 from app.schemas.domain import DomainItem, DomainCreate, DomainUpdate
 
@@ -28,7 +29,10 @@ class DomainService:
 
     @staticmethod
     async def create_domain(data: DomainCreate) -> DomainItem:
+        row_id = f"domain-{uuid.uuid4().hex[:8]}"
+
         payload = {
+            "id": row_id,
             "title": data.title,
             "description": data.description,
             "icon_name": data.icon_name,
@@ -37,16 +41,24 @@ class DomainService:
             "is_active": data.active,
             "display_order": data.display_order
         }
+
         res = await db.insert_supabase("project_domains", payload)
-        row_id = res.get("id") if res else f"domain-{uuid.uuid4().hex[:8]}"
+
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to add domain to Supabase"
+            )
 
         new_item = DomainItem(
-            id=str(row_id),
+            id=row_id,
             **data.model_dump()
         )
+
         local = db.load_local()
         local.setdefault("project_domains", []).append(new_item.model_dump())
         db.save_local(local)
+
         return new_item
 
     @staticmethod
@@ -62,7 +74,9 @@ class DomainService:
         if "display_order" in update_fields: db_payload["display_order"] = update_fields["display_order"]
 
         if db_payload:
-            await db.update_supabase("project_domains", "id", domain_id, db_payload)
+            supa_success = await db.update_supabase("project_domains", "id", domain_id, db_payload)
+            if not supa_success:
+                raise HTTPException(status_code=400, detail="Failed to update domain in Supabase")
 
         local = db.load_local()
         items = local.get("project_domains", [])
