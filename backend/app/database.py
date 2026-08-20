@@ -4,7 +4,11 @@ from typing import Dict, Any, List, Optional
 import httpx
 from app.config import settings
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+if os.getenv("VERCEL"):
+    DATA_DIR = "/tmp/pragathi-data"
+else:
+    DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+
 DB_FILE = os.path.join(DATA_DIR, "db.json")
 
 # Initial Seed Data for local store fallback
@@ -260,12 +264,14 @@ INITIAL_DATA: Dict[str, Any] = {
     ]
 }
 
-
 class Database:
     def __init__(self):
-        os.makedirs(DATA_DIR, exist_ok=True)
-        if not os.path.exists(DB_FILE):
-            self.save_local(INITIAL_DATA)
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            if not os.path.exists(DB_FILE):
+                self.save_local(INITIAL_DATA)
+        except OSError as e:
+            print(f"[DB] Local filesystem initialization skipped: {e}")
 
     def load_local(self) -> Dict[str, Any]:
         try:
