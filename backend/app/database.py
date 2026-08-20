@@ -280,7 +280,7 @@ class Database:
             with open(DB_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"[DB] Error writing local file: {e}")
+            print(f"[DB] Local file write skipped (read-only/serverless filesystem): {e}")
 
     # --- SUPABASE REST CLIENT ---
     def get_headers(self) -> Dict[str, str]:
