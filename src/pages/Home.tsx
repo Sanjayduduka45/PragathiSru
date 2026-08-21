@@ -1092,6 +1092,29 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* TITLE SPONSOR SECTION */}
+      <section id="title-sponsors" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-300 p-8 sm:p-12 text-center space-y-6 sm:space-y-8">
+          {/* Section Heading with Orange Decorative Lines */}
+          <div className="flex items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
+            <div className="h-0.5 bg-orange-500 flex-1 max-w-[50px] sm:max-w-[80px] rounded-full" />
+            <h2 className="text-xs sm:text-sm font-extrabold text-orange-500 uppercase tracking-widest font-display whitespace-nowrap">
+              TITLE SPONSOR
+            </h2>
+            <div className="h-0.5 bg-orange-500 flex-1 max-w-[50px] sm:max-w-[80px] rounded-full" />
+          </div>
+
+          {/* Connect Global Sponsor Logo */}
+          <div className="flex items-center justify-center">
+            <img
+              src="/23AE2688-71E5-4416-A3FC-3B7B2DA284AD.png"
+              alt="Connect Global"
+              className="w-full max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* EVENT STATISTICS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-[#004182] text-white rounded-3xl p-6 sm:p-10 lg:p-12 shadow-xl relative overflow-hidden">
@@ -1275,29 +1298,6 @@ export const Home: React.FC = () => {
 
       {/* DYNAMIC PREVIOUS EVENT SHOWCASE & TESTIMONIALS */}
       <TestimonialsSection />
-
-      {/* TITLE SPONSORS SECTION */}
-      <section id="title-sponsors" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-300 p-8 sm:p-12 text-center space-y-6 sm:space-y-8">
-          {/* Section Heading with Orange Decorative Lines */}
-          <div className="flex items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
-            <div className="h-0.5 bg-orange-500 flex-1 max-w-[50px] sm:max-w-[80px] rounded-full" />
-            <h2 className="text-xs sm:text-sm font-extrabold text-orange-500 uppercase tracking-widest font-display whitespace-nowrap">
-              TITLE SPONSORS
-            </h2>
-            <div className="h-0.5 bg-orange-500 flex-1 max-w-[50px] sm:max-w-[80px] rounded-full" />
-          </div>
-
-          {/* Connect Global Sponsor Logo */}
-          <div className="flex items-center justify-center">
-            <img
-              src="/23AE2688-71E5-4416-A3FC-3B7B2DA284AD.png"
-              alt="Connect Global"
-              className="w-full max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain"
-            />
-          </div>
-        </div>
-      </section>
 
       {/* COLLABORATION & SPONSORSHIP SECTION */}
       <section id="collaborate" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
