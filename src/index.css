@@ -4,6 +4,7 @@
   :root {
     --font-display: 'Syne', sans-serif;
     --font-sans: 'Plus Jakarta Sans', sans-serif;
+    --font-sora: 'Sora', sans-serif;
     --color-sru-blue: #004182;
     --color-sru-blue-hover: #003366;
     --color-sru-deep: #002852;
@@ -25,6 +26,10 @@
 
   h1, h2, h3, .font-display {
     font-family: var(--font-display);
+  }
+
+  .font-sora {
+    font-family: var(--font-sora);
   }
 }
 

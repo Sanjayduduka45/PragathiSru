@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Mail, Phone, Building2, ArrowLeft, ArrowRight, ShieldCheck, Headphones, User, MapPin } from 'lucide-react';
+import { Mail, Phone, ArrowLeft, ArrowRight, ShieldCheck, Headphones, User, MapPin } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
+
+const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
 export const Contact: React.FC = () => {
   const { eventSettings, contactPeople } = useContent();
@@ -126,9 +128,11 @@ export const Contact: React.FC = () => {
           {/* Organizing Institution & Venue Card */}
           <div className="bg-gradient-to-br from-slate-50 via-white to-blue-50/20 rounded-2xl p-6 border border-slate-200 shadow-2xs space-y-4 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 text-[#004182] flex items-center justify-center shadow-2xs">
-                <Building2 className="w-5 h-5" />
-              </div>
+              <img
+                src={sruLogo}
+                alt="SR University Logo"
+                className="h-7 sm:h-8 w-auto object-contain shrink-0"
+              />
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
                   Host & Location
@@ -388,9 +392,11 @@ export const Contact: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.15 }}
           className="mt-6 sm:mt-8 bg-slate-50/90 rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-2xs hover:shadow-lg hover:border-blue-200 hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-300 ease-out text-center space-y-4 cursor-default"
         >
-          <div className="w-12 h-12 rounded-full bg-blue-100/80 text-[#004182] flex items-center justify-center mx-auto shadow-2xs">
-            <Building2 className="w-6 h-6" />
-          </div>
+          <img
+            src={sruLogo}
+            alt="SR University Logo"
+            className="h-10 sm:h-12 w-auto object-contain mx-auto"
+          />
           <div className="space-y-1">
             <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400 block">
               Host Organization

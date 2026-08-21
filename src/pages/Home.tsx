@@ -749,7 +749,7 @@ export const Home: React.FC = () => {
     <div className="space-y-12 sm:space-y-16 lg:space-y-20">
 
       {/* HERO SECTION — SHARP RIGHT PHOTO + BLURRED LIGHT LEFT ATTENTION AREA */}
-      <section className="relative overflow-hidden min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] flex items-center py-12 lg:py-20 bg-slate-50">
+      <section className="relative overflow-hidden min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] flex items-center pt-8 pb-12 sm:pt-10 sm:pb-16 lg:pt-12 lg:pb-18 bg-slate-50">
 
         {/* 1. Base Layer: Sharp Original Photograph Positioned on Older Man, Project & Boy in Blue */}
         <div
@@ -781,7 +781,7 @@ export const Home: React.FC = () => {
 
         {/* 4. Hero Content Container (Foreground z-10) */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-          <div className="max-w-2xl lg:max-w-3xl space-y-3.5 text-center lg:text-left">
+          <div className="max-w-2xl lg:max-w-4xl space-y-3.5 text-center lg:text-left">
 
             {/* Event Badge / Location Pill */}
             <a
@@ -803,13 +803,13 @@ export const Home: React.FC = () => {
                 initial={{ opacity: 0, y: 12, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="hero-title-3d font-black tracking-tighter leading-[0.98] uppercase font-display whitespace-nowrap max-w-full"
-                style={{ fontSize: 'clamp(1.75rem, 4.8vw, 4.25rem)' }}
+                className="hero-title-3d font-extrabold tracking-tight leading-[0.92] uppercase font-sora whitespace-nowrap max-w-full"
+                style={{ fontSize: 'clamp(2.5rem, 8vw, 6.5rem)' }}
               >
                 PRAGATHI 2.0
               </motion.h1>
 
-              <p className="text-xl sm:text-2xl font-extrabold text-slate-800 font-display">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold sm:font-extrabold text-slate-800 font-sora tracking-tight">
                 A National Level Project Expo 2K26
               </p>
 
