@@ -1170,7 +1170,7 @@ export async function getTestimonials(): Promise<TestimonialEntry[]> {
     const res = await api.testimonials.get();
     if (res && Array.isArray(res.data)) {
       const validItems = res.data.filter((t: any) => !isDummyTestimonial(t));
-      if (validItems.length >= 9) {
+      if (validItems.length > 0) {
         return validItems.map((t: any, idx: number) => {
           const rawUrl = t.media_url || t.image_url || t.imageUrl || '';
           const img = (!rawUrl || rawUrl.includes('unsplash.com')) ? EVENT_MEMORIES_IMAGES[idx % 9] : rawUrl;
@@ -1204,7 +1204,7 @@ export async function getTestimonials(): Promise<TestimonialEntry[]> {
       const { data } = await supabase.from('testimonials').select('*').order('display_order', { ascending: true });
       if (data && Array.isArray(data)) {
         const validItems = data.filter((t: any) => !isDummyTestimonial(t));
-        if (validItems.length >= 9) {
+        if (validItems.length > 0) {
           return validItems.map((t: any, idx: number) => {
             const rawUrl = t.media_url || t.image_url || '';
             const img = (!rawUrl || rawUrl.includes('unsplash.com')) ? EVENT_MEMORIES_IMAGES[idx % 9] : rawUrl;
