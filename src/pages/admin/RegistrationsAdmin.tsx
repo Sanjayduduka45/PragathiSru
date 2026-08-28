@@ -227,7 +227,45 @@ export const RegistrationsAdmin: React.FC = () => {
   // Payment Verification State
   const [loadingProof, setLoadingProof] = useState<boolean>(false);
   const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
+  const [modalProofUrl, setModalProofUrl] = useState<string | null>(null);
+  const [loadingModalProof, setLoadingModalProof] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!selectedReg || !isExternalRegistration(selectedReg)) {
+      setModalProofUrl(null);
+      return;
+    }
+    let isSubscribed = true;
+    const fetchProof = async () => {
+      setLoadingModalProof(true);
+      try {
+        const res = await api.registrations.getPaymentProofUrl(selectedReg.id);
+        if (isSubscribed && res && res.signed_url) {
+          setModalProofUrl(res.signed_url);
+        } else if (isSubscribed) {
+          setModalProofUrl(null);
+        }
+      } catch (err) {
+        if (isSubscribed && isSupabaseConfigured && supabase) {
+          try {
+            const rawPath = selectedReg.payment_reference || (selectedReg.payments?.[0] as any)?.payment_proof_path;
+            if (rawPath) {
+              const cleanPath = rawPath.replace('payment-proofs/', '');
+              const { data } = await supabase.storage.from('payment-proofs').createSignedUrl(cleanPath, 600);
+              if (data?.signedUrl && isSubscribed) setModalProofUrl(data.signedUrl);
+            }
+          } catch (e) {
+            if (isSubscribed) setModalProofUrl(null);
+          }
+        }
+      } finally {
+        if (isSubscribed) setLoadingModalProof(false);
+      }
+    };
+    fetchProof();
+    return () => { isSubscribed = false; };
+  }, [selectedReg]);
 
   // Edit modal
   const [editReg, setEditReg] = useState<JoinedRegistrationRecord | null>(null);
@@ -1103,6 +1141,47 @@ export const RegistrationsAdmin: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Automatic Inline Payment Proof Preview */}
+              {isExternalRegistration(selectedReg) && (
+                <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-2">
+                  <span className="text-slate-400 text-[10px] uppercase font-extrabold tracking-wider block">
+                    Uploaded Payment Proof / Screenshot
+                  </span>
+                  {loadingModalProof ? (
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center text-xs text-slate-500 font-medium">
+                      <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-[#004182]" />
+                      Loading payment proof screenshot...
+                    </div>
+                  ) : modalProofUrl ? (
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
+                      <div className="max-h-60 overflow-hidden rounded-lg border border-slate-300/80 bg-white flex items-center justify-center p-1">
+                        <img
+                          src={modalProofUrl}
+                          alt="Payment Proof Screenshot"
+                          className="max-h-56 w-auto object-contain cursor-pointer hover:opacity-95 transition-opacity rounded-md"
+                          onClick={() => setProofModalUrl(modalProofUrl)}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] px-1">
+                        <span className="text-slate-500 font-semibold">Click screenshot to view full resolution</span>
+                        <button
+                          type="button"
+                          onClick={() => setProofModalUrl(modalProofUrl)}
+                          className="inline-flex items-center gap-1 text-[#004182] font-bold hover:underline"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Open Full Resolution</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-400 text-xs italic text-center">
+                      No payment proof screenshot attached.
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Admin Action Bar for Pending External Payments */}
               {isPendingPayment(selectedReg) && (
