@@ -431,10 +431,18 @@ export const RegistrationsAdmin: React.FC = () => {
           .select(`*, institutions(*), team_members(*), projects(*), payments(*)`)
           .order('created_at', { ascending: false });
 
-        if (fetchErr) {
-          console.warn('[RegistrationsAdmin] Supabase fetch error:', fetchErr);
-        } else if (data) {
+        if (!fetchErr && data && data.length > 0) {
           loadedRegs = data as JoinedRegistrationRecord[];
+        } else {
+          // Fallback to simple select
+          const { data: simpleData } = await supabase
+            .from('registrations')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (simpleData && simpleData.length > 0) {
+            loadedRegs = simpleData as JoinedRegistrationRecord[];
+          }
         }
       } catch (sErr: any) {
         console.warn('[RegistrationsAdmin] Direct Supabase fetch warning:', sErr);
