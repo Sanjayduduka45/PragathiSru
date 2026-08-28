@@ -36,6 +36,8 @@ class Settings(BaseSettings):
             or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
             or os.getenv("SUPABASE_KEY", "")
             or os.getenv("VITE_SUPABASE_SERVICE_ROLE_KEY", "")
+            or os.getenv("SUPABASE_ANON_KEY", "")
+            or os.getenv("VITE_SUPABASE_ANON_KEY", "")
         )
 
 

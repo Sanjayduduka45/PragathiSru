@@ -375,36 +375,36 @@ export const RegistrationsAdmin: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    let loadedRegs: JoinedRegistrationRecord[] = [];
+
     try {
       const res = await api.registrations.list();
-      if (res && Array.isArray(res.data)) {
-        setRegistrations(res.data as JoinedRegistrationRecord[]);
-      } else {
-        setRegistrations([]);
+      if (res && Array.isArray(res.data) && res.data.length > 0) {
+        loadedRegs = res.data as JoinedRegistrationRecord[];
       }
     } catch (err: any) {
-      console.warn('[RegistrationsAdmin] FastAPI fetch warning, falling back to Supabase direct query:', err);
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data, error: fetchErr } = await supabase
-            .from('registrations')
-            .select(`*, institutions(*), team_members(*), projects(*), payments(*)`)
-            .order('created_at', { ascending: false });
-
-          if (fetchErr) {
-            setError(`Database error (${fetchErr.code || 'UNKNOWN'}): ${fetchErr.message}`);
-          } else {
-            setRegistrations((data as JoinedRegistrationRecord[]) || []);
-          }
-        } catch (sErr: any) {
-          setError(sErr?.message || 'An unexpected error occurred while fetching registrations.');
-        }
-      } else {
-        setError('FastAPI backend is loading/connecting. Please verify API server.');
-      }
-    } finally {
-      setLoading(false);
+      console.warn('[RegistrationsAdmin] FastAPI fetch warning:', err);
     }
+
+    if (loadedRegs.length === 0 && isSupabaseConfigured && supabase) {
+      try {
+        const { data, error: fetchErr } = await supabase
+          .from('registrations')
+          .select(`*, institutions(*), team_members(*), projects(*), payments(*)`)
+          .order('created_at', { ascending: false });
+
+        if (fetchErr) {
+          console.warn('[RegistrationsAdmin] Supabase fetch error:', fetchErr);
+        } else if (data) {
+          loadedRegs = data as JoinedRegistrationRecord[];
+        }
+      } catch (sErr: any) {
+        console.warn('[RegistrationsAdmin] Direct Supabase fetch warning:', sErr);
+      }
+    }
+
+    setRegistrations(loadedRegs);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
