@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, File, UploadFile, Form
 from typing import Optional
 from app.schemas.registration import (
     RegistrationListResponse,
@@ -7,7 +7,11 @@ from app.schemas.registration import (
     RegistrationStatsResponse,
     EmailLogListResponse,
     EmailLogItem,
-    ResendEmailResponse
+    ResendEmailResponse,
+    PaymentApproveRequest,
+    PaymentRejectRequest,
+    PaymentProofResponse,
+    PaymentActionResponse
 )
 from app.services.registration_service import registration_service
 
@@ -88,4 +92,57 @@ async def delete_registration(reg_id: str):
 async def get_dashboard_stats():
     stats = await registration_service.get_stats()
     return RegistrationStatsResponse(data=stats)
+
+# ── Manual Payment Verification Endpoints ─────────────────────────────────────
+
+@router.post("/api/payments/upload-proof")
+async def upload_payment_proof(
+    registration_id: str = Form(...),
+    transaction_id: Optional[str] = Form(None),
+    file: UploadFile = File(...)
+):
+    if not file:
+        raise HTTPException(status_code=400, detail="Payment proof file is required.")
+
+    contents = await file.read()
+    if not contents or len(contents) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded payment proof file is empty.")
+
+    res = await registration_service.upload_payment_proof(
+        registration_id=registration_id,
+        file_bytes=contents,
+        filename=file.filename or "proof.png",
+        content_type=file.content_type or "image/png",
+        transaction_id=transaction_id
+    )
+    return res
+
+@router.get("/api/admin/payments/{reg_id}/proof", response_model=PaymentProofResponse)
+async def get_payment_proof_signed_url(reg_id: str):
+    res = await registration_service.get_payment_proof_signed_url(reg_id)
+    return PaymentProofResponse(**res)
+
+@router.post("/api/admin/payments/{reg_id}/approve", response_model=PaymentActionResponse)
+async def approve_payment(reg_id: str, body: Optional[PaymentApproveRequest] = None):
+    notes = body.notes if body else None
+    updated = await registration_service.approve_payment(reg_id, notes=notes)
+    if not updated:
+        raise HTTPException(status_code=400, detail="Failed to approve payment")
+    return PaymentActionResponse(
+        success=True,
+        message=f"Payment for registration {reg_id} approved successfully.",
+        data=updated
+    )
+
+@router.post("/api/admin/payments/{reg_id}/reject", response_model=PaymentActionResponse)
+async def reject_payment(reg_id: str, body: Optional[PaymentRejectRequest] = None):
+    reason = body.reason if body else None
+    updated = await registration_service.reject_payment(reg_id, reason=reason)
+    if not updated:
+        raise HTTPException(status_code=400, detail="Failed to reject payment")
+    return PaymentActionResponse(
+        success=True,
+        message=f"Payment for registration {reg_id} rejected.",
+        data=updated
+    )
 

@@ -19,6 +19,10 @@ import {
   Eye,
   X,
   Info,
+  QrCode,
+  Upload,
+  Clock,
+  FileCheck,
 } from 'lucide-react';
 
 export interface ReviewTeamMember {
@@ -53,7 +57,7 @@ interface RegistrationReviewConfirmationProps {
   onEditTeam: () => void;
   onEditProject: () => void;
   onEditPayment: () => void;
-  onSubmitRegistration: () => Promise<{ success: boolean; registrationId: string; message?: string }>;
+  onSubmitRegistration: (paymentDetails?: { transactionId: string; proofFile: File }) => Promise<{ success: boolean; registrationId: string; message?: string }>;
   onGoHome: () => void;
 }
 
@@ -72,17 +76,62 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
 
+  // Manual payment fields for External Participants
+  const [transactionId, setTransactionId] = useState<string>('');
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofFileError, setProofFileError] = useState<string>('');
+  const [isPendingVerification, setIsPendingVerification] = useState<boolean>(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProofFileError('');
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'pdf'];
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      if (!allowedExtensions.includes(ext)) {
+        setProofFileError('Invalid file format. Please upload PNG, JPG, JPEG, WEBP, or PDF.');
+        setProofFile(null);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setProofFileError('File size exceeds 5MB limit. Please upload a smaller file.');
+        setProofFile(null);
+        return;
+      }
+      setProofFile(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (data.participantType === 'EXTERNAL') {
+      if (!transactionId.trim()) {
+        setSubmitError('Please enter a valid Transaction ID / UTR Number.');
+        return;
+      }
+      if (!proofFile) {
+        setSubmitError('Please upload your payment screenshot / receipt proof.');
+        return;
+      }
+    }
+
     if (!confirmedCorrect || isSubmitting) return;
 
     setSubmitError('');
     setIsSubmitting(true);
 
     try {
-      const res = await onSubmitRegistration();
+      const paymentDetails = data.participantType === 'EXTERNAL' && proofFile
+        ? { transactionId: transactionId.trim(), proofFile }
+        : undefined;
+
+      const res = await onSubmitRegistration(paymentDetails);
       if (res.success) {
         setConfirmedId(res.registrationId);
+        if (data.participantType === 'EXTERNAL') {
+          setIsPendingVerification(true);
+        }
       } else {
         setSubmitError(res.message || 'Registration submission failed. Please try again.');
       }
@@ -93,19 +142,112 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
     }
   };
 
-  // SUCCESS STATE VIEW
+  // PENDING PAYMENT VERIFICATION VIEW (FOR EXTERNAL PARTICIPANTS)
+  if (confirmedId && isPendingVerification) {
+    return (
+      <div className="bg-white rounded-3xl border border-amber-200 shadow-xl p-6 sm:p-10 space-y-8 text-center max-w-2xl mx-auto relative overflow-hidden animate-in fade-in duration-300">
+        
+        {/* Animated Warning / Pending Badge */}
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+          className="w-20 h-20 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto shadow-lg shadow-amber-500/30 relative z-10"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 250 }}
+          >
+            <Clock className="w-12 h-12" />
+          </motion.div>
+        </motion.div>
+
+        {/* Headline */}
+        <div className="space-y-2 relative z-10">
+          <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>Registration Submitted — Payment Verification Pending</span>
+          </span>
+
+          <h2 className="text-2xl sm:text-3xl font-extrabold font-display text-slate-900 tracking-tight">
+            PENDING PAYMENT VERIFICATION
+          </h2>
+
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed font-medium">
+            Your registration has been submitted and your payment is pending verification. You will receive a confirmation email after the payment is approved.
+          </p>
+        </div>
+
+        {/* Info Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-left space-y-4 max-w-lg mx-auto text-xs sm:text-sm shadow-xs relative z-10">
+          
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold tracking-wider block">
+                Registration ID
+              </span>
+              <span className="text-lg font-mono font-extrabold text-[#004182]">
+                {confirmedId}
+              </span>
+            </div>
+
+            <div className="text-right">
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold tracking-wider block">
+                Payment Status
+              </span>
+              <span className="inline-block font-extrabold px-2.5 py-0.5 rounded text-xs bg-amber-100 text-amber-800 border border-amber-300 uppercase">
+                PENDING
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-slate-800">
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Team Name</span>
+              <span className="font-bold text-slate-900 text-base">{data.teamName}</span>
+            </div>
+
+            {transactionId && (
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Transaction ID</span>
+                <span className="font-mono font-bold text-slate-800">{transactionId}</span>
+              </div>
+            )}
+
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Institution</span>
+              <span className="font-semibold text-slate-900">{data.institutionName}</span>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Expo Date: 09 October 2026</span>
+            <span>SR University, Warangal</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 relative z-10">
+          <button
+            type="button"
+            onClick={onGoHome}
+            className="w-full sm:w-auto bg-[#004182] hover:bg-[#003366] text-white font-extrabold px-8 py-3.5 rounded-full text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Home className="w-4 h-4 text-blue-200" />
+            <span>GO TO HOME</span>
+          </button>
+        </div>
+
+      </div>
+    );
+  }
+
+  // SUCCESS STATE VIEW (FOR SRU STUDENTS / IMMEDIATE APPROVAL)
   if (confirmedId) {
     return (
       <div className="bg-white rounded-3xl border border-emerald-200 shadow-xl p-6 sm:p-10 space-y-8 text-center max-w-2xl mx-auto relative overflow-hidden animate-in fade-in duration-300">
         
-        {/* Subtle Celebratory Background Particles */}
-        <div className="absolute inset-0 pointer-events-none opacity-30 motion-reduce:hidden">
-          <div className="absolute top-6 left-10 w-2 h-2 rounded-full bg-emerald-400 animate-ping duration-1000" />
-          <div className="absolute top-12 right-12 w-3 h-3 rounded-full bg-blue-400 animate-pulse duration-700" />
-          <div className="absolute bottom-16 left-16 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping duration-1000" />
-          <div className="absolute bottom-8 right-20 w-2 h-2 rounded-full bg-emerald-500 animate-pulse duration-500" />
-        </div>
-
         {/* Animated Checkmark Badge */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
@@ -209,105 +351,17 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
             <Home className="w-4 h-4 text-blue-200" />
             <span>GO TO HOME</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => setShowDetailModal(true)}
-            className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold px-8 py-3.5 rounded-full text-xs sm:text-sm border border-slate-300 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Eye className="w-4 h-4 text-slate-600" />
-            <span>VIEW REGISTRATION</span>
-          </button>
         </div>
-
-        {/* Registration Details Modal */}
-        <AnimatePresence>
-          {showDetailModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 text-left shadow-2xl relative border border-slate-200"
-              >
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-[#004182]" />
-                    <h3 className="font-bold text-slate-900 text-sm sm:text-base font-display">
-                      Registration Details
-                    </h3>
-                  </div>
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-3 text-xs text-slate-700">
-                  <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <div>
-                      <span className="text-slate-400 text-[10px] uppercase font-bold block">Registration ID</span>
-                      <strong className="text-[#004182] font-mono">{confirmedId}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] uppercase font-bold block">Institution</span>
-                      <strong className="truncate block">{data.institutionName}</strong>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 text-[10px] uppercase font-bold block">Lead Contact</span>
-                    <strong>{data.leaderName}</strong> ({data.leaderEmail} • {data.leaderPhone})
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 text-[10px] uppercase font-bold block">Team Members ({data.teamMembers.length})</span>
-                    <ul className="mt-1 space-y-1">
-                      {data.teamMembers.map((m, idx) => (
-                        <li key={idx} className="bg-white p-2 rounded-lg border border-slate-200 flex items-center justify-between">
-                          <span><strong>{m.name}</strong> ({m.role})</span>
-                          <span className="text-[10px] text-slate-500">{m.email}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 text-[10px] uppercase font-bold block">Project Title & Category</span>
-                    <p className="font-bold text-slate-900">{data.projectTitle}</p>
-                    <span className="text-[10px] bg-blue-50 text-[#004182] px-2 py-0.5 rounded font-medium">
-                      {data.category}
-                    </span>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                    <span className="text-slate-500 font-bold">Status</span>
-                    <span className="font-extrabold text-emerald-700">
-                      Confirmed
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-2 text-right">
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-5 py-2 rounded-full text-xs"
-                  >
-                    Close
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
 
       </div>
     );
   }
 
   // REVIEW & CONFIRMATION FORM VIEW
+  const isSubmitDisabled = data.participantType === 'EXTERNAL'
+    ? (!confirmedCorrect || !transactionId.trim() || !proofFile || isSubmitting)
+    : (!confirmedCorrect || isSubmitting);
+
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden max-w-3xl mx-auto space-y-0">
       
@@ -473,44 +527,132 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
           </div>
         </div>
 
-        {/* 4. PAYMENT STATUS (ONLY FOR EXTERNAL PARTICIPANTS) */}
-        {data.participantType === 'EXTERNAL' && (
-          <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50/70 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+        {/* 4. PAYMENT DETAILS & QR CODE (ONLY FOR EXTERNAL PARTICIPANTS) */}
+        {data.participantType === 'EXTERNAL' ? (
+          <div className="border-2 border-blue-200 rounded-2xl p-5 sm:p-6 bg-gradient-to-b from-blue-50/40 to-white space-y-6 shadow-xs">
+            <div className="flex items-center justify-between border-b border-blue-100 pb-3">
               <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-[#004182]" />
-                <span className="text-xs font-extrabold uppercase tracking-wider text-[#004182]">
-                  Payment Details
+                <QrCode className="w-5 h-5 text-[#004182]" />
+                <span className="text-sm font-extrabold uppercase tracking-wider text-[#004182]">
+                  Complete Payment (Manual Verification)
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={onEditPayment}
-                className="inline-flex items-center gap-1 text-xs font-bold text-[#004182] hover:text-[#002855] bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs hover:bg-slate-50 cursor-pointer"
-              >
-                <Edit3 className="w-3 h-3" />
-                <span>EDIT DETAILS</span>
-              </button>
+              <span className="text-xs font-extrabold bg-blue-100 text-[#004182] px-3 py-1 rounded-full border border-blue-200">
+                ₹1,000 / Team
+              </span>
             </div>
 
-            <div className="flex items-center justify-between text-xs sm:text-sm">
+            {/* QR Code & Instructions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* QR Image Box */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center space-y-3 shadow-xs">
+                <div className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  Scan Official College Payment QR
+                </div>
+                <div className="w-48 h-48 mx-auto border-2 border-blue-100 rounded-xl overflow-hidden shadow-xs bg-slate-50 flex items-center justify-center">
+                  <img
+                    src="/payment_qr.jpeg"
+                    alt="Official College Payment QR Code"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  Scan the QR code below and pay ₹1,000 per team.
+                </p>
+              </div>
+
+              {/* Instructions Box */}
+              <div className="space-y-3 text-xs sm:text-sm text-slate-700">
+                <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-100 space-y-2">
+                  <div className="font-extrabold text-[#004182] text-xs uppercase tracking-wider">
+                    Payment Instructions
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-700 font-medium">
+                    <li>Scan the QR code using GPay, PhonePe, Paytm, BHIM or any UPI app.</li>
+                    <li>Pay flat fee of <strong>₹1,000 per team</strong>.</li>
+                    <li>Note down the <strong>Transaction ID / UTR Number</strong>.</li>
+                    <li>Upload payment screenshot/receipt below.</li>
+                  </ol>
+                </div>
+
+                <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <span className="font-medium">
+                    After completing the payment, enter your Transaction ID and upload the payment screenshot.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Manual Payment Input Form */}
+            <div className="space-y-4 pt-4 border-t border-blue-100">
+              {/* Transaction ID */}
               <div>
-                <span className="text-slate-400 text-[10px] uppercase font-bold block">Registration Fee</span>
-                <span className="font-extrabold text-slate-900 text-base">
-                  ₹1,000 per Team
-                </span>
-                <span className="text-[11px] text-slate-500 block">
-                  Flat fee for team of 1–5 members
-                </span>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Transaction ID / UTR Number *
+                </label>
+                <input
+                  type="text"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  placeholder="e.g. 423984729834 or UTR123456789"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white font-mono text-sm focus:outline-hidden focus:border-[#004182] focus:ring-2 focus:ring-blue-100 shadow-2xs"
+                  required
+                />
               </div>
 
-              <div className="text-right">
-                <span className="inline-flex items-center gap-1 font-extrabold text-xs px-3 py-1 rounded-full border bg-blue-50 text-[#004182] border-blue-200">
-                  <CreditCard className="w-3.5 h-3.5 text-[#004182]" />
-                  <span>Gateway Payment</span>
-                </span>
+              {/* Payment Proof File */}
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Upload Payment Screenshot / Receipt *
+                </label>
+                <div className="border-2 border-dashed border-slate-300 hover:border-[#004182] bg-white rounded-2xl p-4 text-center transition-colors">
+                  <input
+                    type="file"
+                    id="payment-proof-upload"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label htmlFor="payment-proof-upload" className="cursor-pointer space-y-2 block">
+                    <Upload className="w-8 h-8 text-[#004182] mx-auto" />
+                    {proofFile ? (
+                      <div className="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>{proofFile.name} ({(proofFile.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-xs font-bold text-[#004182]">Click to upload payment screenshot</span>
+                        <span className="text-[11px] text-slate-500 block">Accepted formats: PNG, JPG, JPEG, WEBP, PDF (Max 5MB)</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+                {proofFileError && (
+                  <p className="text-xs text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{proofFileError}</span>
+                  </p>
+                )}
               </div>
             </div>
+          </div>
+        ) : (
+          /* SRU Student Free Registration Banner */
+          <div className="border border-emerald-200 rounded-2xl p-5 bg-emerald-50/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs uppercase tracking-wider">
+                <GraduationCap className="w-4 h-4 text-emerald-600" />
+                <span>SR University Student Registration</span>
+              </div>
+              <span className="text-xs font-extrabold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full border border-emerald-300">
+                ₹0 — FREE
+              </span>
+            </div>
+            <p className="text-xs text-slate-600">
+              Registration fee is waived for verified SR University students.
+            </p>
           </div>
         )}
 
@@ -534,19 +676,21 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
           <div className="flex items-center justify-end">
             <button
               type="submit"
-              disabled={!confirmedCorrect || isSubmitting}
+              disabled={isSubmitDisabled}
               className="w-full sm:w-auto bg-[#004182] hover:bg-[#003366] text-white font-extrabold text-sm sm:text-base px-10 py-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>SUBMITTING REGISTRATION...</span>
+                  <span>
+                    {data.participantType === 'EXTERNAL' ? 'SUBMITTING PAYMENT FOR VERIFICATION...' : 'SUBMITTING REGISTRATION...'}
+                  </span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5 text-blue-200" />
                   <span>
-                    {data.participantType === 'EXTERNAL' ? 'PROCEED TO PAYMENT (₹1,000)' : 'SUBMIT REGISTRATION'}
+                    {data.participantType === 'EXTERNAL' ? 'SUBMIT PAYMENT FOR VERIFICATION' : 'SUBMIT REGISTRATION'}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </>

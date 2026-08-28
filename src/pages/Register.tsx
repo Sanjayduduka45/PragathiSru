@@ -786,24 +786,21 @@ export const Register: React.FC = () => {
                   onEditTeam={() => setCurrentStep(2)}
                   onEditProject={() => setCurrentStep(3)}
                   onEditPayment={() => setCurrentStep(2)}
-                  onSubmitRegistration={async () => {
+                  onSubmitRegistration={async (paymentDetails) => {
                     let transactionRef = '';
 
                     if (regMode === 'EXTERNAL') {
-                      const fee = SRUPaymentService.calculateFee(members.length);
-                      const payRes = await SRUPaymentService.initiateGatewayPayment({
-                        registrationId: 'TEMP-' + Date.now(),
-                        teamName,
-                        leaderName: members[0].name,
-                        leaderEmail: members[0].email,
-                        leaderPhone: members[0].phone,
-                        amountINR: fee,
-                        institutionName,
-                        memberCount: members.length,
-                      });
-                      transactionRef = payRes.transactionRef;
+                      if (!paymentDetails?.transactionId || !paymentDetails?.proofFile) {
+                        return {
+                          success: false,
+                          registrationId: '',
+                          message: 'Transaction ID and payment proof screenshot are required for external registration.',
+                        };
+                      }
+                      transactionRef = paymentDetails.transactionId;
                     }
 
+                    // 1. Submit registration record to DB
                     const submissionRes = await RegistrationService.submitRegistration({
                       teamName,
                       category,
@@ -813,23 +810,44 @@ export const Register: React.FC = () => {
                       institutionName: institutionName,
                       department,
                       members,
-                      paymentStatus: regMode === 'SRU_STUDENT' ? 'FREE_SRU' : 'COMPLETED',
+                      paymentStatus: regMode === 'SRU_STUDENT' ? 'FREE_SRU' : 'PENDING',
                       transactionRef: regMode === 'EXTERNAL' ? transactionRef : undefined,
                     });
 
-                    if (submissionRes.success && submissionRes.record) {
-                      setConfirmedRecord(submissionRes.record);
-                      return {
-                        success: true,
-                        registrationId: submissionRes.record.registrationId || `PRAGATHI26-${Math.floor(1000 + Math.random() * 9000)}`,
-                      };
-                    } else {
+                    if (!submissionRes.success || !submissionRes.record) {
                       return {
                         success: false,
                         registrationId: '',
                         message: submissionRes.message || 'Failed to complete registration submission.',
                       };
                     }
+
+                    // 2. For external participants, upload payment proof associated with the created registration ID
+                    if (regMode === 'EXTERNAL' && paymentDetails?.proofFile) {
+                      const regCode = submissionRes.record.registrationId || submissionRes.record.id;
+                      try {
+                        const uploadRes = await SRUPaymentService.uploadPaymentProof(
+                          regCode,
+                          paymentDetails.proofFile,
+                          transactionRef
+                        );
+
+                        if (!uploadRes.success) {
+                          console.warn('Payment proof upload warning:', uploadRes.message);
+                        }
+                      } catch (uploadErr: any) {
+                        console.warn('Payment proof upload error:', uploadErr?.message || uploadErr);
+                      }
+                    }
+
+                    if (regMode === 'SRU_STUDENT') {
+                      setConfirmedRecord(submissionRes.record);
+                    }
+
+                    return {
+                      success: true,
+                      registrationId: submissionRes.record.registrationId || `PRAGATHI26-${Math.floor(1000 + Math.random() * 9000)}`,
+                    };
                   }}
                   onGoHome={() => navigate('/')}
                 />

@@ -1,21 +1,5 @@
-/**
- * SR University Payment Gateway Integration Architecture
- * PRAGATHI 2K26 - External Participant Registration Fee
- *
- * ARCHITECTURE FLOW:
- * React App (Client)
- *    ↓
- * Supabase Edge Function ('sru-payment-gateway')
- *    ↓
- * SR University Payment API (Server-to-Server)
- *
- * SENSITIVE CREDENTIALS:
- * Kept strictly server-side in Edge Function environment variables:
- * - PAYMENT_API_URL
- * - PAYMENT_API_KEY
- * - PAYMENT_API_SECRET
- * - PAYMENT_MERCHANT_ID
- */
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { api } from './api';
 
 export type PaymentState = 'idle' | 'creating' | 'redirecting' | 'processing' | 'success' | 'failed';
 
@@ -57,6 +41,57 @@ export class SRUPaymentService {
    * SR University Students: ₹0 (FREE)
    */
   public static readonly EXTERNAL_TEAM_REGISTRATION_FEE = 1000;
+
+  /**
+   * Uploads payment proof screenshot to private 'payment-proofs' bucket
+   */
+  public static async uploadPaymentProof(
+    registrationId: string,
+    file: File,
+    transactionId?: string
+  ): Promise<{ success: boolean; proofPath: string; message?: string }> {
+    try {
+      const res = await api.registrations.uploadPaymentProof(registrationId, file, transactionId);
+      if (res && res.payment_proof_path) {
+        return {
+          success: true,
+          proofPath: res.payment_proof_path,
+          message: 'Payment proof uploaded successfully.',
+        };
+      }
+    } catch (err: any) {
+      console.warn('Backend payment proof upload endpoint warning, trying direct Supabase storage:', err);
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+        const storagePath = `${registrationId}/${Date.now()}_${sanitizedFilename}`;
+
+        const { data, error } = await supabase.storage
+          .from('payment-proofs')
+          .upload(storagePath, file, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+
+        if (error) {
+          throw new Error(`Storage upload failed: ${error.message}`);
+        }
+
+        const fullPath = `payment-proofs/${data.path}`;
+        return {
+          success: true,
+          proofPath: fullPath,
+          message: 'Payment proof uploaded successfully.',
+        };
+      } catch (sErr: any) {
+        throw new Error(sErr?.message || 'Payment proof upload failed.');
+      }
+    }
+
+    throw new Error('Storage service is unavailable.');
+  }
 
   /**
    * Calculates external or SRU registration fee based on participant status

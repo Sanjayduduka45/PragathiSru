@@ -1,4 +1,6 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
+import time
+import re
 from typing import List, Optional, Dict, Any
 from app.database import db
 from app.schemas.registration import (
@@ -7,7 +9,8 @@ from app.schemas.registration import (
     RegistrationStats,
     TeamMember,
     ProjectInfo,
-    InstitutionInfo
+    InstitutionInfo,
+    PaymentInfo
 )
 from app.services.domain_service import domain_service
 from app.services.faq_service import faq_service
@@ -15,8 +18,8 @@ from app.services.faq_service import faq_service
 class RegistrationService:
     @staticmethod
     async def get_registrations() -> List[RegistrationItem]:
-        # Fetch registrations from Supabase with relational join including institutions
-        regs = await db.fetch_supabase("registrations", "select=*,institutions(*),team_members(*),projects(*)&order=created_at.desc")
+        # Fetch registrations from Supabase with relational join including institutions, team_members, projects, payments
+        regs = await db.fetch_supabase("registrations", "select=*,institutions(*),team_members(*),projects(*),payments(*)&order=created_at.desc")
         # Fallback to simple select=* if relational join query returned empty/None
         if not regs:
             print("[RegistrationService] Relational query returned empty/None. Falling back to select=*")
@@ -102,6 +105,28 @@ class RegistrationService:
                 except Exception as e:
                     print(f"[RegistrationService] Skipping invalid project dict: {e}")
             
+            pay_list: List[PaymentInfo] = []
+            raw_payments = r.get("payments")
+            proof_path: Optional[str] = r.get("payment_proof_path") or r.get("payment_reference")
+            if isinstance(raw_payments, list):
+                for pm in raw_payments:
+                    if isinstance(pm, dict):
+                        try:
+                            pay_info = PaymentInfo(**pm)
+                            pay_list.append(pay_info)
+                            if not proof_path and pm.get("payment_proof_path"):
+                                proof_path = pm.get("payment_proof_path")
+                        except Exception as e:
+                            print(f"[RegistrationService] Skipping invalid payment dict: {e}")
+            elif isinstance(raw_payments, dict):
+                try:
+                    pay_info = PaymentInfo(**raw_payments)
+                    pay_list.append(pay_info)
+                    if not proof_path and raw_payments.get("payment_proof_path"):
+                        proof_path = raw_payments.get("payment_proof_path")
+                except Exception as e:
+                    print(f"[RegistrationService] Skipping invalid payment dict: {e}")
+
             item = RegistrationItem(
                 id=r.get("id"),
                 registration_id=r.get("registration_id", f"PRAGATHI26-{str(r.get('id', ''))[:6]}"),
@@ -119,8 +144,10 @@ class RegistrationService:
                 payment_status=r.get("payment_status", "not_required"),
                 payment_amount=r.get("payment_amount", 0),
                 payment_reference=r.get("payment_reference"),
+                payment_proof_path=proof_path,
                 team_members=tm_list,
                 projects=proj_list,
+                payments=pay_list,
                 created_at=r.get("created_at")
             )
             result.append(item)
@@ -319,6 +346,253 @@ class RegistrationService:
             domains_count=active_domains,
             faqs_count=active_faqs
         )
+
+    @staticmethod
+    def _is_valid_uuid(val: str) -> bool:
+        try:
+            import uuid
+            uuid.UUID(str(val))
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    async def upload_payment_proof(
+        registration_id: str,
+        file_bytes: bytes,
+        filename: str,
+        content_type: str,
+        transaction_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"]
+        MAX_SIZE = 5 * 1024 * 1024
+
+        if not file_bytes or len(file_bytes) == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+        if len(file_bytes) > MAX_SIZE:
+            raise HTTPException(status_code=400, detail="File size exceeds maximum allowed limit of 5MB.")
+
+        clean_ct = content_type.lower().split(";")[0].strip()
+        ext = filename.split(".")[-1].lower() if "." in filename else ""
+        if clean_ct not in ALLOWED_TYPES and ext not in ["png", "jpg", "jpeg", "webp", "pdf"]:
+            raise HTTPException(status_code=400, detail="Invalid file type. Allowed formats: PNG, JPG, JPEG, WEBP, PDF.")
+
+        clean_reg_id = registration_id.strip()
+        is_uuid = RegistrationService._is_valid_uuid(clean_reg_id)
+
+        target_uuid = None
+        public_reg_code = clean_reg_id
+
+        # Query database safely without passing non-UUID strings to UUID columns
+        check_rows = None
+        if is_uuid:
+            check_rows = await db.fetch_supabase("registrations", f"id=eq.{clean_reg_id}&select=id,registration_id")
+        if not check_rows:
+            check_rows = await db.fetch_supabase("registrations", f"registration_id=eq.{clean_reg_id}&select=id,registration_id")
+
+        if check_rows and len(check_rows) > 0:
+            target_uuid = check_rows[0].get("id")
+            public_reg_code = check_rows[0].get("registration_id") or clean_reg_id
+        else:
+            # If not in DB yet, only allow temp/REG- codes during registration flow
+            if not clean_reg_id.startswith("REG-") and not clean_reg_id.startswith("TEMP-") and not clean_reg_id.startswith("PRAGATHI"):
+                raise HTTPException(status_code=404, detail=f"Registration record '{clean_reg_id}' not found in database.")
+
+        sanitized_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
+        storage_path = f"{public_reg_code}/{int(time.time())}_{sanitized_filename}"
+
+        proof_path = await db.upload_private_supabase_storage("payment-proofs", storage_path, file_bytes, clean_ct)
+        if not proof_path:
+            raise HTTPException(status_code=500, detail="Failed to store payment proof image in private storage.")
+
+        # If registration record exists in DB, update payments and registrations tables
+        if target_uuid:
+            payment_payload: Dict[str, Any] = {
+                "registration_id": target_uuid,  # Guaranteed UUID foreign key
+                "amount": 1000,
+                "currency": "INR",
+                "status": "pending",
+                "gateway_reference": proof_path,
+                "transaction_id": transaction_id or None,
+                "payment_proof_path": proof_path,
+                "updated_at": "now()"
+            }
+
+            existing_pay = await db.fetch_supabase("payments", f"registration_id=eq.{target_uuid}&select=id")
+            pay_success = False
+
+            if existing_pay and len(existing_pay) > 0:
+                pay_id = existing_pay[0].get("id")
+                updated_res = await db.update_supabase("payments", "id", pay_id, payment_payload)
+                if not updated_res:
+                    # Fallback without payment_proof_path if column is missing in DB schema cache
+                    fallback_payload = {k: v for k, v in payment_payload.items() if k != "payment_proof_path"}
+                    updated_res = await db.update_supabase("payments", "id", pay_id, fallback_payload)
+                pay_success = bool(updated_res)
+            else:
+                inserted_res = await db.insert_supabase("payments", payment_payload)
+                if not inserted_res:
+                    # Fallback without payment_proof_path if column is missing in DB schema cache
+                    fallback_payload = {k: v for k, v in payment_payload.items() if k != "payment_proof_path"}
+                    inserted_res = await db.insert_supabase("payments", fallback_payload)
+                pay_success = bool(inserted_res)
+
+            if not pay_success:
+                raise HTTPException(status_code=500, detail="Failed to create or update payment record in database.")
+
+            reg_update_success = await db.update_supabase("registrations", "id", target_uuid, {
+                "payment_status": "pending",
+                "payment_amount": 1000,
+                "payment_reference": transaction_id or proof_path,
+                "registration_status": "submitted"
+            })
+            if not reg_update_success:
+                raise HTTPException(status_code=500, detail="Failed to update registration payment status in database.")
+
+        return {
+            "success": True,
+            "payment_proof_path": proof_path,
+            "registration_id": public_reg_code,
+            "message": "Payment proof uploaded successfully."
+        }
+
+    @staticmethod
+    async def approve_payment(reg_id_or_pay_id: str, notes: Optional[str] = None) -> Optional[RegistrationItem]:
+        clean_id = reg_id_or_pay_id.strip()
+        is_uuid = RegistrationService._is_valid_uuid(clean_id)
+        target_uuid = None
+        reg_code = None
+
+        reg_row = None
+        if is_uuid:
+            by_id = await db.fetch_supabase("registrations", f"id=eq.{clean_id}&select=*")
+            if by_id and len(by_id) > 0:
+                reg_row = by_id[0]
+
+        if not reg_row:
+            by_code = await db.fetch_supabase("registrations", f"registration_id=eq.{clean_id}&select=*")
+            if by_code and len(by_code) > 0:
+                reg_row = by_code[0]
+
+        if not reg_row and is_uuid:
+            by_pay = await db.fetch_supabase("payments", f"id=eq.{clean_id}&select=*")
+            if by_pay and len(by_pay) > 0:
+                reg_id_foreign = by_pay[0].get("registration_id")
+                if reg_id_foreign:
+                    by_foreign = await db.fetch_supabase("registrations", f"id=eq.{reg_id_foreign}&select=*")
+                    if by_foreign and len(by_foreign) > 0:
+                        reg_row = by_foreign[0]
+
+        if not reg_row:
+            raise HTTPException(status_code=404, detail=f"Registration or payment record '{clean_id}' not found.")
+
+        target_uuid = reg_row.get("id")
+        reg_code = reg_row.get("registration_id")
+
+        if reg_row.get("payment_status") == "paid" and reg_row.get("registration_status") == "approved":
+            print(f"[RegistrationService] Approval skipped for '{reg_code}' — already paid/approved.")
+            return await RegistrationService.get_registration(target_uuid)
+
+        await db.update_supabase("payments", "registration_id", target_uuid, {
+            "status": "paid"
+        })
+
+        await db.update_supabase("registrations", "id", target_uuid, {
+            "payment_status": "paid",
+            "registration_status": "approved"
+        })
+
+        if reg_code:
+            try:
+                print(f"[RegistrationService] Payment approved for '{reg_code}' — triggering confirmation email.")
+                await RegistrationService.resend_confirmation_email(reg_code)
+            except Exception as e:
+                print(f"[RegistrationService] Email trigger error during approval: {e}")
+
+        return await RegistrationService.get_registration(target_uuid)
+
+    @staticmethod
+    async def reject_payment(reg_id_or_pay_id: str, reason: Optional[str] = None) -> Optional[RegistrationItem]:
+        clean_id = reg_id_or_pay_id.strip()
+        is_uuid = RegistrationService._is_valid_uuid(clean_id)
+        target_uuid = None
+        reg_code = None
+
+        reg_row = None
+        if is_uuid:
+            by_id = await db.fetch_supabase("registrations", f"id=eq.{clean_id}&select=*")
+            if by_id and len(by_id) > 0:
+                reg_row = by_id[0]
+
+        if not reg_row:
+            by_code = await db.fetch_supabase("registrations", f"registration_id=eq.{clean_id}&select=*")
+            if by_code and len(by_code) > 0:
+                reg_row = by_code[0]
+
+        if not reg_row and is_uuid:
+            by_pay = await db.fetch_supabase("payments", f"id=eq.{clean_id}&select=*")
+            if by_pay and len(by_pay) > 0:
+                reg_id_foreign = by_pay[0].get("registration_id")
+                if reg_id_foreign:
+                    by_foreign = await db.fetch_supabase("registrations", f"id=eq.{reg_id_foreign}&select=*")
+                    if by_foreign and len(by_foreign) > 0:
+                        reg_row = by_foreign[0]
+
+        if not reg_row:
+            raise HTTPException(status_code=404, detail=f"Registration or payment record '{clean_id}' not found.")
+
+        target_uuid = reg_row.get("id")
+        reg_code = reg_row.get("registration_id")
+
+        await db.update_supabase("payments", "registration_id", target_uuid, {
+            "status": "failed"
+        })
+
+        await db.update_supabase("registrations", "id", target_uuid, {
+            "payment_status": "failed",
+            "registration_status": "rejected"
+        })
+
+        return await RegistrationService.get_registration(target_uuid)
+
+    @staticmethod
+    async def get_payment_proof_signed_url(reg_id_or_pay_id: str) -> Dict[str, Any]:
+        clean_id = reg_id_or_pay_id.strip()
+        is_uuid = RegistrationService._is_valid_uuid(clean_id)
+        proof_path = None
+
+        if is_uuid:
+            by_pay = await db.fetch_supabase("payments", f"id=eq.{clean_id}&select=payment_proof_path,gateway_reference")
+            if by_pay and len(by_pay) > 0:
+                proof_path = by_pay[0].get("payment_proof_path") or by_pay[0].get("gateway_reference")
+
+        if not proof_path and is_uuid:
+            by_pay_reg = await db.fetch_supabase("payments", f"registration_id=eq.{clean_id}&select=payment_proof_path,gateway_reference")
+            if by_pay_reg and len(by_pay_reg) > 0:
+                proof_path = by_pay_reg[0].get("payment_proof_path") or by_pay_reg[0].get("gateway_reference")
+
+        if not proof_path:
+            query = f"id=eq.{clean_id}&select=payment_reference,payment_proof_path" if is_uuid else f"registration_id=eq.{clean_id}&select=payment_reference,payment_proof_path"
+            by_reg = await db.fetch_supabase("registrations", query)
+            if by_reg and len(by_reg) > 0:
+                proof_path = by_reg[0].get("payment_proof_path") or by_reg[0].get("payment_reference")
+
+        if not proof_path:
+            raise HTTPException(status_code=404, detail="Payment proof file not found for this registration.")
+
+        clean_path = proof_path.replace("payment-proofs/", "")
+
+        signed_url = await db.create_signed_url("payment-proofs", clean_path, expires_in=600)
+        if not signed_url:
+            raise HTTPException(status_code=500, detail="Failed to generate secure signed URL for payment proof.")
+
+        return {
+            "success": True,
+            "signed_url": signed_url,
+            "payment_proof_path": proof_path,
+            "expires_in": 600
+        }
 
 registration_service = RegistrationService()
 

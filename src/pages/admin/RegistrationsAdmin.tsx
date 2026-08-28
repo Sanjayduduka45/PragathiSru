@@ -112,12 +112,31 @@ interface EditFormState {
 
 // ─── Helper badges ────────────────────────────────────────────────────────────
 
-const StatusBadge = () => (
-  <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-    REGISTERED
-  </span>
-);
+const StatusBadge = ({ status }: { status?: string }) => {
+  const s = (status || 'submitted').toLowerCase();
+  if (s === 'approved' || s === 'confirmed') {
+    return (
+      <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+        APPROVED
+      </span>
+    );
+  }
+  if (s === 'rejected' || s === 'failed') {
+    return (
+      <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+        <X className="w-3 h-3 text-rose-600" />
+        REJECTED
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+      <Clock className="w-3 h-3 text-amber-600 font-bold" />
+      PENDING VERIFICATION
+    </span>
+  );
+};
 
 const PaymentBadge = ({ status, amount }: { status: string; amount: number }) => {
   switch (status) {
@@ -205,6 +224,11 @@ export const RegistrationsAdmin: React.FC = () => {
   const [loadingEmailLogs, setLoadingEmailLogs] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
 
+  // Payment Verification State
+  const [loadingProof, setLoadingProof] = useState<boolean>(false);
+  const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
+
   // Edit modal
   const [editReg, setEditReg] = useState<JoinedRegistrationRecord | null>(null);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
@@ -216,6 +240,134 @@ export const RegistrationsAdmin: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<JoinedRegistrationRecord | null>(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const isExternalRegistration = (reg: JoinedRegistrationRecord | null) => {
+    if (!reg) return false;
+    return (reg.participant_type || '').trim().toLowerCase() === 'external_student';
+  };
+
+  const isPendingPayment = (reg: JoinedRegistrationRecord | null) => {
+    if (!reg || !isExternalRegistration(reg)) return false;
+    const pStatus = (reg.payment_status || '').trim().toLowerCase();
+    const rStatus = (reg.registration_status || '').trim().toLowerCase();
+    return pStatus === 'pending' || pStatus === 'unpaid' || rStatus === 'submitted' || rStatus === 'under_review';
+  };
+
+  const handleViewProof = async (reg: JoinedRegistrationRecord) => {
+    setLoadingProof(true);
+    try {
+      const res = await api.registrations.getPaymentProofUrl(reg.id);
+      if (res && res.signed_url) {
+        setProofModalUrl(res.signed_url);
+      } else {
+        addToast('error', 'Proof View Error', 'Could not obtain secure signed URL for payment proof.');
+      }
+    } catch (err: any) {
+      console.warn('[RegistrationsAdmin] FastAPI proof signed URL warning, trying direct Supabase signed URL:', err);
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const rawPath = reg.payment_reference || (reg.payments?.[0] as any)?.payment_proof_path;
+          if (!rawPath) throw new Error('No proof reference saved in database.');
+          const cleanPath = rawPath.replace('payment-proofs/', '');
+          const { data, error: signErr } = await supabase.storage
+            .from('payment-proofs')
+            .createSignedUrl(cleanPath, 600);
+          if (signErr || !data?.signedUrl) {
+            throw new Error(signErr?.message || 'Failed to generate signed URL.');
+          }
+          setProofModalUrl(data.signedUrl);
+        } catch (sErr: any) {
+          addToast('error', 'Proof View Error', sErr?.message || 'Unable to load payment proof.');
+        }
+      } else {
+        addToast('error', 'Proof View Error', err?.message || 'Unable to load payment proof.');
+      }
+    } finally {
+      setLoadingProof(false);
+    }
+  };
+
+  const handleApprovePayment = async (reg: JoinedRegistrationRecord) => {
+    setActionLoading(true);
+    try {
+      const res = await api.registrations.approvePayment(reg.id);
+      if (res && res.success) {
+        addToast('success', 'Payment Approved', `Payment for team ${reg.team_name} approved! Confirmation email dispatched.`);
+        await fetchRegistrations();
+        if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
+          setSelectedReg({
+            ...selectedReg,
+            payment_status: 'paid',
+            registration_status: 'approved',
+          });
+        }
+      }
+    } catch (err: any) {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.from('payments').update({ status: 'paid' }).eq('registration_id', reg.id);
+          await supabase.from('registrations').update({ payment_status: 'paid', registration_status: 'approved' }).eq('id', reg.id);
+          addToast('success', 'Payment Approved', `Payment for team ${reg.team_name} approved directly in database.`);
+          await RegistrationService.resendConfirmationEmail(reg.registration_id);
+          await fetchRegistrations();
+          if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
+            setSelectedReg({
+              ...selectedReg,
+              payment_status: 'paid',
+              registration_status: 'approved',
+            });
+          }
+        } catch (sErr: any) {
+          addToast('error', 'Approval Error', sErr?.message || 'Failed to approve payment.');
+        }
+      } else {
+        addToast('error', 'Approval Error', err?.message || 'Failed to approve payment.');
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectPayment = async (reg: JoinedRegistrationRecord) => {
+    const reason = window.prompt(`Enter rejection reason for team ${reg.team_name} (optional):`);
+    setActionLoading(true);
+    try {
+      const res = await api.registrations.rejectPayment(reg.id, reason || undefined);
+      if (res && res.success) {
+        addToast('info', 'Payment Rejected', `Payment for team ${reg.team_name} rejected.`);
+        await fetchRegistrations();
+        if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
+          setSelectedReg({
+            ...selectedReg,
+            payment_status: 'failed',
+            registration_status: 'rejected',
+          });
+        }
+      }
+    } catch (err: any) {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase.from('payments').update({ status: 'failed' }).eq('registration_id', reg.id);
+          await supabase.from('registrations').update({ payment_status: 'failed', registration_status: 'rejected' }).eq('id', reg.id);
+          addToast('info', 'Payment Rejected', `Payment for team ${reg.team_name} rejected.`);
+          await fetchRegistrations();
+          if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
+            setSelectedReg({
+              ...selectedReg,
+              payment_status: 'failed',
+              registration_status: 'rejected',
+            });
+          }
+        } catch (sErr: any) {
+          addToast('error', 'Rejection Error', sErr?.message || 'Failed to reject payment.');
+        }
+      } else {
+        addToast('error', 'Rejection Error', err?.message || 'Failed to reject payment.');
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -692,7 +844,7 @@ export const RegistrationsAdmin: React.FC = () => {
 
                     {/* Status */}
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <StatusBadge />
+                      <StatusBadge status={r.registration_status} />
                     </td>
 
                     {/* Payment */}
@@ -703,6 +855,28 @@ export const RegistrationsAdmin: React.FC = () => {
                     {/* Actions */}
                     <td className="px-4 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {isPendingPayment(r) && (
+                          <>
+                            <button
+                              onClick={() => handleApprovePayment(r)}
+                              disabled={actionLoading}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                              title="Approve Payment"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Approve</span>
+                            </button>
+                            <button
+                              onClick={() => handleRejectPayment(r)}
+                              disabled={actionLoading}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                              title="Reject Payment"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Reject</span>
+                            </button>
+                          </>
+                        )}
                         {/* View */}
                         <button
                           onClick={() => setSelectedReg(r)}
@@ -751,10 +925,10 @@ export const RegistrationsAdmin: React.FC = () => {
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="font-bold text-slate-700">Page {currentPage} of {totalPages}</span>
+              <span className="font-bold text-slate-700">Page {currentPage} of {totalPages || 1}</span>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || totalPages === 0}
                 className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -787,7 +961,7 @@ export const RegistrationsAdmin: React.FC = () => {
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] uppercase font-extrabold block leading-tight mb-0.5">Registration Status</span>
-                <StatusBadge />
+                <StatusBadge status={selectedReg.registration_status} />
               </div>
             </div>
 
@@ -891,16 +1065,75 @@ export const RegistrationsAdmin: React.FC = () => {
               }
             </div>
 
-            {/* Payment */}
-            <div className="border border-slate-200/80 rounded-xl p-3">
-              <div className="flex items-center gap-1.5 text-[#004182] font-bold border-b border-slate-100 pb-1 mb-2 text-[11px]">
-                <CreditCard className="w-3.5 h-3.5" /><span className="uppercase tracking-wider">Payment Details</span>
+            {/* Payment & Manual Verification Section */}
+            <div className="border border-slate-200/80 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                <div className="flex items-center gap-1.5 text-[#004182] font-bold text-[11px]">
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span className="uppercase tracking-wider">Payment Details & Manual Verification</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {isExternalRegistration(selectedReg) && (
+                    <button
+                      type="button"
+                      onClick={() => handleViewProof(selectedReg)}
+                      disabled={loadingProof}
+                      className="inline-flex items-center gap-1 bg-blue-50 hover:bg-[#004182] text-[#004182] hover:text-white font-bold px-2.5 py-1 rounded-lg text-[10px] border border-blue-200 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {loadingProof ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                      <span>View Payment Proof</span>
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Status</span><div className="mt-0.5"><PaymentBadge status={selectedReg.payment_status} amount={selectedReg.payment_amount} /></div></div>
-                <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Amount</span><span className="font-extrabold text-slate-900 text-xs">₹{selectedReg.payment_amount}</span></div>
-                <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Reference</span><span className="font-mono text-slate-700 text-xs">{selectedReg.payment_reference || 'N/A'}</span></div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Status</span>
+                  <div className="mt-0.5"><PaymentBadge status={selectedReg.payment_status} amount={selectedReg.payment_amount} /></div>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Amount</span>
+                  <span className="font-extrabold text-slate-900 text-xs">₹{selectedReg.payment_amount}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Transaction ID / Reference</span>
+                  <span className="font-mono text-slate-800 font-bold text-xs">
+                    {selectedReg.payments?.[0]?.transaction_id || selectedReg.payment_reference || 'N/A'}
+                  </span>
+                </div>
               </div>
+
+              {/* Admin Action Bar for Pending External Payments */}
+              {isPendingPayment(selectedReg) && (
+                <div className="mt-3 pt-2.5 border-t border-slate-100 bg-amber-50/60 p-3 rounded-lg flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs text-amber-900">
+                    <span className="font-extrabold block">Admin Verification Action Required</span>
+                    <span className="text-[10px] text-amber-700">Review proof before approving. Approving will trigger the confirmation email.</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleRejectPayment(selectedReg)}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1 bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Reject</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApprovePayment(selectedReg)}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                      <span>Approve Payment</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Confirmation Email Delivery Status & Tracking */}
@@ -1360,6 +1593,49 @@ export const RegistrationsAdmin: React.FC = () => {
                   <CheckCircle2 className="w-3 h-3" /> ID confirmed - you may now delete permanently
                 </p>
               )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Payment Proof View Lightbox Modal */}
+      <Modal
+        isOpen={!!proofModalUrl}
+        onClose={() => setProofModalUrl(null)}
+        title="Private Payment Proof Screenshot"
+        maxWidth="lg"
+      >
+        {proofModalUrl && (
+          <div className="space-y-4 text-center">
+            <div className="bg-slate-900 rounded-2xl p-2 max-h-[70vh] overflow-auto flex items-center justify-center border border-slate-800">
+              {proofModalUrl.toLowerCase().includes('.pdf') ? (
+                <iframe
+                  src={proofModalUrl}
+                  title="Payment Proof PDF Document"
+                  className="w-full h-[60vh] rounded-xl border-none"
+                />
+              ) : (
+                <img
+                  src={proofModalUrl}
+                  alt="Payment Proof Screenshot"
+                  className="max-w-full max-h-[65vh] object-contain rounded-xl"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-200">
+              <span className="font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                🔒 Secure Short-Lived Signed URL Active
+              </span>
+              <a
+                href={proofModalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[#004182] font-bold hover:underline"
+              >
+                <span>Open in New Tab</span>
+                <Eye className="w-3.5 h-3.5" />
+              </a>
             </div>
           </div>
         )}

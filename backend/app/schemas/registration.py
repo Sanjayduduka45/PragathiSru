@@ -25,6 +25,18 @@ class InstitutionInfo(BaseModel):
     state: Optional[str] = None
     country: Optional[str] = "India"
 
+class PaymentInfo(BaseModel):
+    id: Optional[str] = None
+    registration_id: Optional[str] = None
+    amount: float = 1000
+    currency: str = "INR"
+    status: str = "pending"
+    gateway_reference: Optional[str] = None
+    transaction_id: Optional[str] = None
+    payment_proof_path: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
 class RegistrationItem(BaseModel):
     id: str
     registration_id: str
@@ -38,12 +50,14 @@ class RegistrationItem(BaseModel):
     payment_status: str = "not_required"
     payment_amount: Optional[float] = 0
     payment_reference: Optional[str] = None
+    payment_proof_path: Optional[str] = None
     institution_id: Optional[str] = None
     institution_name: Optional[str] = None
     institution_type: Optional[str] = None
     institutions: Optional[InstitutionInfo] = None
     team_members: Optional[List[TeamMember]] = []
     projects: Optional[List[ProjectInfo]] = []
+    payments: Optional[List[PaymentInfo]] = []
     created_at: Optional[str] = None
 
 class RegistrationUpdate(BaseModel):
@@ -56,8 +70,27 @@ class RegistrationUpdate(BaseModel):
     payment_status: Optional[str] = None
     payment_amount: Optional[float] = None
     payment_reference: Optional[str] = None
+    payment_proof_path: Optional[str] = None
     team_members: Optional[List[TeamMember]] = None
     projects: Optional[List[ProjectInfo]] = None
+    payments: Optional[List[PaymentInfo]] = None
+
+class PaymentApproveRequest(BaseModel):
+    notes: Optional[str] = None
+
+class PaymentRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
+class PaymentProofResponse(BaseModel):
+    success: bool = True
+    signed_url: str
+    payment_proof_path: str
+    expires_in: int = 600
+
+class PaymentActionResponse(BaseModel):
+    success: bool = True
+    message: str
+    data: Optional[RegistrationItem] = None
 
 class RegistrationStats(BaseModel):
     total: int

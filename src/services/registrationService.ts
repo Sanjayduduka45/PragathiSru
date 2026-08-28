@@ -30,6 +30,7 @@ export interface RegistrationPayload {
   isVerifiedSRU?: boolean;
   paymentStatus?: 'FREE_SRU' | 'PENDING' | 'COMPLETED' | 'FREE' | 'PAID';
   transactionRef?: string;
+  paymentProofPath?: string;
 
   // Detailed Project Breakdown
   problemStatement?: string;
@@ -145,9 +146,7 @@ export class RegistrationService {
     const createdAt = new Date().toISOString();
 
     const participantTypeDB = payload.registrationType === 'SRU_STUDENT' ? 'sru_student' : 'external_student';
-    const paymentStatusDB = payload.registrationType === 'SRU_STUDENT'
-      ? 'not_required'
-      : (payload.paymentStatus === 'COMPLETED' || payload.paymentStatus === 'PAID' ? 'paid' : 'pending');
+    const paymentStatusDB = payload.registrationType === 'SRU_STUDENT' ? 'not_required' : 'pending';
 
     const paymentAmount = SRUPaymentService.calculateFee(
       payload.members.length,
@@ -160,7 +159,7 @@ export class RegistrationService {
       ...payload,
       registrationId: publicRegistrationId,
       createdAt,
-      paymentStatus: payload.registrationType === 'SRU_STUDENT' ? 'FREE_SRU' : (payload.paymentStatus || 'COMPLETED'),
+      paymentStatus: payload.registrationType === 'SRU_STUDENT' ? 'FREE_SRU' : 'PENDING',
     };
 
     // 2. Try Supabase relational insert (Primary & Authoritative)
@@ -214,7 +213,7 @@ export class RegistrationService {
               registration_status: 'submitted',
               payment_status: paymentStatusDB,
               payment_amount: paymentAmount,
-              payment_reference: payload.transactionRef || null,
+              payment_reference: payload.paymentProofPath || payload.transactionRef || null,
             },
           ])
           .select('id')
@@ -293,16 +292,25 @@ export class RegistrationService {
 
         // E. Insert Payment Row (Only for Paid Transactions with amount > 0)
         if (paymentStatusDB !== 'not_required' && paymentAmount > 0) {
-          const { error: paymentError } = await supabase.from('payments').insert([
-            {
-              registration_id: internalRegUUID,
-              amount: paymentAmount,
-              currency: 'INR',
-              status: paymentStatusDB,
-              gateway_reference: payload.transactionRef || null,
-              transaction_id: payload.transactionRef ? `TXN-${payload.transactionRef}` : null,
-            },
-          ]);
+          const paymentPayload: any = {
+            registration_id: internalRegUUID, // Guaranteed UUID foreign key to registrations.id
+            amount: paymentAmount,
+            currency: 'INR',
+            status: 'pending',
+            gateway_reference: payload.paymentProofPath || payload.transactionRef || null,
+            transaction_id: payload.transactionRef || null,
+            payment_proof_path: payload.paymentProofPath || null,
+          };
+
+          let { error: paymentError } = await supabase.from('payments').insert([paymentPayload]);
+
+          // Fallback if payment_proof_path column is missing in schema cache
+          if (paymentError && (paymentError.message?.includes('payment_proof_path') || paymentError.code === 'PGRST205')) {
+            delete paymentPayload.payment_proof_path;
+            const fallbackRes = await supabase.from('payments').insert([paymentPayload]);
+            paymentError = fallbackRes.error;
+          }
+
           if (paymentError) {
             console.error('Supabase payments insert error:', {
               message: paymentError.message,
@@ -313,7 +321,7 @@ export class RegistrationService {
             return {
               success: false,
               registrationId: '',
-              message: 'Registration could not be completed. Please try again.',
+              message: 'Registration payment record creation failed. Please try again.',
             };
           }
         }
@@ -321,27 +329,31 @@ export class RegistrationService {
         // Save local copy ONLY AFTER successful database insert of all records
         this.saveToLocalStorage(record);
 
-        // 3. Trigger registration confirmation email process (non-blocking)
-        // Email failure must NEVER fail or invalidate registration.
-        try {
-          console.log(`[EMAIL] Registration confirmed: ${publicRegistrationId}`);
-          console.log('[EMAIL] Invoking send-registration-confirmation');
-          supabase.functions
-            .invoke('send-registration-confirmation', {
-              body: { registrationId: publicRegistrationId },
-            })
-            .then(({ data, error }) => {
-              if (error) {
-                console.error('[EMAIL] Function invocation failed:', error.message || error);
-              } else {
-                console.log('[EMAIL] Function response received:', data);
-              }
-            })
-            .catch((emailErr) => {
-              console.error('[EMAIL] Function invocation failed:', emailErr?.message || emailErr);
-            });
-        } catch (emailTriggerErr: any) {
-          console.error('[EMAIL] Function invocation failed:', emailTriggerErr?.message || emailTriggerErr);
+        // 3. Trigger registration confirmation email process ONLY for SRU Students (Free)
+        // External participants receive confirmation email ONLY AFTER admin approval.
+        if (payload.registrationType === 'SRU_STUDENT') {
+          try {
+            console.log(`[EMAIL] Registration confirmed for SRU Student: ${publicRegistrationId}`);
+            console.log('[EMAIL] Invoking send-registration-confirmation');
+            supabase.functions
+              .invoke('send-registration-confirmation', {
+                body: { registrationId: publicRegistrationId },
+              })
+              .then(({ data, error }) => {
+                if (error) {
+                  console.error('[EMAIL] Function invocation failed:', error.message || error);
+                } else {
+                  console.log('[EMAIL] Function response received:', data);
+                }
+              })
+              .catch((emailErr) => {
+                console.error('[EMAIL] Function invocation failed:', emailErr?.message || emailErr);
+              });
+          } catch (emailTriggerErr: any) {
+            console.error('[EMAIL] Function invocation failed:', emailTriggerErr?.message || emailTriggerErr);
+          }
+        } else {
+          console.log(`[EMAIL] External registration ${publicRegistrationId} submitted. Confirmation email deferred until Admin approval.`);
         }
 
         return {

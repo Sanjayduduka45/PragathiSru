@@ -451,4 +451,67 @@ class Database:
             print(f"[Supabase Storage] Error uploading: {e}")
         return None
 
+    async def upload_private_supabase_storage(self, bucket: str, path: str, content: bytes, content_type: str) -> Optional[str]:
+        key = settings.get_effective_key()
+        if not settings.supabase_url or not key:
+            return None
+        bucket_url = f"{settings.supabase_url}/storage/v1/bucket"
+        upload_url = f"{settings.supabase_url}/storage/v1/object/{bucket}/{path}"
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                await client.post(
+                    bucket_url,
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={"id": bucket, "name": bucket, "public": False}
+                )
+                file_headers = {
+                    **headers,
+                    "Content-Type": content_type,
+                    "x-upsert": "true"
+                }
+                res = await client.post(upload_url, headers=file_headers, content=content)
+                if res.status_code in (200, 201):
+                    return f"{bucket}/{path}"
+                else:
+                    print(f"[Supabase Storage Private] Upload status {res.status_code}: {res.text[:200]}")
+        except Exception as e:
+            print(f"[Supabase Storage Private] Error uploading: {e}")
+        return None
+
+    async def create_signed_url(self, bucket: str, path: str, expires_in: int = 600) -> Optional[str]:
+        key = settings.get_effective_key()
+        if not settings.supabase_url or not key:
+            return None
+        clean_path = path
+        if clean_path.startswith(f"{bucket}/"):
+            clean_path = clean_path[len(bucket) + 1:]
+
+        sign_url = f"{settings.supabase_url}/storage/v1/object/sign/{bucket}/{clean_path}"
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(sign_url, headers=headers, json={"expiresIn": expires_in})
+                if res.status_code in (200, 201):
+                    data = res.json()
+                    signed_path = data.get("signedURL") or data.get("signedUrl")
+                    if signed_path:
+                        if signed_path.startswith("http"):
+                            return signed_path
+                        elif signed_path.startswith("/storage/v1"):
+                            return f"{settings.supabase_url}{signed_path}"
+                        else:
+                            return f"{settings.supabase_url}/storage/v1{signed_path}"
+                print(f"[Supabase Storage Sign] Failed status {res.status_code}: {res.text[:200]}")
+        except Exception as e:
+            print(f"[Supabase Storage Sign] Error generating signed URL: {e}")
+        return None
+
 db = Database()

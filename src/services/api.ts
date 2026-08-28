@@ -196,6 +196,36 @@ export const api = {
         `/api/admin/registrations/${id}/resend-email${memberId ? `?member_id=${memberId}` : ''}`,
         { method: 'POST' }
       ),
+    uploadPaymentProof: async (registrationId: string, file: File, transactionId?: string) => {
+      const formData = new FormData();
+      formData.append('registration_id', registrationId);
+      if (transactionId) {
+        formData.append('transaction_id', transactionId);
+      }
+      formData.append('file', file);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_BASE_URL}/api/payments/upload-proof`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(err.detail || err.message || 'Payment proof upload failed.');
+      }
+      return await response.json();
+    },
+    getPaymentProofUrl: (id: string) =>
+      request<{ success: boolean; signed_url: string; payment_proof_path: string }>(`/api/admin/payments/${id}/proof`),
+    approvePayment: (id: string, notes?: string) =>
+      request<{ success: boolean; message: string; data: any }>(`/api/admin/payments/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ notes }),
+      }),
+    rejectPayment: (id: string, reason?: string) =>
+      request<{ success: boolean; message: string; data: any }>(`/api/admin/payments/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
   },
 
   // Named Admin API Namespace
