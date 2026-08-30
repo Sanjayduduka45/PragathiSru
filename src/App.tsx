@@ -13,6 +13,7 @@ import { ParticipantAuthProvider } from './context/ParticipantAuthContext';
 import { ProtectedParticipantRoute } from './pages/ProtectedParticipantRoute';
 import { ProtectedJudgeRoute } from './pages/judge/ProtectedJudgeRoute';
 import { ProtectedJuryRoute } from './pages/jury/ProtectedJuryRoute';
+import { HomePathProvider } from './context/HomePathContext';
 
 // Lazy-loaded Public Secondary & Participant Routes
 const About = React.lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
@@ -55,116 +56,180 @@ export default function App() {
     <AdminAuthProvider>
       <ContentProvider>
         <BrowserRouter>
-        <Routes>
-          {/* Public Routes wrapped in MainLayout */}
-          <Route
-            path="/*"
-            element={
-              <MainLayout>
-                <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/testimonials" element={<TestimonialsPage />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/coming-soon" element={<ComingSoon />} />
-                    <Route path="/design-system" element={<DesignSystemShowcase />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Suspense>
-              </MainLayout>
-            }
-          />
+          <HomePathProvider>
+            <Routes>
+              {/* Public Routes wrapped in MainLayout */}
+              <Route
+                path="/*"
+                element={
+                  <MainLayout>
+                    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+                      <Routes>
+                        {/* Root Public Routes */}
+                        <Route path="/" element={<Home />} />
+                        <Route path="/about" element={<About />} />
+                        <Route path="/testimonials" element={<TestimonialsPage />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/contact" element={<Contact />} />
+                        <Route path="/coming-soon" element={<ComingSoon />} />
+                        <Route path="/design-system" element={<DesignSystemShowcase />} />
+                        <Route path="/domains" element={<Navigate to="/#categories" replace />} />
+                        <Route path="/schedule" element={<Navigate to="/#schedule" replace />} />
+                        <Route path="/rules" element={<Navigate to="/about#rules" replace />} />
+                        <Route path="/faqs" element={<Navigate to="/#faq" replace />} />
 
-          {/* Common Single Login */}
-          <Route
-            path="/login"
-            element={
-              <Suspense fallback={neutralLoader}>
-                <Login />
-              </Suspense>
-            }
-          />
+                        {/* PRAGATHI 2.0 Prefixed Public Routes */}
+                        <Route path="/pragathi-2.0" element={<Home />} />
+                        <Route path="/pragathi-2.0/about" element={<About />} />
+                        <Route path="/pragathi-2.0/testimonials" element={<TestimonialsPage />} />
+                        <Route path="/pragathi-2.0/register" element={<Register />} />
+                        <Route path="/pragathi-2.0/contact" element={<Contact />} />
+                        <Route path="/pragathi-2.0/coming-soon" element={<ComingSoon />} />
+                        <Route path="/pragathi-2.0/design-system" element={<DesignSystemShowcase />} />
+                        <Route path="/pragathi-2.0/domains" element={<Navigate to="/pragathi-2.0#categories" replace />} />
+                        <Route path="/pragathi-2.0/schedule" element={<Navigate to="/pragathi-2.0#schedule" replace />} />
+                        <Route path="/pragathi-2.0/rules" element={<Navigate to="/pragathi-2.0/about#rules" replace />} />
+                        <Route path="/pragathi-2.0/faqs" element={<Navigate to="/pragathi-2.0#faq" replace />} />
 
-          {/* Participant Protected Dashboard */}
-          <Route
-            path="/participant"
-            element={
-              <ProtectedParticipantRoute>
-                <Suspense fallback={neutralLoader}>
-                  <ParticipantDashboard />
-                </Suspense>
-              </ProtectedParticipantRoute>
-            }
-          />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                      </Routes>
+                    </Suspense>
+                  </MainLayout>
+                }
+              />
 
-          {/* Jury Protected Single-Page Portal */}
-          <Route
-            path="/jury"
-            element={
-              <ProtectedJuryRoute>
-                <Suspense fallback={neutralLoader}>
-                  <JuryDashboard />
-                </Suspense>
-              </ProtectedJuryRoute>
-            }
-          />
-
-          {/* Judge Protected Dashboard (compatibility alias to /jury) */}
-          <Route
-            path="/judge"
-            element={
-              <ProtectedJuryRoute>
-                <Suspense fallback={neutralLoader}>
-                  <JuryDashboard />
-                </Suspense>
-              </ProtectedJuryRoute>
-            }
-          />
-
-          {/* Legacy Login Redirects */}
-          <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-          <Route path="/jury/login" element={<Navigate to="/login" replace />} />
-          <Route path="/judge/login" element={<Navigate to="/login" replace />} />
-          <Route path="/participant/login" element={<Navigate to="/login" replace />} />
-
-          {/* Admin Protected Routes wrapped in AdminLayout */}
-          <Route
-            path="/admin/*"
-            element={
-              <ProtectedAdminRoute>
-                <AdminLayout>
-                  <Suspense fallback={<AdminPageSkeleton />}>
-                    <Routes>
-                      <Route path="/" element={<AdminDashboard />} />
-                      <Route path="/content/event-details" element={<EventDetailsAdmin />} />
-                      <Route path="/content/about" element={<AboutAdmin />} />
-                      <Route path="/content/domains" element={<DomainsAdmin />} />
-                      <Route path="/content/schedule" element={<ScheduleAdmin />} />
-                      <Route path="/content/rules" element={<RulesAdmin />} />
-                      <Route path="/content/testimonials" element={<TestimonialsAdmin />} />
-                      <Route path="/testimonials" element={<TestimonialsAdmin />} />
-                      <Route path="/content/faqs" element={<FAQsAdmin />} />
-                      <Route path="/content/sponsors" element={<SponsorsAdmin />} />
-                      <Route path="/content/contact" element={<ContactAdmin />} />
-
-                      {/* Operational Modules */}
-                      <Route path="/registrations" element={<RegistrationsAdmin />} />
-                      <Route path="/posters" element={<PostersAdmin />} />
-                      <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
-                      <Route path="/results" element={<ResultsAdmin />} />
-                      <Route path="/settings" element={<SettingsAdmin />} />
-
-                      <Route path="*" element={<Navigate to="/admin" replace />} />
-                    </Routes>
+              {/* Common Single Login */}
+              <Route
+                path="/login"
+                element={
+                  <Suspense fallback={neutralLoader}>
+                    <Login />
                   </Suspense>
-                </AdminLayout>
-              </ProtectedAdminRoute>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
+                }
+              />
+              <Route
+                path="/pragathi-2.0/login"
+                element={
+                  <Suspense fallback={neutralLoader}>
+                    <Login />
+                  </Suspense>
+                }
+              />
+
+              {/* Participant Protected Dashboard */}
+              <Route
+                path="/participant"
+                element={
+                  <ProtectedParticipantRoute>
+                    <Suspense fallback={neutralLoader}>
+                      <ParticipantDashboard />
+                    </Suspense>
+                  </ProtectedParticipantRoute>
+                }
+              />
+
+              {/* Jury Protected Single-Page Portal */}
+              <Route
+                path="/jury"
+                element={
+                  <ProtectedJuryRoute>
+                    <Suspense fallback={neutralLoader}>
+                      <JuryDashboard />
+                    </Suspense>
+                  </ProtectedJuryRoute>
+                }
+              />
+
+              {/* Judge Protected Dashboard (compatibility alias to /jury) */}
+              <Route
+                path="/judge"
+                element={
+                  <ProtectedJuryRoute>
+                    <Suspense fallback={neutralLoader}>
+                      <JuryDashboard />
+                    </Suspense>
+                  </ProtectedJuryRoute>
+                }
+              />
+
+              {/* Legacy Login Redirects */}
+              <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+              <Route path="/jury/login" element={<Navigate to="/login" replace />} />
+              <Route path="/judge/login" element={<Navigate to="/login" replace />} />
+              <Route path="/participant/login" element={<Navigate to="/login" replace />} />
+
+              {/* Admin Protected Routes wrapped in AdminLayout */}
+              <Route
+                path="/admin/*"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <Suspense fallback={<AdminPageSkeleton />}>
+                        <Routes>
+                          <Route path="/" element={<AdminDashboard />} />
+                          <Route path="/content/event-details" element={<EventDetailsAdmin />} />
+                          <Route path="/content/about" element={<AboutAdmin />} />
+                          <Route path="/content/domains" element={<DomainsAdmin />} />
+                          <Route path="/content/schedule" element={<ScheduleAdmin />} />
+                          <Route path="/content/rules" element={<RulesAdmin />} />
+                          <Route path="/content/testimonials" element={<TestimonialsAdmin />} />
+                          <Route path="/testimonials" element={<TestimonialsAdmin />} />
+                          <Route path="/content/faqs" element={<FAQsAdmin />} />
+                          <Route path="/content/sponsors" element={<SponsorsAdmin />} />
+                          <Route path="/content/contact" element={<ContactAdmin />} />
+
+                          {/* Operational Modules */}
+                          <Route path="/registrations" element={<RegistrationsAdmin />} />
+                          <Route path="/posters" element={<PostersAdmin />} />
+                          <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
+                          <Route path="/results" element={<ResultsAdmin />} />
+                          <Route path="/settings" element={<SettingsAdmin />} />
+
+                          <Route path="*" element={<Navigate to="/admin" replace />} />
+                        </Routes>
+                      </Suspense>
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+
+              {/* PRAGATHI 2.0 Admin Protected Routes wrapped in AdminLayout */}
+              <Route
+                path="/pragathi-2.0/admin/*"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <Suspense fallback={<AdminPageSkeleton />}>
+                        <Routes>
+                          <Route path="/" element={<AdminDashboard />} />
+                          <Route path="/content/event-details" element={<EventDetailsAdmin />} />
+                          <Route path="/content/about" element={<AboutAdmin />} />
+                          <Route path="/content/domains" element={<DomainsAdmin />} />
+                          <Route path="/content/schedule" element={<ScheduleAdmin />} />
+                          <Route path="/content/rules" element={<RulesAdmin />} />
+                          <Route path="/content/testimonials" element={<TestimonialsAdmin />} />
+                          <Route path="/testimonials" element={<TestimonialsAdmin />} />
+                          <Route path="/content/faqs" element={<FAQsAdmin />} />
+                          <Route path="/content/sponsors" element={<SponsorsAdmin />} />
+                          <Route path="/content/contact" element={<ContactAdmin />} />
+
+                          {/* Operational Modules */}
+                          <Route path="/registrations" element={<RegistrationsAdmin />} />
+                          <Route path="/posters" element={<PostersAdmin />} />
+                          <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
+                          <Route path="/results" element={<ResultsAdmin />} />
+                          <Route path="/settings" element={<SettingsAdmin />} />
+
+                          <Route path="*" element={<Navigate to="/pragathi-2.0/admin" replace />} />
+                        </Routes>
+                      </Suspense>
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+            </Routes>
+          </HomePathProvider>
+        </BrowserRouter>
     </ContentProvider>
   </AdminAuthProvider>
   </ParticipantAuthProvider>

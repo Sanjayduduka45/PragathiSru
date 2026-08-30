@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Sparkles, ChevronRight, GraduationCap, LogIn } from 'lucide-react';
 import { NAV_ITEMS } from '../utils/constants';
 import { useContent } from '../context/ContentContext';
+import { useHomePath } from '../context/HomePathContext';
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 const pragathiLogo = '/image.png';
 
@@ -10,9 +11,10 @@ export const Navbar: React.FC = () => {
   const { eventSettings } = useContent();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { getHomePath, getRoutePath } = useHomePath();
 
   const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
+    if (path === '/') return location.pathname === '/' || location.pathname === '/pragathi-2.0';
     return location.pathname.startsWith(path);
   };
 
@@ -45,7 +47,7 @@ export const Navbar: React.FC = () => {
           
           {/* SR University Brand Logo (Far Left) */}
           <Link
-            to="/"
+            to={getHomePath()}
             className="flex items-center shrink-0 group focus:outline-hidden mr-2.5 lg:mr-3.5 xl:mr-5"
             aria-label="Home"
           >
@@ -56,7 +58,7 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile PRAGATHI Logo */}
           <div className="flex md:hidden items-center shrink-0">
-            <Link to="/" className="flex items-center shrink-0 focus:outline-hidden" aria-label="PRAGATHI 2K26 Home">
+            <Link to={getHomePath()} className="flex items-center shrink-0 focus:outline-hidden" aria-label="PRAGATHI 2K26 Home">
               <img src={pragathiLogo} alt="PRAGATHI Logo" className="h-7 w-auto object-contain" />
             </Link>
           </div>
@@ -68,7 +70,7 @@ export const Navbar: React.FC = () => {
               return (
                 <Link
                   key={item.path}
-                  to={item.path}
+                  to={getRoutePath(item.path)}
                   className={`relative px-2 lg:px-2.5 xl:px-3 py-1.5 rounded-xl text-xs xl:text-sm font-semibold transition-all duration-200 flex items-center gap-1 whitespace-nowrap group ${
                     active
                       ? 'text-[#004182] bg-blue-50/90 font-bold border border-blue-100/80 shadow-xs'
@@ -96,7 +98,7 @@ export const Navbar: React.FC = () => {
 
             {/* PRAGATHI Logo Container immediately after Contact */}
             <Link
-              to="/"
+              to={getHomePath()}
               className="flex items-center shrink-0 focus:outline-hidden ml-1.5 lg:ml-2.5"
               aria-label="PRAGATHI 2K26 Home"
             >
@@ -109,14 +111,14 @@ export const Navbar: React.FC = () => {
           {/* Actions: Login (secondary) + Register Now (primary) — Far Right */}
           <div className="hidden lg:flex items-center gap-2 lg:gap-2.5 xl:gap-3 shrink-0 ml-2.5 lg:ml-4 xl:ml-6">
             <Link
-              to="/login"
+              to={getRoutePath('/login')}
               className="relative text-[#004182] hover:bg-blue-50/80 border border-[#004182]/25 hover:border-[#004182]/50 px-3.5 py-2 xl:px-4 xl:py-2.5 rounded-[14px] xl:rounded-[16px] text-xs xl:text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-1.5 whitespace-nowrap"
             >
               <LogIn className="w-3.5 h-3.5 xl:w-4 xl:h-4" />
               <span>Login</span>
             </Link>
             <Link
-              to="/register"
+              to={getRoutePath('/register')}
               className="relative overflow-hidden bg-[#004182] hover:bg-[#003366] text-white px-4 py-2 xl:px-5 xl:py-2.5 rounded-[14px] xl:rounded-[16px] text-xs xl:text-sm font-bold shadow-md shadow-blue-900/15 hover:shadow-lg hover:shadow-blue-900/25 border border-white/20 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-1.5 xl:gap-2 whitespace-nowrap group"
             >
               <span className="relative z-10 tracking-wide">Register Now</span>
@@ -143,7 +145,7 @@ export const Navbar: React.FC = () => {
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.path}
-              to={item.path}
+              to={getRoutePath(item.path)}
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-4 py-3 rounded-xl text-base font-semibold flex items-center justify-between ${
                 isActive(item.path)
@@ -161,7 +163,7 @@ export const Navbar: React.FC = () => {
           ))}
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
             <Link
-              to="/login"
+              to={getRoutePath('/login')}
               onClick={() => setMobileMenuOpen(false)}
               className="w-full flex items-center justify-center gap-2 border border-[#004182]/30 text-[#004182] hover:bg-blue-50 py-3 rounded-[16px] font-bold text-center text-sm transition-colors"
             >
@@ -169,7 +171,7 @@ export const Navbar: React.FC = () => {
               <span>Participant Login</span>
             </Link>
             <Link
-              to="/register"
+              to={getRoutePath('/register')}
               onClick={() => setMobileMenuOpen(false)}
               className="w-full flex items-center justify-center gap-2.5 bg-[#004182] hover:bg-[#003366] text-white py-3 rounded-[16px] font-bold text-center shadow-md text-sm group"
             >

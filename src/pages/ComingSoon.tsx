@@ -22,10 +22,12 @@ import {
   Boxes,
 } from 'lucide-react';
 import { FUTURE_MODULES } from '../utils/constants';
+import { useHomePath } from '../context/HomePathContext';
 
 export const ComingSoon: React.FC = () => {
   const [searchParams] = useSearchParams();
   const moduleId = searchParams.get('module') || searchParams.get('feature') || '';
+  const { getHomePath, getRoutePath } = useHomePath();
 
   // Look up module or fall back gracefully
   const matchedModule = FUTURE_MODULES.find(
@@ -71,7 +73,7 @@ export const ComingSoon: React.FC = () => {
       {/* Top Back Button */}
       <div>
         <Link
-          to="/"
+          to={getHomePath()}
           className="inline-flex items-center gap-2 text-xs font-bold text-[#004182] hover:text-blue-900 transition-colors bg-blue-50/80 px-3.5 py-1.5 rounded-full border border-blue-100"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -163,7 +165,7 @@ export const ComingSoon: React.FC = () => {
           {/* CTAs */}
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              to="/"
+              to={getHomePath()}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-[#004182] font-bold px-7 py-3 rounded-full text-sm border border-slate-200 shadow-xs transition-all"
             >
               <ArrowLeft className="w-4 h-4 text-[#004182]" />
@@ -171,7 +173,7 @@ export const ComingSoon: React.FC = () => {
             </Link>
 
             <Link
-              to="/register"
+              to={getRoutePath('/register')}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-[#004182] hover:bg-[#003366] text-white font-extrabold px-8 py-3.5 rounded-[20px] text-sm sm:text-base shadow-md shadow-blue-900/15 hover:shadow-lg hover:-translate-y-[2px] active:translate-y-[1px] transition-all duration-200 group"
             >
               <span>REGISTER NOW</span>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Sparkles, ArrowLeft, Quote, Award, Video, Film, Image as ImageIcon } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
+import { useHomePath } from '../context/HomePathContext';
 
 const EVENT_MEMORIES_FALLBACK = [
   '/event-memories/IMG_7326.JPG',
@@ -18,6 +19,7 @@ const EVENT_MEMORIES_FALLBACK = [
 
 export const TestimonialsPage: React.FC = () => {
   const { testimonials, eventSettings } = useContent();
+  const { getHomePath } = useHomePath();
 
   const activeItems = (testimonials || [])
     .filter((item) => item.active)
@@ -49,7 +51,7 @@ export const TestimonialsPage: React.FC = () => {
             transition={{ duration: 0.3 }}
           >
             <Link
-              to="/"
+              to={getHomePath()}
               className="inline-flex items-center gap-2 text-xs font-bold text-[#004182] hover:text-blue-900 transition-colors bg-white px-3.5 py-1.5 rounded-full border border-slate-200 shadow-xs hover:border-blue-300"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
