@@ -20,6 +20,7 @@ import {
   Building,
 } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
+import { useHomePath } from '../context/HomePathContext';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
@@ -43,6 +44,7 @@ const renderFormattedDescription = (text: string, eventName: string) => {
 export const About: React.FC = () => {
   const { eventSettings, aboutContent } = useContent();
   const location = useLocation();
+  const { getHomePath, getRoutePath } = useHomePath();
 
   useEffect(() => {
     if (location.hash) {
@@ -68,7 +70,7 @@ export const About: React.FC = () => {
             transition={{ duration: 0.3 }}
           >
             <Link
-              to="/"
+              to={getHomePath()}
               className="inline-flex items-center gap-2 text-xs font-bold text-[#004182] hover:text-blue-900 transition-colors bg-white px-3.5 py-1.5 rounded-full border border-slate-200 shadow-2xs hover:border-blue-300 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 focus-visible:outline-2 focus-visible:outline-[#004182]"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -466,14 +468,14 @@ export const About: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 pt-2">
             <Link
-              to="/register"
+              to={getRoutePath('/register')}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-white text-[#004182] font-extrabold px-8 py-3.5 rounded-[20px] shadow-lg hover:bg-blue-50 hover:-translate-y-[2px] hover:shadow-xl active:translate-y-[1px] motion-reduce:hover:translate-y-0 transition-all duration-200 text-sm sm:text-base group focus-visible:outline-2 focus-visible:outline-white"
             >
               <span>REGISTER NOW</span>
               <ArrowRight className="w-5 h-5 text-[#004182] group-hover:translate-x-1 transition-transform duration-200" />
             </Link>
             <Link
-              to="/"
+              to={getHomePath()}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-7 py-3.5 rounded-full border border-white/20 hover:border-white/40 hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 text-sm focus-visible:outline-2 focus-visible:outline-white"
             >
               <ArrowLeft className="w-4 h-4" />

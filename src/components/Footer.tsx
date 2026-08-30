@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Mail, Phone, Calendar, Award, ExternalLink } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
+import { useHomePath } from '../context/HomePathContext';
 
 export const Footer: React.FC = () => {
   const { eventSettings } = useContent();
+  const { getHomePath, getRoutePath } = useHomePath();
 
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8">
@@ -75,17 +77,17 @@ export const Footer: React.FC = () => {
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link to="/" className="hover:text-blue-300 transition-colors">
+                <Link to={getHomePath()} className="hover:text-blue-300 transition-colors">
                   Home Overview
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-blue-300 transition-colors">
+                <Link to={getRoutePath('/about')} className="hover:text-blue-300 transition-colors">
                   About Expo & SR University
                 </Link>
               </li>
               <li>
-                <Link to="/register" className="hover:text-blue-300 transition-colors font-semibold text-blue-200">
+                <Link to={getRoutePath('/register')} className="hover:text-blue-300 transition-colors font-semibold text-blue-200">
                   Register Team & Project
                 </Link>
               </li>
@@ -95,12 +97,12 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <a href="/#categories" className="hover:text-blue-300 transition-colors">
+                <Link to={getRoutePath('/#categories')} className="hover:text-blue-300 transition-colors">
                   Project Domains & Categories
-                </a>
+                </Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-blue-300 transition-colors">
+                <Link to={getRoutePath('/contact')} className="hover:text-blue-300 transition-colors">
                   Helpline & Support
                 </Link>
               </li>

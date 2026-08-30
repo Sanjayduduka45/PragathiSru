@@ -22,6 +22,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
+import { useHomePath } from '../context/HomePathContext';
 import { PROJECT_CATEGORIES } from '../data/eventData';
 import { SRUPaymentService } from '../services/paymentService';
 import { RegistrationService, TeamMember } from '../services/registrationService';
@@ -30,6 +31,7 @@ import { RegistrationReviewConfirmation } from '../components/RegistrationReview
 export const Register: React.FC = () => {
   const navigate = useNavigate();
   const { eventSettings } = useContent();
+  const { getHomePath } = useHomePath();
 
   // Step flow:
   // 1: Primary Email Entry
@@ -225,7 +227,7 @@ export const Register: React.FC = () => {
       <div className="space-y-4">
         <div className="no-print">
           <Link
-            to="/"
+            to={getHomePath()}
             className="inline-flex items-center gap-2 text-xs font-bold text-[#004182] hover:text-blue-900 transition-colors bg-blue-50/80 px-3.5 py-1.5 rounded-full border border-blue-100 shadow-2xs"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -357,7 +359,7 @@ export const Register: React.FC = () => {
             <button
               id="5m2e7p"
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => navigate(getHomePath())}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-7 py-3.5 rounded-full text-sm border border-slate-200 transition-all cursor-pointer hover:-translate-y-0.5"
             >
               <span>Go to Home Page</span>
@@ -849,7 +851,7 @@ export const Register: React.FC = () => {
                       registrationId: submissionRes.record.registrationId || `PRAGATHI26-${Math.floor(1000 + Math.random() * 9000)}`,
                     };
                   }}
-                  onGoHome={() => navigate('/')}
+                  onGoHome={() => navigate(getHomePath())}
                 />
               </div>
             )}

@@ -22,15 +22,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, Eye, EyeOff, Info } from 'lucide-react';
 import { useParticipantAuth } from '../context/ParticipantAuthContext';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useHomePath } from '../context/HomePathContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AppRole } from '../types';
 import { AuthService } from '../services/authService';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
-
-function getRedirectPath(role: string): string {
-  return AuthService.getRoleRedirectPath(role as AppRole);
-}
 
 // Generic error - never reveals which specific check (participant or admin) failed.
 const GENERIC_ERROR = 'Invalid email or password. Please check your details and try again.';
@@ -48,6 +45,11 @@ export const Login: React.FC = () => {
     loading: adminLoading,
   } = useAdminAuth();
   const navigate = useNavigate();
+  const { getHomePath, getRoutePath } = useHomePath();
+
+  const getRedirectPath = (role: string): string => {
+    return getRoutePath(AuthService.getRoleRedirectPath(role as AppRole));
+  };
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -185,7 +187,7 @@ export const Login: React.FC = () => {
 
         {/* Brand */}
         <div className="text-center space-y-3">
-          <Link to="/" className="inline-block group" aria-label="PRAGATHI 2K26 Home">
+          <Link to={getHomePath()} className="inline-block group" aria-label="PRAGATHI 2K26 Home">
             <img
               src={sruLogo}
               alt="SR University Logo"
@@ -297,7 +299,7 @@ export const Login: React.FC = () => {
         {/* Footer */}
         <div className="text-center pb-4">
           <p className="text-xs text-slate-400">
-            <Link to="/" className="hover:text-[#004182] font-semibold transition-colors">
+            <Link to={getHomePath()} className="hover:text-[#004182] font-semibold transition-colors">
               Back to PRAGATHI 2K26 Website
             </Link>
           </p>

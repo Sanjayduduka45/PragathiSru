@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Hash, Mail, AlertCircle, Info } from 'lucide-react';
 import { useParticipantAuth } from '../context/ParticipantAuthContext';
+import { useHomePath } from '../context/HomePathContext';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
 export const ParticipantLogin: React.FC = () => {
   const { signIn, session, loading } = useParticipantAuth();
   const navigate = useNavigate();
+  const { getHomePath } = useHomePath();
 
   const [registrationId, setRegistrationId] = useState('');
   const [leaderEmail, setLeaderEmail] = useState('');
@@ -54,7 +56,7 @@ export const ParticipantLogin: React.FC = () => {
 
         {/* Brand */}
         <div className="text-center space-y-3">
-          <Link to="/" className="inline-block group" aria-label="SR University Home">
+          <Link to={getHomePath()} className="inline-block group" aria-label="SR University Home">
             <img
               src={sruLogo}
               alt="SR University Logo"
@@ -160,7 +162,7 @@ export const ParticipantLogin: React.FC = () => {
         {/* Footer links */}
         <div className="text-center space-y-1.5 pb-4">
           <p className="text-xs text-slate-400">
-            <Link to="/" className="hover:text-[#004182] font-semibold transition-colors">
+            <Link to={getHomePath()} className="hover:text-[#004182] font-semibold transition-colors">
               ← Back to PRAGATHI 2K26 Website
             </Link>
           </p>

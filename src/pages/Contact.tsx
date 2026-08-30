@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Mail, Phone, ArrowLeft, ArrowRight, ShieldCheck, Headphones, User, MapPin } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
+import { useHomePath } from '../context/HomePathContext';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
 export const Contact: React.FC = () => {
   const { eventSettings, contactPeople } = useContent();
+  const { getHomePath } = useHomePath();
 
   const leadershipContacts = (contactPeople || [])
     .filter((p) => p.category === 'leadership' && p.active)
@@ -30,7 +32,7 @@ export const Contact: React.FC = () => {
             transition={{ duration: 0.3 }}
           >
             <Link
-              to="/"
+              to={getHomePath()}
               className="inline-flex items-center gap-2 text-xs font-bold text-[#004182] hover:text-blue-900 transition-colors bg-white px-3.5 py-1.5 rounded-full border border-slate-200 shadow-2xs hover:border-blue-300 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 focus-visible:outline-2 focus-visible:outline-[#004182]"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
