@@ -9,11 +9,12 @@ const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_se
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const isAdminEndpoint = endpoint.startsWith('/api/admin/');
+  const isFormData = options?.body instanceof FormData;
 
   try {
     const response = await fetch(url, {
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(isAdminEndpoint ? { 'X-Admin-Secret': ADMIN_SECRET } : {}),
         ...options?.headers,
       },
@@ -96,9 +97,9 @@ export const api = {
       }),
   },
   rules: {
-    get: () => request<{ success: boolean; data: { content: string } }>('/api/rules'),
-    update: (data: { content: string }) =>
-      request<{ success: boolean; data: { content: string } }>('/api/admin/rules', {
+    get: () => request<{ success: boolean; data: any }>('/api/rules'),
+    update: (data: any) =>
+      request<{ success: boolean; data: any }>('/api/admin/rules', {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
@@ -135,6 +136,11 @@ export const api = {
     delete: (id: string) =>
       request<{ success: boolean; message: string }>(`/api/admin/sponsors/${id}`, {
         method: 'DELETE',
+      }),
+    uploadLogo: (formData: FormData) =>
+      request<{ success: boolean; url: string; filename: string }>('/api/admin/sponsors/upload', {
+        method: 'POST',
+        body: formData,
       }),
   },
   contact: {

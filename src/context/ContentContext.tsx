@@ -92,16 +92,7 @@ const defaultFaqs: FAQEntry[] = FAQS.map((f, i) => ({
   order: i + 1,
 }));
 
-const defaultSponsors: SponsorEntry[] = SPONSORS_PARTNERS.map((s, i) => ({
-  id: `sponsor-${i}`,
-  name: s.name,
-  type: s.type,
-  role: s.role,
-  logoText: s.logoText,
-  website: '',
-  active: true,
-  order: i + 1,
-}));
+const defaultSponsors: SponsorEntry[] = [];
 
 // ─── Context ───────────────────────────────────────────────────────────────────
 
