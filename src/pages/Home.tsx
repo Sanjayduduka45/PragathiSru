@@ -682,6 +682,7 @@ import { CountdownTimer } from '../components/CountdownTimer';
 import { HeroVisual } from '../components/HeroVisual';
 import { TestimonialsSection } from '../components/TestimonialsSection';
 import { HomeContactCarousel } from '../components/HomeContactCarousel';
+import { GetInvolvedCarousel } from '../components/GetInvolvedCarousel';
 import { useContent } from '../context/ContentContext';
 import { formatPrizeShort } from '../utils/formatters';
 
@@ -1190,6 +1191,9 @@ export const Home: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* GET INVOLVED WITH PRAGATHI 2K26 */}
+      <GetInvolvedCarousel />
 
       {/* CATEGORIES */}
       <section
