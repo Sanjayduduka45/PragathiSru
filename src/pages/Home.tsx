@@ -774,6 +774,9 @@ export const Home: React.FC = () => {
       case 'Lightbulb':
         return <Lightbulb className="w-6 h-6" />;
 
+      case 'GraduationCap':
+        return <GraduationCap className="w-6 h-6" />;
+
       default:
         return <Layers className="w-6 h-6" />;
     }
@@ -1384,16 +1387,6 @@ export const Home: React.FC = () => {
                   {cat.description}
                 </p>
 
-              </div>
-
-              <div className="pt-4 mt-6 border-t border-slate-100 flex items-center justify-between">
-                <Link
-                  to={`/register?category=${cat.id}`}
-                  className="text-xs font-bold text-[#004182] group-hover:text-blue-900 flex items-center gap-1.5"
-                >
-                  <span>Register for Track</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-200" />
-                </Link>
               </div>
             </div>
           ))}
