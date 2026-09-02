@@ -1335,9 +1335,6 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* GET INVOLVED WITH PRAGATHI 2K26 */}
-      <GetInvolvedCarousel />
-
       {/* CATEGORIES */}
       <section
         id="categories"
@@ -1445,6 +1442,9 @@ export const Home: React.FC = () => {
 
       {/* DYNAMIC PREVIOUS EVENT SHOWCASE & TESTIMONIALS */}
       <TestimonialsSection />
+
+      {/* GET INVOLVED WITH PRAGATHI 2K26 */}
+      <GetInvolvedCarousel />
 
       {/* COLLABORATION & SPONSORSHIP SECTION */}
       <section id="collaborate" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
