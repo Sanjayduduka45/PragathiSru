@@ -682,6 +682,7 @@ import { HeroVisual } from '../components/HeroVisual';
 import { TestimonialsSection } from '../components/TestimonialsSection';
 import { HomeContactCarousel } from '../components/HomeContactCarousel';
 import { GetInvolvedCarousel } from '../components/GetInvolvedCarousel';
+import { DomainCard } from '../components/DomainCard';
 import { useContent } from '../context/ContentContext';
 import { formatPrizeShort } from '../utils/formatters';
 
@@ -753,34 +754,6 @@ export const Home: React.FC = () => {
       }
     }
   }, [location.hash]);
-
-  const getCategoryIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Cpu':
-        return <Cpu className="w-6 h-6" />;
-
-      case 'Zap':
-        return <Zap className="w-6 h-6" />;
-
-      case 'Leaf':
-        return <Leaf className="w-6 h-6" />;
-
-      case 'HeartPulse':
-        return <HeartPulse className="w-6 h-6" />;
-
-      case 'Building2':
-        return <Building2 className="w-6 h-6" />;
-
-      case 'Lightbulb':
-        return <Lightbulb className="w-6 h-6" />;
-
-      case 'GraduationCap':
-        return <GraduationCap className="w-6 h-6" />;
-
-      default:
-        return <Layers className="w-6 h-6" />;
-    }
-  };
 
   return (
     <div className="space-y-12 sm:space-y-16 lg:space-y-20">
@@ -1338,59 +1311,55 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* CATEGORIES */}
+      {/* CATEGORIES / DOMAINS SECTION */}
       <section
         id="categories"
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24"
       >
-        <div className="text-center max-w-3xl mx-auto space-y-2">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-50/90 via-blue-50/30 to-indigo-50/20 border border-slate-200/80 p-6 sm:p-10 lg:p-12 shadow-xs space-y-8 sm:space-y-10">
+          {/* Subtle Ambient Radial Glows */}
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl pointer-events-none -z-0" />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-indigo-100/30 rounded-full blur-3xl pointer-events-none -z-0" />
 
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100 shadow-2xs">
-            <Layers className="w-3.5 h-3.5" />
-            <span>Exhibition Domains</span>
+          {/* Section Header */}
+          <div className="text-center max-w-3xl mx-auto space-y-3 relative z-10">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-100/80 px-4 py-1.5 rounded-full border border-blue-200/80 shadow-2xs">
+              <Layers className="w-3.5 h-3.5 text-[#004182]" />
+              <span>10 Project Exhibition Tracks</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight leading-tight">
+              Explore Innovation Domains
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+              Select your project domain to register your team in the appropriate national track
+            </p>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight leading-tight">
-            <span className="block sm:whitespace-nowrap">Project Categories &</span>
-            <span className="block">Domains</span>
-          </h2>
-
-          <p className="text-sm text-slate-500 max-w-xl mx-auto">
-            Select your project domain to register your team in the appropriate national track
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-          {activeDomains.map((cat) => (
-            <div
-              key={cat.id}
-              className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-2xs hover:shadow-xl hover:border-blue-300 hover:-translate-y-1 hover:scale-[1.01] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out flex flex-col justify-between group cursor-default"
-            >
-              <div className="space-y-4">
-
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center group-hover:bg-[#004182] group-hover:text-white group-hover:scale-105 transition-all duration-300">
-                    {getCategoryIcon(cat.iconName)}
-                  </div>
-
-                  <span className="text-[11px] font-bold text-[#004182] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-                    {cat.badgeText}
-                  </span>
-                </div>
-
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-[#004182] transition-colors">
-                  {cat.title}
-                </h3>
-
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {cat.description}
-                </p>
-
+          {/* Responsive Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6 relative z-10">
+            {PROJECT_CATEGORIES.map((cat, idx) => (
+              <div
+                key={cat.id}
+                className={`h-full ${
+                  idx === 8
+                    ? 'xl:col-start-2'
+                    : idx === 9
+                    ? 'lg:col-start-2 xl:col-start-3'
+                    : ''
+                }`}
+              >
+                <DomainCard
+                  id={cat.id}
+                  title={cat.title}
+                  description={cat.description}
+                  badgeText={cat.badgeText}
+                  iconName={cat.iconName}
+                />
               </div>
-            </div>
-          ))}
-
+            ))}
+          </div>
         </div>
       </section>
 
