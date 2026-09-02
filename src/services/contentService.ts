@@ -85,6 +85,7 @@ export interface SponsorEntry {
   type: string;
   role: string;
   logoText: string;
+  logoUrl: string;
   website: string;
   active: boolean;
   order: number;
@@ -823,6 +824,7 @@ export async function getSponsors(): Promise<SponsorEntry[]> {
         type: s.type || s.sponsor_type || 'Partner',
         role: s.role || '',
         logoText: s.logo_text || s.logoText || '',
+        logoUrl: s.logo_url || s.logoUrl || '',
         website: s.website || '',
         active: s.active ?? true,
         order: s.order ?? s.display_order ?? 0,
@@ -834,14 +836,15 @@ export async function getSponsors(): Promise<SponsorEntry[]> {
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data } = await supabase.from('sponsors').select('*').order('display_order', { ascending: true });
-      if (data && data.length > 0) {
+      const { data, error } = await supabase.from('sponsors').select('*').order('display_order', { ascending: true });
+      if (!error && Array.isArray(data)) {
         return data.map((s: any) => ({
           id: s.id,
           name: s.name,
           type: s.sponsor_type || 'Partner',
           role: s.role || '',
           logoText: s.logo_text || '',
+          logoUrl: s.logo_url || '',
           website: s.website || '',
           active: s.is_active ?? true,
           order: s.display_order ?? 0,
@@ -852,25 +855,17 @@ export async function getSponsors(): Promise<SponsorEntry[]> {
     }
   }
 
-  return SPONSORS_PARTNERS.map((s, i) => ({
-    id: `sponsor-${i}`,
-    name: s.name,
-    type: s.type,
-    role: s.role,
-    logoText: s.logoText,
-    website: '',
-    active: true,
-    order: i + 1,
-  }));
+  return [];
 }
 
 export async function addSponsor(s: Omit<SponsorEntry, 'id'>): Promise<SponsorEntry> {
   const payload = {
     name: s.name,
     type: s.type,
-    role: s.role,
-    logo_text: s.logoText,
-    website: s.website,
+    role: s.role || '',
+    logo_text: s.logoText || '',
+    logo_url: s.logoUrl || '',
+    website: s.website || '',
     active: s.active,
     order: s.order,
   };
@@ -884,6 +879,7 @@ export async function addSponsor(s: Omit<SponsorEntry, 'id'>): Promise<SponsorEn
       type: data.type || data.sponsor_type || 'Partner',
       role: data.role || '',
       logoText: data.logo_text || data.logoText || '',
+      logoUrl: data.logo_url || data.logoUrl || '',
       website: data.website || '',
       active: data.active ?? true,
       order: data.order ?? 0,
@@ -894,9 +890,10 @@ export async function addSponsor(s: Omit<SponsorEntry, 'id'>): Promise<SponsorEn
       const { data, error } = await supabase.from('sponsors').insert([{
         name: s.name,
         sponsor_type: s.type,
-        role: s.role,
-        logo_text: s.logoText,
-        website: s.website,
+        role: s.role || '',
+        logo_text: s.logoText || '',
+        logo_url: s.logoUrl || '',
+        website: s.website || '',
         is_active: s.active,
         display_order: s.order,
       }]).select('*');
@@ -907,6 +904,7 @@ export async function addSponsor(s: Omit<SponsorEntry, 'id'>): Promise<SponsorEn
           type: data[0].sponsor_type || 'Partner',
           role: data[0].role || '',
           logoText: data[0].logo_text || '',
+          logoUrl: data[0].logo_url || '',
           website: data[0].website || '',
           active: data[0].is_active ?? true,
           order: data[0].display_order ?? 0,
@@ -921,12 +919,22 @@ export async function addSponsor(s: Omit<SponsorEntry, 'id'>): Promise<SponsorEn
 export async function updateSponsor(id: string, s: Partial<Omit<SponsorEntry, 'id'>>): Promise<void> {
   const payload: Record<string, any> = {};
   if (s.name !== undefined) payload.name = s.name;
-  if (s.type !== undefined) payload.sponsor_type = s.type;
+  if (s.type !== undefined) {
+    payload.type = s.type;
+    payload.sponsor_type = s.type;
+  }
   if (s.role !== undefined) payload.role = s.role;
   if (s.logoText !== undefined) payload.logo_text = s.logoText;
+  if (s.logoUrl !== undefined) payload.logo_url = s.logoUrl;
   if (s.website !== undefined) payload.website = s.website;
-  if (s.active !== undefined) payload.is_active = s.active;
-  if (s.order !== undefined) payload.display_order = s.order;
+  if (s.active !== undefined) {
+    payload.active = s.active;
+    payload.is_active = s.active;
+  }
+  if (s.order !== undefined) {
+    payload.order = s.order;
+    payload.display_order = s.order;
+  }
 
   try {
     await api.sponsors.update(id, payload);
@@ -934,7 +942,17 @@ export async function updateSponsor(id: string, s: Partial<Omit<SponsorEntry, 'i
   } catch (err) {
     console.warn('[contentService] updateSponsor FastAPI failed, attempting Supabase direct:', err);
     if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
+      const supaPayload: Record<string, any> = {};
+      if (s.name !== undefined) supaPayload.name = s.name;
+      if (s.type !== undefined) supaPayload.sponsor_type = s.type;
+      if (s.role !== undefined) supaPayload.role = s.role;
+      if (s.logoText !== undefined) supaPayload.logo_text = s.logoText;
+      if (s.logoUrl !== undefined) supaPayload.logo_url = s.logoUrl;
+      if (s.website !== undefined) supaPayload.website = s.website;
+      if (s.active !== undefined) supaPayload.is_active = s.active;
+      if (s.order !== undefined) supaPayload.display_order = s.order;
+
+      const { error } = await supabase.from('sponsors').update(supaPayload).eq('id', id);
       if (!error) return;
       throw new Error(`Database error: ${error.message}`);
     }
@@ -954,6 +972,62 @@ export async function deleteSponsor(id: string): Promise<void> {
       throw new Error(`Database error: ${error.message}`);
     }
     throw err;
+  }
+}
+
+export async function uploadSponsorLogo(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+
+  try {
+    const res = await api.sponsors.uploadLogo(formData);
+    if (res && res.url) {
+      return res.url;
+    }
+  } catch (err) {
+    console.warn('[contentService] uploadSponsorLogo FastAPI failed, attempting direct Supabase Storage:', err);
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `logo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('sponsor-logos')
+        .upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage.from('sponsor-logos').getPublicUrl(path);
+      if (data && data.publicUrl) {
+        return data.publicUrl;
+      }
+    } catch (sErr: any) {
+      console.error('[contentService] direct Supabase upload error:', sErr);
+      throw new Error(sErr?.message || 'Failed to upload logo to storage.');
+    }
+  }
+
+  throw new Error('Failed to upload logo. Please check backend connection.');
+}
+
+export async function deleteSponsorLogo(logoUrl: string): Promise<void> {
+  if (!logoUrl) return;
+  try {
+    if (isSupabaseConfigured && supabase && logoUrl.includes('/sponsor-logos/')) {
+      const parts = logoUrl.split('/sponsor-logos/');
+      const filename = parts[1];
+      if (filename) {
+        await supabase.storage.from('sponsor-logos').remove([filename]);
+      }
+    }
+  } catch (err) {
+    console.warn('[contentService] deleteSponsorLogo cleanup warning:', err);
   }
 }
 

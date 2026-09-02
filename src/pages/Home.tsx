@@ -633,7 +633,7 @@
 //     </div>
 //   );
 // };
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
@@ -674,7 +674,6 @@ import {
   EXPO_HIGHLIGHTS,
   IMPORTANT_DATES,
   SCHEDULE_PREVIEW,
-  SPONSORS_PARTNERS,
   FAQS,
 } from '../data/eventData';
 
@@ -686,11 +685,38 @@ import { GetInvolvedCarousel } from '../components/GetInvolvedCarousel';
 import { useContent } from '../context/ContentContext';
 import { formatPrizeShort } from '../utils/formatters';
 
+const getSponsorBadgeStyle = (type: string) => {
+  const t = (type || '').toLowerCase();
+  if (t.includes('title') || t.includes('principal') || t.includes('presented')) {
+    return 'bg-blue-50 text-[#004182] border-blue-200';
+  }
+  if (t.includes('platinum')) {
+    return 'bg-purple-50 text-purple-700 border-purple-200';
+  }
+  if (t.includes('gold')) {
+    return 'bg-amber-50 text-amber-800 border-amber-200';
+  }
+  if (t.includes('silver')) {
+    return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+  if (t.includes('bronze')) {
+    return 'bg-amber-100/70 text-amber-900 border-amber-300';
+  }
+  if (t.includes('academic') || t.includes('education')) {
+    return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+  }
+  if (t.includes('tech') || t.includes('innovation')) {
+    return 'bg-cyan-50 text-cyan-800 border-cyan-200';
+  }
+  return 'bg-blue-50/70 text-[#004182] border-blue-100';
+};
+
 export const Home: React.FC = () => {
   const {
     eventSettings,
     domains,
     faqs,
+    sponsors,
   } = useContent();
 
   const [openFaqId, setOpenFaqId] = useState<string | null>(
@@ -701,6 +727,13 @@ export const Home: React.FC = () => {
 
   const activeDomains = domains.filter((d) => d.active);
   const activeFaqs = faqs.filter((f) => f.active);
+  const activeSponsors = sponsors.filter((s) => s.active);
+
+  const sortedActiveSponsors = useMemo(() => {
+    return activeSponsors
+      .slice()
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [activeSponsors]);
 
 
   // Scroll to anchor on load or hash change
@@ -1093,28 +1126,138 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* TITLE SPONSOR SECTION */}
-      <section id="title-sponsors" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-300 p-8 sm:p-12 text-center space-y-6 sm:space-y-8">
-          {/* Section Heading with Orange Decorative Lines */}
-          <div className="flex items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
-            <div className="h-0.5 bg-orange-500 flex-1 max-w-[50px] sm:max-w-[80px] rounded-full" />
-            <h2 className="text-xs sm:text-sm font-extrabold text-orange-500 uppercase tracking-widest font-display whitespace-nowrap">
-              TITLE SPONSOR
-            </h2>
-            <div className="h-0.5 bg-orange-500 flex-1 max-w-[50px] sm:max-w-[80px] rounded-full" />
-          </div>
+      {/* SPONSORS SECTION */}
+      {sortedActiveSponsors.length > 0 && (
+        <section id="title-sponsors" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-300 p-6 sm:p-8 text-center space-y-5 sm:space-y-6">
+            {/* Main Section Heading: SPONSORS in SR University Blue */}
+            <div className="flex items-center justify-center gap-3 sm:gap-4 max-w-xs sm:max-w-md mx-auto">
+              <div className="h-0.5 bg-[#004182]/20 flex-1 rounded-full" />
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-extrabold text-[#004182] uppercase tracking-wider font-display whitespace-nowrap">
+                SPONSORS
+              </h2>
+              <div className="h-0.5 bg-[#004182]/20 flex-1 rounded-full" />
+            </div>
 
-          {/* Connect Global Sponsor Logo */}
-          <div className="flex items-center justify-center">
-            <img
-              src="/23AE2688-71E5-4416-A3FC-3B7B2DA284AD.png"
-              alt="Connect Global"
-              className="w-full max-w-[280px] sm:max-w-[360px] md:max-w-[420px] h-auto object-contain"
-            />
+            {/* Dynamic Layout: Single Featured Card vs Multi-Sponsor Grid */}
+            {sortedActiveSponsors.length === 1 ? (
+              /* Single Sponsor Featured Card (Compact & Content-Driven) */
+              <div className="max-w-xl sm:max-w-2xl mx-auto w-full">
+                {sortedActiveSponsors.map((sponsor) => {
+                  const badgeStyle = getSponsorBadgeStyle(sponsor.type);
+                  const cardInner = (
+                    <div className="w-full bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md hover:border-blue-300/80 px-6 py-5 sm:px-8 sm:py-6 flex flex-col items-center justify-center gap-3 sm:gap-4 transition-all duration-300 group">
+                      {/* Sponsor Type Badge */}
+                      <span
+                        className={`text-[10px] sm:text-xs font-extrabold uppercase tracking-wider px-3.5 py-1 rounded-full border shadow-2xs whitespace-nowrap ${badgeStyle}`}
+                      >
+                        {sponsor.type || 'Title Sponsor'}
+                      </span>
+
+                      {/* Prominent Large Logo Area */}
+                      <div className="h-20 sm:h-24 md:h-28 w-full flex items-center justify-center p-1 overflow-hidden">
+                        {sponsor.logoUrl ? (
+                          <img
+                            src={sponsor.logoUrl}
+                            alt={`${sponsor.name || 'Sponsor'} logo`}
+                            className="max-h-full max-w-[280px] sm:max-w-[360px] md:max-w-[420px] w-auto object-contain mx-auto transition-transform duration-300 group-hover:scale-105"
+                          />
+                        ) : sponsor.logoText ? (
+                          <span className="text-2xl sm:text-3xl md:text-4xl font-black font-display text-[#004182] tracking-tight transition-colors group-hover:text-blue-700">
+                            {sponsor.logoText}
+                          </span>
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-bold text-xs">
+                            LOGO
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  return sponsor.website ? (
+                    <a
+                      key={sponsor.id}
+                      href={sponsor.website.startsWith('http') ? sponsor.website : `https://${sponsor.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block focus:outline-none"
+                      title={sponsor.name || sponsor.type}
+                    >
+                      {cardInner}
+                    </a>
+                  ) : (
+                    <div key={sponsor.id}>
+                      {cardInner}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Multi-Sponsor Responsive Grid */
+              <div
+                className={`grid gap-4 sm:gap-5 ${
+                  sortedActiveSponsors.length === 2
+                    ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto'
+                    : sortedActiveSponsors.length === 3
+                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto'
+                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-w-7xl mx-auto'
+                }`}
+              >
+                {sortedActiveSponsors.map((sponsor) => {
+                  const badgeStyle = getSponsorBadgeStyle(sponsor.type);
+                  const cardInner = (
+                    <div className="w-full h-full bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-300/80 px-5 py-4 sm:px-6 sm:py-5 flex flex-col items-center justify-between gap-3 sm:gap-4 transition-all duration-200 hover:-translate-y-1 group">
+                      {/* Sponsor Type Badge */}
+                      <span
+                        className={`text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full border shadow-2xs whitespace-nowrap ${badgeStyle}`}
+                      >
+                        {sponsor.type || 'Sponsor'}
+                      </span>
+
+                      {/* Sponsor Logo Area */}
+                      <div className="h-16 sm:h-20 md:h-24 w-full flex items-center justify-center p-1 overflow-hidden">
+                        {sponsor.logoUrl ? (
+                          <img
+                            src={sponsor.logoUrl}
+                            alt={`${sponsor.name || 'Sponsor'} logo`}
+                            className="max-h-full max-w-[180px] sm:max-w-[220px] w-auto object-contain mx-auto transition-transform duration-200 group-hover:scale-105"
+                          />
+                        ) : sponsor.logoText ? (
+                          <span className="text-xl sm:text-2xl font-black font-display text-[#004182] tracking-tight transition-colors group-hover:text-blue-700">
+                            {sponsor.logoText}
+                          </span>
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-bold text-xs">
+                            LOGO
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  return sponsor.website ? (
+                    <a
+                      key={sponsor.id}
+                      href={sponsor.website.startsWith('http') ? sponsor.website : `https://${sponsor.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block h-full focus:outline-none"
+                      title={sponsor.name || sponsor.type}
+                    >
+                      {cardInner}
+                    </a>
+                  ) : (
+                    <div key={sponsor.id} className="h-full">
+                      {cardInner}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* EVENT STATISTICS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

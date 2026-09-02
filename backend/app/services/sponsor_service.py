@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Optional
 from app.database import db
 from app.schemas.sponsor import SponsorItem, SponsorCreate, SponsorUpdate
 
@@ -7,7 +7,7 @@ class SponsorService:
     @staticmethod
     async def get_sponsors() -> List[SponsorItem]:
         res = await db.fetch_supabase("sponsors", "order=display_order.asc")
-        if res is not None and len(res) > 0:
+        if res is not None:
             return [
                 SponsorItem(
                     id=str(row.get("id")),
@@ -15,6 +15,7 @@ class SponsorService:
                     type=row.get("sponsor_type") or row.get("type", "Partner"),
                     role=row.get("role", ""),
                     logo_text=row.get("logo_text", ""),
+                    logo_url=row.get("logo_url", "") or "",
                     website=row.get("website", ""),
                     active=row.get("is_active", True),
                     order=row.get("display_order", 0)
@@ -31,6 +32,7 @@ class SponsorService:
             "sponsor_type": data.type,
             "role": data.role,
             "logo_text": data.logo_text,
+            "logo_url": data.logo_url,
             "website": data.website,
             "is_active": data.active,
             "display_order": data.order
@@ -55,6 +57,7 @@ class SponsorService:
         if "type" in update_fields: db_payload["sponsor_type"] = update_fields["type"]
         if "role" in update_fields: db_payload["role"] = update_fields["role"]
         if "logo_text" in update_fields: db_payload["logo_text"] = update_fields["logo_text"]
+        if "logo_url" in update_fields: db_payload["logo_url"] = update_fields["logo_url"]
         if "website" in update_fields: db_payload["website"] = update_fields["website"]
         if "active" in update_fields: db_payload["is_active"] = update_fields["active"]
         if "order" in update_fields: db_payload["display_order"] = update_fields["order"]
@@ -91,5 +94,9 @@ class SponsorService:
         local["sponsors"] = filtered
         db.save_local(local)
         return supa_success or (len(filtered) < orig_len)
+
+    @staticmethod
+    async def upload_sponsor_logo(filename: str, content: bytes, content_type: str) -> Optional[str]:
+        return await db.upload_supabase_storage("sponsor-logos", filename, content, content_type)
 
 sponsor_service = SponsorService()

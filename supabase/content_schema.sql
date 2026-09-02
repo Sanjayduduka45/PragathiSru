@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS public.sponsors (
   sponsor_type TEXT DEFAULT 'Partner',
   role TEXT DEFAULT '',
   logo_text TEXT DEFAULT '',
+  logo_url TEXT DEFAULT '',
   website TEXT DEFAULT '',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   display_order INT NOT NULL DEFAULT 0,
