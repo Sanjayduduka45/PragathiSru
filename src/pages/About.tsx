@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
 import { useHomePath } from '../context/HomePathContext';
+import { EventHighlightsSection } from '../components/EventHighlightsSection';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
@@ -212,6 +213,9 @@ export const About: React.FC = () => {
 
         </div>
       </section>
+
+      {/* EVENT HIGHLIGHTS */}
+      <EventHighlightsSection />
 
       {/* VISION & OBJECTIVES */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
