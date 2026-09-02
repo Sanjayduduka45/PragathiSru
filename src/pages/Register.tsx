@@ -123,6 +123,11 @@ export const Register: React.FC = () => {
       return;
     }
 
+    if (emailTrimmed.toLowerCase().endsWith('@sru.edu.in')) {
+      setFormError('Registration for SR University students is currently closed.');
+      return;
+    }
+
     // Keep Team Leader email in sync
     const updatedMembers = [...members];
     updatedMembers[0].email = emailTrimmed;
@@ -172,33 +177,23 @@ export const Register: React.FC = () => {
       const mEmail = member.email.trim().toLowerCase();
       const mPhone = member.phone.trim();
 
-      if (i === 0) {
-        if (regMode === 'SRU_STUDENT' && !mEmail.endsWith('@sru.edu.in')) {
-          setFormError('All team members must use an eligible email address for free registration.');
+      if (mEmail.endsWith('@sru.edu.in')) {
+        setFormError('Registration for SR University students is currently closed.');
+        return;
+      }
+
+      if (i > 0 && (mName || mEmail || mPhone)) {
+        if (!mName) {
+          setFormError(`Please enter Name for Member ${i + 1}.`);
           return;
         }
-      } else {
-        if (mName || mEmail || mPhone) {
-          if (!mName) {
-            setFormError(`Please enter Name for Member ${i + 1}.`);
-            return;
-          }
-          if (!mEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mEmail)) {
-            if (regMode === 'SRU_STUDENT') {
-              setFormError('All team members must use an eligible email address for free registration.');
-            } else {
-              setFormError(`Please enter a valid Email for Member ${i + 1}.`);
-            }
-            return;
-          }
-          if (regMode === 'SRU_STUDENT' && !mEmail.endsWith('@sru.edu.in')) {
-            setFormError('All team members must use an eligible email address for free registration.');
-            return;
-          }
-          if (!mPhone || mPhone.length !== 10 || !/^\d{10}$/.test(mPhone)) {
-            setFormError('Please enter a valid 10-digit phone number.');
-            return;
-          }
+        if (!mEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mEmail)) {
+          setFormError(`Please enter a valid Email for Member ${i + 1}.`);
+          return;
+        }
+        if (!mPhone || mPhone.length !== 10 || !/^\d{10}$/.test(mPhone)) {
+          setFormError('Please enter a valid 10-digit phone number.');
+          return;
         }
       }
     }
@@ -468,13 +463,40 @@ export const Register: React.FC = () => {
                     </p>
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full bg-[#004182] hover:bg-[#003366] text-white font-bold py-3.5 px-6 rounded-2xl text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  >
-                    <span>Continue to Registration Form</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {isSRUEmail ? (
+                    <div className="bg-amber-50/90 border-2 border-amber-200/90 rounded-2xl p-5 sm:p-6 space-y-3 text-left shadow-xs animate-in fade-in duration-300">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm sm:text-base font-extrabold text-amber-950 font-display">
+                            🎓 SR University Student Registration Currently Closed
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed pt-2 border-t border-amber-200/80">
+                        <p className="font-semibold text-slate-900">
+                          Registration for SR University students is currently closed.
+                        </p>
+                        <p>
+                          Further information regarding SR University student registration will be announced by the organizing committee at a later date. Please check the official PRAGATHI 2.0 website and follow our social media channels for the latest updates.
+                        </p>
+                        <p className="font-medium text-amber-900">
+                          Thank you for your interest in PRAGATHI 2.0.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="w-full bg-[#004182] hover:bg-[#003366] text-white font-bold py-3.5 px-6 rounded-2xl text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span>Continue to Registration Form</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </form>
             )}

@@ -96,24 +96,29 @@ export class RegistrationService {
       };
     }
 
+    // Temporary restriction: SR University student registration is currently closed
     if (payload.registrationType === 'SRU_STUDENT') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      for (let i = 0; i < payload.members.length; i++) {
-        const mEmail = (payload.members[i]?.email || '').trim().toLowerCase();
-        if (!mEmail || !emailRegex.test(mEmail) || !mEmail.endsWith('@sru.edu.in')) {
-          return {
-            valid: false,
-            message: 'All team members must use an eligible email address for free registration.',
-          };
-        }
-      }
-    } else {
-      if (!payload.institutionName || payload.institutionName.trim().length === 0) {
+      return {
+        valid: false,
+        message: 'Registration for SR University students using an @sru.edu.in email address is currently closed.',
+      };
+    }
+
+    for (let i = 0; i < (payload.members || []).length; i++) {
+      const mEmail = (payload.members[i]?.email || '').trim().toLowerCase();
+      if (mEmail.endsWith('@sru.edu.in')) {
         return {
           valid: false,
-          message: 'School or College Institution Name is required for external participants.',
+          message: 'Registration for SR University students using an @sru.edu.in email address is currently closed.',
         };
       }
+    }
+
+    if (!payload.institutionName || payload.institutionName.trim().length === 0) {
+      return {
+        valid: false,
+        message: 'School or College Institution Name is required for external participants.',
+      };
     }
 
     return { valid: true, message: 'Validation successful' };
