@@ -628,7 +628,7 @@ export const Register: React.FC = () => {
                   >
                     {PROJECT_CATEGORIES.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.title} ({cat.badgeText})
+                        {cat.title}
                       </option>
                     ))}
                   </select>
@@ -827,7 +827,7 @@ export const Register: React.FC = () => {
                     // 1. Submit registration record to DB
                     const submissionRes = await RegistrationService.submitRegistration({
                       teamName,
-                      category,
+                      category: PROJECT_CATEGORIES.find((c) => c.id === category)?.title || category,
                       projectTitle,
                       projectAbstract,
                       registrationType: regMode,

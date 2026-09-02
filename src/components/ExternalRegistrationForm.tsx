@@ -224,7 +224,7 @@ Expected Outcomes: ${expectedOutcomes}
 
       const res = await RegistrationService.submitRegistration({
         teamName,
-        category,
+        category: PROJECT_CATEGORIES.find((c) => c.id === category)?.title || category,
         projectTitle,
         projectAbstract: projectAbstractSummary,
         registrationType: 'EXTERNAL',
@@ -806,7 +806,7 @@ Expected Outcomes: ${expectedOutcomes}
                   >
                     {PROJECT_CATEGORIES.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.title} ({cat.badgeText})
+                        {cat.title}
                       </option>
                     ))}
                   </select>
