@@ -454,7 +454,7 @@ export const Register: React.FC = () => {
                         required
                         value={primaryEmail}
                         onChange={(e) => setPrimaryEmail(e.target.value)}
-                        placeholder="e.g. name@college.edu or yourname@domain.com"
+                        placeholder="Enter your email address"
                         className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm sm:text-base font-medium focus:outline-hidden focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-slate-50/50"
                       />
                     </div>
