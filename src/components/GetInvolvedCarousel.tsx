@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Sparkles,
   ChevronLeft,
@@ -13,8 +12,23 @@ import {
   Megaphone,
   Microscope,
   Building2,
+  Briefcase,
 } from 'lucide-react';
-import { useHomePath } from '../context/HomePathContext';
+import { OpportunityEnquiryModal } from './OpportunityEnquiryModal';
+
+interface CardTheme {
+  cardBg: string;
+  borderColor: string;
+  hoverBorderColor: string;
+  iconBg: string;
+  iconColor: string;
+  iconHoverBg: string;
+  ctaColor: string;
+  ctaHoverColor: string;
+  dividerColor: string;
+  waveColor: string;
+  glowColor: string;
+}
 
 interface OpportunityCard {
   id: string;
@@ -22,13 +36,20 @@ interface OpportunityCard {
   description: string;
   icon: React.ReactNode;
   ctaText: string;
+  theme: CardTheme;
 }
 
 export const GetInvolvedCarousel: React.FC = () => {
-  const { getRoutePath } = useHomePath();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [enquiryModalOpen, setEnquiryModalOpen] = useState(false);
+  const [selectedOpportunity, setSelectedOpportunity] = useState('');
+
+  const handleOpenEnquiry = (opportunityTitle: string) => {
+    setSelectedOpportunity(opportunityTitle);
+    setEnquiryModalOpen(true);
+  };
 
   const cards: OpportunityCard[] = [
     {
@@ -38,6 +59,19 @@ export const GetInvolvedCarousel: React.FC = () => {
         'Schools, Intermediate Colleges, Engineering Colleges, Universities, and other educational institutions can visit SR University during PRAGATHI 2.0 and experience innovative projects and student innovations.',
       icon: <Building2 className="w-6 h-6" />,
       ctaText: 'Contact Us',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-blue-50/70 via-white to-blue-50/30',
+        borderColor: 'border-blue-100/90',
+        hoverBorderColor: 'hover:border-blue-300',
+        iconBg: 'bg-blue-100/80',
+        iconColor: 'text-blue-600',
+        iconHoverBg: 'group-hover:bg-blue-600 group-hover:text-white',
+        ctaColor: 'text-blue-600',
+        ctaHoverColor: 'group-hover:text-blue-800',
+        dividerColor: 'border-blue-100/80',
+        waveColor: '#3b82f6',
+        glowColor: 'bg-blue-200/40',
+      },
     },
     {
       id: 'industry-showcase',
@@ -46,6 +80,19 @@ export const GetInvolvedCarousel: React.FC = () => {
         'Industries, startups, and technology companies can showcase their products, technologies, and solutions through exhibition stalls during PRAGATHI 2.0.',
       icon: <Building className="w-6 h-6" />,
       ctaText: 'Contact Us',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-purple-50/70 via-white to-purple-50/30',
+        borderColor: 'border-purple-100/90',
+        hoverBorderColor: 'hover:border-purple-300',
+        iconBg: 'bg-purple-100/80',
+        iconColor: 'text-purple-600',
+        iconHoverBg: 'group-hover:bg-purple-600 group-hover:text-white',
+        ctaColor: 'text-purple-600',
+        ctaHoverColor: 'group-hover:text-purple-800',
+        dividerColor: 'border-purple-100/80',
+        waveColor: '#a855f7',
+        glowColor: 'bg-purple-200/40',
+      },
     },
     {
       id: 'expert-sessions',
@@ -54,6 +101,19 @@ export const GetInvolvedCarousel: React.FC = () => {
         'Industry leaders, professionals, entrepreneurs, researchers, and technology experts can conduct expert talks, technical sessions, panel discussions, and career-oriented sessions.',
       icon: <Mic className="w-6 h-6" />,
       ctaText: 'Contact Us',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-cyan-50/70 via-white to-cyan-50/30',
+        borderColor: 'border-cyan-100/90',
+        hoverBorderColor: 'hover:border-cyan-300',
+        iconBg: 'bg-cyan-100/80',
+        iconColor: 'text-cyan-700',
+        iconHoverBg: 'group-hover:bg-cyan-600 group-hover:text-white',
+        ctaColor: 'text-cyan-700',
+        ctaHoverColor: 'group-hover:text-cyan-900',
+        dividerColor: 'border-cyan-100/80',
+        waveColor: '#06b6d4',
+        glowColor: 'bg-cyan-200/40',
+      },
     },
     {
       id: 'startup-showcase',
@@ -62,6 +122,19 @@ export const GetInvolvedCarousel: React.FC = () => {
         'Startups, entrepreneurs, student innovators, research teams, and technology ventures can showcase innovative ideas, prototypes, products, and emerging technologies.',
       icon: <Rocket className="w-6 h-6" />,
       ctaText: 'Contact Us',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-orange-50/70 via-white to-orange-50/30',
+        borderColor: 'border-orange-100/90',
+        hoverBorderColor: 'hover:border-orange-300',
+        iconBg: 'bg-orange-100/80',
+        iconColor: 'text-orange-600',
+        iconHoverBg: 'group-hover:bg-orange-500 group-hover:text-white',
+        ctaColor: 'text-orange-600',
+        ctaHoverColor: 'group-hover:text-orange-800',
+        dividerColor: 'border-orange-100/80',
+        waveColor: '#f97316',
+        glowColor: 'bg-orange-200/40',
+      },
     },
     {
       id: 'alumni-connect',
@@ -70,6 +143,19 @@ export const GetInvolvedCarousel: React.FC = () => {
         'SR University Alumni are invited to reconnect with the university, witness student innovations, mentor young innovators, network with professionals, and explore collaboration opportunities.',
       icon: <GraduationCap className="w-6 h-6" />,
       ctaText: 'Join Us',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/30',
+        borderColor: 'border-emerald-100/90',
+        hoverBorderColor: 'hover:border-emerald-300',
+        iconBg: 'bg-emerald-100/80',
+        iconColor: 'text-emerald-600',
+        iconHoverBg: 'group-hover:bg-emerald-600 group-hover:text-white',
+        ctaColor: 'text-emerald-600',
+        ctaHoverColor: 'group-hover:text-emerald-800',
+        dividerColor: 'border-emerald-100/80',
+        waveColor: '#10b981',
+        glowColor: 'bg-emerald-200/40',
+      },
     },
     {
       id: 'student-volunteer',
@@ -78,6 +164,19 @@ export const GetInvolvedCarousel: React.FC = () => {
         'Students can contribute to PRAGATHI 2.0 through event coordination, participant assistance, venue guidance, communication, and on-ground support.',
       icon: <HeartHandshake className="w-6 h-6" />,
       ctaText: 'Join as Volunteer',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-teal-50/70 via-white to-teal-50/30',
+        borderColor: 'border-teal-100/90',
+        hoverBorderColor: 'hover:border-teal-300',
+        iconBg: 'bg-teal-100/80',
+        iconColor: 'text-teal-600',
+        iconHoverBg: 'group-hover:bg-teal-600 group-hover:text-white',
+        ctaColor: 'text-teal-600',
+        ctaHoverColor: 'group-hover:text-teal-800',
+        dividerColor: 'border-teal-100/80',
+        waveColor: '#14b8a6',
+        glowColor: 'bg-teal-200/40',
+      },
     },
     {
       id: 'campus-ambassador',
@@ -86,6 +185,19 @@ export const GetInvolvedCarousel: React.FC = () => {
         'Enthusiastic students can represent PRAGATHI 2.0 at their college or institution, promote the expo, encourage participation, and connect their campus with the organizing team.',
       icon: <Megaphone className="w-6 h-6" />,
       ctaText: 'Become an Ambassador',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-indigo-50/70 via-white to-indigo-50/30',
+        borderColor: 'border-indigo-100/90',
+        hoverBorderColor: 'hover:border-indigo-300',
+        iconBg: 'bg-indigo-100/80',
+        iconColor: 'text-indigo-600',
+        iconHoverBg: 'group-hover:bg-indigo-600 group-hover:text-white',
+        ctaColor: 'text-indigo-600',
+        ctaHoverColor: 'group-hover:text-indigo-800',
+        dividerColor: 'border-indigo-100/80',
+        waveColor: '#6366f1',
+        glowColor: 'bg-indigo-200/40',
+      },
     },
     {
       id: 'research-collaboration',
@@ -94,6 +206,40 @@ export const GetInvolvedCarousel: React.FC = () => {
         'Researchers, faculty members, academic institutions, research scholars, and innovation centers can connect with student innovators and explore research, technical, and innovation collaboration opportunities.',
       icon: <Microscope className="w-6 h-6" />,
       ctaText: 'Contact Us',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-rose-50/70 via-white to-rose-50/30',
+        borderColor: 'border-rose-100/90',
+        hoverBorderColor: 'hover:border-rose-300',
+        iconBg: 'bg-rose-100/80',
+        iconColor: 'text-rose-600',
+        iconHoverBg: 'group-hover:bg-rose-600 group-hover:text-white',
+        ctaColor: 'text-rose-600',
+        ctaHoverColor: 'group-hover:text-rose-800',
+        dividerColor: 'border-rose-100/80',
+        waveColor: '#f43f5e',
+        glowColor: 'bg-rose-200/40',
+      },
+    },
+    {
+      id: 'recruiter-talent-connect',
+      title: 'Recruiter & Talent Connect',
+      description:
+        'Companies and organizations can connect with innovative and talented students participating in PRAGATHI 2.0 for internships, live projects, industry collaborations, placements, and recruitment. Interested organizations are requested to contact the organizing committee in advance to plan their participation.',
+      icon: <Briefcase className="w-6 h-6" />,
+      ctaText: 'Contact Us',
+      theme: {
+        cardBg: 'bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30',
+        borderColor: 'border-amber-100/90',
+        hoverBorderColor: 'hover:border-amber-300',
+        iconBg: 'bg-amber-100/80',
+        iconColor: 'text-amber-600',
+        iconHoverBg: 'group-hover:bg-amber-500 group-hover:text-white',
+        ctaColor: 'text-amber-600',
+        ctaHoverColor: 'group-hover:text-amber-800',
+        dividerColor: 'border-amber-100/80',
+        waveColor: '#d97706',
+        glowColor: 'bg-amber-200/40',
+      },
     },
   ];
 
@@ -177,10 +323,33 @@ export const GetInvolvedCarousel: React.FC = () => {
         {cards.map((card) => (
           <div
             key={card.id}
-            className="w-[85vw] max-w-[310px] sm:w-[320px] shrink-0 snap-start bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-2xs hover:shadow-xl hover:border-blue-300 hover:-translate-y-1 hover:scale-[1.01] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out flex flex-col justify-between group cursor-default"
+            className={`relative overflow-hidden w-[85vw] max-w-[310px] sm:w-[320px] shrink-0 snap-start ${card.theme.cardBg} rounded-2xl p-5 sm:p-6 border ${card.theme.borderColor} ${card.theme.hoverBorderColor} shadow-2xs hover:shadow-xl hover:-translate-y-1 hover:scale-[1.01] active:translate-y-0 motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100 transition-all duration-300 ease-out flex flex-col justify-between group cursor-default`}
           >
-            <div className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center group-hover:bg-[#004182] group-hover:text-white group-hover:scale-105 transition-all duration-300">
+            {/* Subtle bottom-right wave decoration */}
+            <svg
+              className="absolute bottom-0 right-0 w-36 h-24 pointer-events-none opacity-15 group-hover:opacity-25 transition-opacity duration-300 z-0"
+              viewBox="0 0 160 100"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M0 100C40 80 80 95 110 65C135 40 145 20 160 0V100H0Z"
+                fill={card.theme.waveColor}
+              />
+            </svg>
+
+            {/* Ambient soft glow */}
+            <div
+              className={`absolute -bottom-8 -right-8 w-32 h-32 rounded-full blur-2xl pointer-events-none opacity-30 group-hover:opacity-50 transition-opacity duration-300 z-0 ${card.theme.glowColor}`}
+              aria-hidden="true"
+            />
+
+            {/* Card Content */}
+            <div className="relative z-10 space-y-4">
+              <div
+                className={`w-12 h-12 rounded-xl ${card.theme.iconBg} ${card.theme.iconColor} flex items-center justify-center ${card.theme.iconHoverBg} group-hover:scale-105 transition-all duration-300 shadow-2xs`}
+              >
                 {card.icon}
               </div>
 
@@ -188,23 +357,34 @@ export const GetInvolvedCarousel: React.FC = () => {
                 {card.title}
               </h3>
 
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 {card.description}
               </p>
             </div>
 
-            <div className="pt-4 mt-6 border-t border-slate-100 flex items-center justify-between">
-              <Link
-                to={getRoutePath('/contact')}
-                className="text-xs font-bold text-[#004182] group-hover:text-blue-900 flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-[#004182]"
+            {/* Card Footer / CTA */}
+            <div
+              className={`relative z-10 pt-4 mt-6 border-t ${card.theme.dividerColor} flex items-center justify-between`}
+            >
+              <button
+                type="button"
+                onClick={() => handleOpenEnquiry(card.title)}
+                className={`text-xs font-bold ${card.theme.ctaColor} ${card.theme.ctaHoverColor} flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-[#004182] cursor-pointer`}
               >
                 <span>{card.ctaText}</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-              </Link>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-200" />
+              </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Opportunity Enquiry Modal */}
+      <OpportunityEnquiryModal
+        isOpen={enquiryModalOpen}
+        onClose={() => setEnquiryModalOpen(false)}
+        opportunity={selectedOpportunity}
+      />
     </section>
   );
 };

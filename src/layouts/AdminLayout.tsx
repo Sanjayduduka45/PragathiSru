@@ -81,6 +81,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
   );
   const [opsExpanded, setOpsExpanded] = useState(
     location.pathname.startsWith('/admin/registrations') ||
+    location.pathname.startsWith('/admin/opportunity-enquiries') ||
     location.pathname.startsWith('/admin/posters') ||
     location.pathname.startsWith('/admin/participants') ||
     location.pathname.startsWith('/admin/results')
@@ -267,6 +268,16 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
               >
                 <FileText className="w-4 h-4 shrink-0" />
                 Registrations
+              </NavLink>
+              <NavLink
+                to="/admin/opportunity-enquiries"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                Opportunity Enquiries
               </NavLink>
               <NavLink
                 to="/admin/posters"
