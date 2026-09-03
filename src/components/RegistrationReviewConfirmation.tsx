@@ -23,6 +23,7 @@ import {
   Upload,
   Clock,
   FileCheck,
+  Printer,
 } from 'lucide-react';
 
 export interface ReviewTeamMember {
@@ -145,7 +146,10 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
   // PENDING PAYMENT VERIFICATION VIEW (FOR EXTERNAL PARTICIPANTS)
   if (confirmedId && isPendingVerification) {
     return (
-      <div className="bg-white rounded-3xl border border-amber-200 shadow-xl p-6 sm:p-10 space-y-8 text-center max-w-2xl mx-auto relative overflow-hidden animate-in fade-in duration-300">
+      <div
+        id="registration-confirmation-print-area"
+        className="registration-confirmation-print-area bg-white rounded-3xl border border-amber-200 shadow-xl p-6 sm:p-10 space-y-6 sm:space-y-8 text-center max-w-2xl mx-auto relative overflow-hidden animate-in fade-in duration-300"
+      >
         
         {/* Animated Warning / Pending Badge */}
         <motion.div
@@ -227,8 +231,32 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
           </div>
         </div>
 
+        {/* Non-Refundable Payment Notice */}
+        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3.5 sm:p-4 text-left max-w-lg mx-auto shadow-xs flex items-start gap-3 relative z-10">
+          <div className="p-1.5 bg-amber-100 text-amber-800 rounded-lg shrink-0 mt-0.5">
+            <AlertCircle className="w-4 h-4 text-amber-700" />
+          </div>
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+            <strong className="font-extrabold text-amber-900 tracking-wide mr-1 uppercase text-[10px] sm:text-[11px]">
+              IMPORTANT:
+            </strong>
+            <span>
+              Registration fee is <strong className="font-bold text-slate-900">non-refundable</strong>. Once the payment is made, it will not be refunded under any circumstances.
+            </span>
+          </p>
+        </div>
+
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 relative z-10">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 relative z-10 no-print">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="w-full sm:w-auto bg-white hover:bg-slate-50 text-[#004182] border border-[#004182] font-extrabold px-8 py-3.5 rounded-full text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-[#004182]" />
+            <span>PRINT</span>
+          </button>
+
           <button
             type="button"
             onClick={onGoHome}
@@ -246,7 +274,10 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
   // SUCCESS STATE VIEW (FOR SRU STUDENTS / IMMEDIATE APPROVAL)
   if (confirmedId) {
     return (
-      <div className="bg-white rounded-3xl border border-emerald-200 shadow-xl p-6 sm:p-10 space-y-8 text-center max-w-2xl mx-auto relative overflow-hidden animate-in fade-in duration-300">
+      <div
+        id="registration-confirmation-print-area"
+        className="registration-confirmation-print-area bg-white rounded-3xl border border-emerald-200 shadow-xl p-6 sm:p-10 space-y-6 sm:space-y-8 text-center max-w-2xl mx-auto relative overflow-hidden animate-in fade-in duration-300"
+      >
         
         {/* Animated Checkmark Badge */}
         <motion.div
@@ -342,7 +373,16 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 relative z-10">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 relative z-10 no-print">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="w-full sm:w-auto bg-white hover:bg-slate-50 text-[#004182] border border-[#004182] font-extrabold px-8 py-3.5 rounded-full text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-[#004182]" />
+            <span>PRINT</span>
+          </button>
+
           <button
             type="button"
             onClick={onGoHome}
