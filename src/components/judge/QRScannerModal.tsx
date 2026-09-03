@@ -33,19 +33,30 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Extract PRAGATHI registration ID from arbitrary scanned text or URL
+  // Extract PRAGATHI registration ID from scanned QR payload (PRAGATHI26|{registrationId}) or direct input
   const extractRegistrationId = (text: string): string | null => {
     if (!text) return null;
     const clean = text.trim();
 
-    // Standard pattern PRAGATHI26-XXXXXX or PRAGATHI-XXXXXX
-    const match = clean.match(/PRAGATHI(?:26)?-[A-Z0-9]{4,10}/i);
+    // 1. Exact pipe-delimited payload: PRAGATHI26|PRAGATHI26-XXXXXX
+    if (clean.includes('|')) {
+      const parts = clean.split('|').map((p) => p.trim());
+      for (const part of parts) {
+        const match = part.match(/^PRAGATHI(?:26)?-[A-Z0-9]{4,12}$/i);
+        if (match) {
+          return match[0].toUpperCase();
+        }
+      }
+    }
+
+    // 2. Standard pattern PRAGATHI26-XXXXXX or PRAGATHI-XXXXXX
+    const match = clean.match(/PRAGATHI(?:26)?-[A-Z0-9]{4,12}/i);
     if (match) {
       return match[0].toUpperCase();
     }
 
-    // Direct 6-character code fallback if user typed raw code
-    if (/^[A-Z0-9]{6}$/i.test(clean)) {
+    // 3. Direct domain code fallback (e.g., CSAI01, CIV01, EEE01)
+    if (/^[A-Z0-9]{4,10}$/i.test(clean)) {
       return `PRAGATHI26-${clean.toUpperCase()}`;
     }
 

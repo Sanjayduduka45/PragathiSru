@@ -28,12 +28,14 @@ import {
   Check,
   Printer,
   Download,
+  QrCode,
+  Eye,
 } from 'lucide-react';
 import { useParticipantAuth } from '../context/ParticipantAuthContext';
 import type { ParticipantMember, ParticipantProfile } from '../context/ParticipantAuthContext';
 import { PosterService } from '../services/posterService';
-import type { PosterContent, PosterStatus } from '../services/posterService';
-import { CanonicalPoster } from '../components/CanonicalPoster';
+import type { PosterContent, PosterStatus, PosterSubmission } from '../services/posterService';
+import { EventPassModal } from '../components/EventPassModal';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
@@ -169,7 +171,7 @@ const ComingSoonCard: React.FC<{
   </div>
 );
 
-// ─── Poster Submission Card ─────────────────────────────────────────────────────
+// ─── Poster Upload Card ─────────────────────────────────────────────────────────
 
 const PosterCard: React.FC<{
   profile: ParticipantProfile;
@@ -182,359 +184,305 @@ const PosterCard: React.FC<{
   isLeader,
   currentUserEmail,
 }) => {
-  const [posterStatus, setPosterStatus] = useState<PosterStatus | null>(null);
+  const [posterRecord, setPosterRecord] = useState<PosterSubmission | null>(null);
   const [posterLoading, setPosterLoading] = useState(true);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
-
-  // Default registration values
-  const defaultMembers = profile.members.map((m) => m.name).join(', ');
-  const defaultDept = [
-    profile.department || 'School of Engineering',
-    profile.institutionName || 'SR University, Warangal',
-  ].filter(Boolean).join(', ');
-
-  const [fields, setFields] = useState<Partial<PosterContent>>({
-    teamMembers: '',
-    departmentDetails: '',
-    introduction: '',
-    methodology: '',
-    conclusion: '',
-    references: '',
-    diagram1: '',
-    diagram1Caption: '',
-    diagram2: '',
-    diagram2Caption: '',
-    diagram3: '',
-    diagram3Caption: '',
-  });
-
-  const buildContent = useCallback((): PosterContent => ({
-    teamName: profile.teamName,
-    projectTitle: profile.projectTitle,
-    category: profile.category,
-    institutionName: profile.institutionName,
-    leaderName: profile.members.find((m) => m.role === 'Leader')?.name ?? profile.members[0]?.name ?? '',
-    leaderEmail: profile.members.find((m) => m.role === 'Leader')?.email ?? profile.members[0]?.email ?? '',
-    teamMembers: fields.teamMembers || defaultMembers,
-    departmentDetails: fields.departmentDetails || defaultDept,
-    introduction: fields.introduction || '',
-    methodology: fields.methodology || '',
-    conclusion: fields.conclusion || '',
-    references: fields.references || '',
-    diagram1: fields.diagram1 || '',
-    diagram1Caption: fields.diagram1Caption || '',
-    diagram2: fields.diagram2 || '',
-    diagram2Caption: fields.diagram2Caption || '',
-    diagram3: fields.diagram3 || '',
-    diagram3Caption: fields.diagram3Caption || '',
-  }), [profile, fields, defaultMembers, defaultDept]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load existing poster record on mount
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
+  const loadPoster = useCallback(async () => {
+    if (!registrationInternalId) return;
+    try {
       const existing = await PosterService.getMyPoster(registrationInternalId);
-      if (!mounted) return;
-      if (existing) {
-        setPosterStatus(existing.status);
-        if (existing.posterContent) {
-          setFields({
-            teamMembers: existing.posterContent.teamMembers || defaultMembers,
-            departmentDetails: existing.posterContent.departmentDetails || defaultDept,
-            introduction: existing.posterContent.introduction || '',
-            methodology: existing.posterContent.methodology || '',
-            conclusion: existing.posterContent.conclusion || '',
-            references: existing.posterContent.references || '',
-            diagram1: existing.posterContent.diagram1 || '',
-            diagram1Caption: existing.posterContent.diagram1Caption || '',
-            diagram2: existing.posterContent.diagram2 || '',
-            diagram2Caption: existing.posterContent.diagram2Caption || '',
-            diagram3: fields.diagram3 || existing.posterContent.diagram3 || '',
-            diagram3Caption: fields.diagram3Caption || existing.posterContent.diagram3Caption || '',
-          });
-        }
-      } else {
-        setPosterStatus(null);
-        setFields({
-          teamMembers: defaultMembers,
-          departmentDetails: defaultDept,
-          introduction: '',
-          methodology: '',
-          conclusion: '',
-          references: '',
-          diagram1: '',
-          diagram1Caption: '',
-          diagram2: '',
-          diagram2Caption: '',
-          diagram3: '',
-          diagram3Caption: '',
-        });
-      }
+      setPosterRecord(existing);
+    } catch (err) {
+      console.warn('Failed to load poster:', err);
+    } finally {
       setPosterLoading(false);
-    })();
-    return () => { mounted = false; };
-  }, [registrationInternalId, defaultMembers, defaultDept]);
-
-  const handleSaveDraft = async () => {
-    if (!isLeader) {
-      setSaveMsg('Unauthorized: Only the designated Team Leader can save poster drafts.');
-      return;
     }
-    setSaving(true);
-    setSaveMsg(null);
-    const result = await PosterService.upsertPosterDraft(registrationInternalId, buildContent(), currentUserEmail);
-    setSaving(false);
-    if (result.success) {
-      setPosterStatus('draft');
-      setSaveMsg('Draft saved successfully!');
-      setTimeout(() => setSaveMsg(null), 3000);
-    } else {
-      setSaveMsg(result.error || 'Save failed. Please try again.');
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!isLeader) {
-      setSaveMsg('Unauthorized: Only the designated Team Leader can submit posters.');
-      return;
-    }
-    setSubmitting(true);
-    setSaveMsg(null);
-    const result = await PosterService.submitPoster(registrationInternalId, buildContent(), currentUserEmail);
-    setSubmitting(false);
-    if (result.success) {
-      setPosterStatus('submitted');
-      setEditorOpen(false);
-    } else {
-      setSaveMsg(result.error || 'Submission failed. Please try again.');
-    }
-  };
-
-  const handleImageUpload = (key: 'diagram1' | 'diagram2' | 'diagram3', file: File) => {
-    if (!isLeader || isSubmitted) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        setFields((prev) => ({ ...prev, [key]: e.target.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Interactive scale factor calculation to fit presentation canvas nicely on viewport
-  const [scale, setScale] = useState(0.6);
-  const containerRef = useRef<HTMLDivElement>(null);
+  }, [registrationInternalId]);
 
   useEffect(() => {
-    if (!editorOpen) return;
-    const handleResize = () => {
-      if (!containerRef.current) return;
-      const parentWidth = containerRef.current.clientWidth;
-      const newScale = Math.min((parentWidth - 40) / 960, 1.0);
-      setScale(newScale);
+    loadPoster();
+  }, [loadPoster]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so same file can be selected again if needed
+    e.target.value = '';
+
+    // 1. Validation: Leader check
+    if (!isLeader) {
+      setUploadError('Unauthorized: Only the designated Team Leader can upload or replace the project poster.');
+      return;
+    }
+
+    // 2. Validation: File Type
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(ext)) {
+      setUploadError('Unsupported file format. Please upload a PDF, PNG, or JPG/JPEG poster.');
+      return;
+    }
+
+    // 3. Validation: File Size (max 20MB)
+    const MAX_SIZE_BYTES = 20 * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      setUploadError('Poster file is too large. Maximum allowed file size is 20MB.');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+    setUploadSuccessMsg(null);
+
+    const meta = {
+      registrationId: profile.registrationId,
+      teamName: profile.teamName,
+      projectTitle: profile.projectTitle || 'Project Prototype',
+      category: profile.category,
+      institutionName: profile.institutionName || 'SR University',
+      leaderName: profile.leaderName,
+      leaderEmail: profile.leaderEmail,
     };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    // Tiny timeout to make sure DOM is loaded
-    const t = setTimeout(handleResize, 150);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(t);
-    };
-  }, [editorOpen]);
+
+    const res = await PosterService.uploadPosterFile(
+      registrationInternalId,
+      file,
+      meta,
+      currentUserEmail
+    );
+
+    setUploading(false);
+
+    if (res.success) {
+      setUploadSuccessMsg('Poster uploaded successfully!');
+      setTimeout(() => setUploadSuccessMsg(null), 5000);
+      await loadPoster();
+    } else {
+      setUploadError(res.error || 'Poster upload failed. Please try again.');
+    }
+  };
 
   if (posterLoading) {
     return (
       <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-center gap-2 text-slate-400">
         <Loader2 className="w-4 h-4 animate-spin" />
-        <span className="text-xs font-medium">Loading poster status…</span>
+        <span className="text-xs font-medium">Checking poster status…</span>
       </div>
     );
   }
 
-  const isSubmitted = posterStatus === 'submitted';
-  const canEditPoster = isLeader && !isSubmitted;
+  const isSubmitted = posterRecord?.status === 'submitted';
+  const fileUrl = posterRecord?.posterContent?.fileUrl;
+  const fileName = posterRecord?.posterContent?.fileName;
+  const isPdf =
+    posterRecord?.posterContent?.fileType === 'application/pdf' ||
+    fileName?.toLowerCase().endsWith('.pdf') ||
+    fileUrl?.toLowerCase().includes('.pdf');
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-      {/* Card Header */}
-      <div className="p-4 flex items-start gap-3">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-          isSubmitted
-            ? 'bg-emerald-50 border border-emerald-200'
-            : posterStatus === 'draft'
-            ? 'bg-blue-50 border border-blue-200'
-            : 'bg-slate-100 border border-slate-200'
-        }`}>
-          <FileImage className={`w-5 h-5 ${
-            isSubmitted ? 'text-emerald-600' : posterStatus === 'draft' ? 'text-[#004182]' : 'text-slate-400'
-          }`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-extrabold text-slate-900">Project Poster</h3>
-            {isSubmitted && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                <CheckCircle2 className="w-3 h-3" /> Submitted
-              </span>
-            )}
-            {posterStatus === 'draft' && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                <Edit3 className="w-3 h-3" /> Draft Saved
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-            {isSubmitted
-              ? 'Your official event poster has been submitted successfully.'
-              : isLeader
-              ? 'Complete your official project poster template and submit it to management.'
-              : `Poster management is reserved for your Team Leader (${profile.leaderName || 'Team Leader'}).`}
-          </p>
-        </div>
-      </div>
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+      {/* Hidden native file picker */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+        className="hidden"
+        aria-label="Upload Project Poster"
+      />
 
-      {/* Main card trigger button / Team Member info */}
-      <div className="px-4 pb-4">
-        {isLeader ? (
-          <button
-            id="participant-poster-open-editor"
-            type="button"
-            onClick={() => setEditorOpen(true)}
-            className="w-full flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2.5 rounded-xl transition-colors cursor-pointer"
+      {/* Card Header & Content */}
+      <div className="p-4 sm:p-5 space-y-3.5">
+        <div className="flex items-start gap-3">
+          <div
+            className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+              isSubmitted
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-600'
+                : 'bg-blue-50 border border-blue-200 text-[#004182]'
+            }`}
           >
-            <Edit3 className="w-3.5 h-3.5" />
-            {isSubmitted ? 'View Submitted Poster' : posterStatus === 'draft' ? 'Edit Poster Draft' : 'Create Poster'}
-          </button>
-        ) : isSubmitted ? (
-          <button
-            id="participant-poster-open-editor"
-            type="button"
-            onClick={() => setEditorOpen(true)}
-            className="w-full flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2.5 rounded-xl transition-colors cursor-pointer"
-          >
-            <FileImage className="w-3.5 h-3.5" />
-            View Submitted Poster
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-500">
-            <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="leading-relaxed">
-              Poster creation and submission is managed exclusively by your Team Leader.
-            </span>
+            <FileImage className="w-5 h-5" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-extrabold text-slate-900">Project Poster</h3>
+              {isSubmitted && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  <CheckCircle2 className="w-3 h-3" /> Submitted
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              {isSubmitted
+                ? 'Poster uploaded successfully for PRAGATHI 2K26.'
+                : isLeader
+                ? 'Upload your official project poster (PDF, PNG, or JPG/JPEG up to 20MB).'
+                : `Poster submission is managed by your Team Leader (${profile.leaderName || 'Team Leader'}).`}
+            </p>
+          </div>
+        </div>
+
+        {/* Upload Status / Filename Info */}
+        {isSubmitted && (
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                File
+              </span>
+              {posterRecord?.submittedAt && (
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {new Date(posterRecord.submittedAt).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </span>
+              )}
+            </div>
+            <p className="font-semibold text-slate-800 truncate">
+              {fileName || 'Project_Poster.pdf'}
+            </p>
           </div>
         )}
-      </div>
 
-      {/* Slide Editor / Viewer Modal */}
-      {editorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-xs">
-          <div className="relative z-10 w-full max-w-5xl bg-slate-100 rounded-3xl shadow-2xl border border-slate-200 flex flex-col h-[92vh] overflow-hidden">
-            {/* Top Toolbar */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#004182] flex items-center justify-center">
-                  <FileImage className="w-4.5 h-4.5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">
-                    {canEditPoster ? 'PRAGATHI 2K26 Poster Editor' : 'PRAGATHI 2K26 Poster Viewer'}
-                  </h3>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] text-slate-400">Status:</span>
-                    {isSubmitted ? (
-                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Submitted</span>
-                    ) : (
-                      <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        {canEditPoster ? 'Editable Draft' : 'Draft (Leader Only)'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+        {/* Success Alert */}
+        {uploadSuccessMsg && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{uploadSuccessMsg}</span>
+          </div>
+        )}
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                {canEditPoster && (
-                  <>
-                    <button
-                      id="participant-poster-save-draft"
-                      type="button"
-                      onClick={handleSaveDraft}
-                      disabled={saving || submitting}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Edit3 className="w-3.5 h-3.5" />}
-                      Save Draft
-                    </button>
-                    <button
-                      id="participant-poster-submit"
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={saving || submitting}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#004182] hover:bg-[#003266] px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                      Submit Poster
-                    </button>
-                  </>
-                )}
+        {/* Error Alert */}
+        {uploadError && (
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-800 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p>{uploadError}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="pt-1 flex flex-col gap-2">
+          {uploading ? (
+            <button
+              type="button"
+              disabled
+              className="w-full flex items-center justify-center gap-2 text-xs font-extrabold text-white bg-[#004182]/80 px-4 py-2.5 rounded-xl cursor-not-allowed shadow-xs"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>UPLOADING POSTER...</span>
+            </button>
+          ) : isSubmitted ? (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (fileUrl) {
+                    setViewerOpen(true);
+                  }
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>VIEW POSTER</span>
+              </button>
+
+              {isLeader && (
                 <button
                   type="button"
-                  onClick={() => setEditorOpen(false)}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Replace</span>
+                </button>
+              )}
+            </div>
+          ) : isLeader ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full inline-flex items-center justify-center gap-2 text-xs font-extrabold text-white bg-[#004182] hover:bg-[#003366] px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs hover:shadow-md"
+            >
+              <Upload className="w-4 h-4" />
+              <span>UPLOAD YOUR POSTER</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-500">
+              <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>Poster upload is managed exclusively by your Team Leader.</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Uploaded Poster Viewer Modal */}
+      {viewerOpen && fileUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-slate-900/60 backdrop-blur-xs">
+          <div className="relative z-10 w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FileImage className="w-5 h-5 text-[#004182] shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-extrabold text-slate-900 truncate">
+                    {fileName || 'Project Poster'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    {profile.registrationId} • {profile.teamName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={fileUrl}
+                  download={fileName || `PRAGATHI26-POSTER-${profile.registrationId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#004182] hover:bg-[#003366] px-3.5 py-2 rounded-xl transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setViewerOpen(false)}
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                  aria-label="Close"
+                  aria-label="Close Viewer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Editor Canvas Area */}
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center" ref={containerRef}>
-              {saveMsg && (
-                <div className={`w-full max-w-[960px] mb-3 px-4 py-2 rounded-xl text-xs font-bold ${
-                  saveMsg.includes('failed') || saveMsg.includes('Unauthorized')
-                    ? 'bg-rose-50 border border-rose-200 text-rose-700'
-                    : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                }`}>
-                  {saveMsg}
-                </div>
-              )}
-
-              {canEditPoster && (
-                <p className="text-[10px] text-slate-400 mb-4 max-w-[960px] text-center leading-relaxed">
-                  💡 **Direct Edit Mode:** Click on any highlighted section on the poster template (Title, Members, Introduction, Conclusion, etc.) and type directly. Use the upload zones to insert your project diagrams. Sponsored branding remains locked.
-                </p>
-              )}
-
-              {!isLeader && isSubmitted && (
-                <p className="text-[10px] text-slate-400 mb-4 max-w-[960px] text-center leading-relaxed">
-                  👁️ **Read-Only View:** This is the official project poster submitted by your Team Leader ({profile.leaderName || 'Team Leader'}).
-                </p>
-              )}
-
-              {/* Scaled Presentation View */}
-              <div
-                style={{
-                  width: '960px',
-                  height: '1200px',
-                  transform: `scale(${scale})`,
-                  transformOrigin: 'top center',
-                  marginBottom: `calc((1200px * ${1 - scale}) * -1)`,
-                }}
-                className="shrink-0 relative"
-              >
-                <CanonicalPoster
-                  content={buildContent()}
-                  isEditable={canEditPoster}
-                  onFieldChange={canEditPoster ? (key, val) => setFields((prev) => ({ ...prev, [key]: val })) : undefined}
-                  onImageUpload={canEditPoster ? handleImageUpload : undefined}
+            {/* Modal Body: PDF or Image */}
+            <div className="p-4 overflow-y-auto bg-slate-100 flex items-center justify-center min-h-[400px]">
+              {isPdf ? (
+                <iframe
+                  src={fileUrl}
+                  title="Project Poster Preview"
+                  className="w-full h-[70vh] rounded-xl border border-slate-200 bg-white"
                 />
-              </div>
+              ) : (
+                <img
+                  src={fileUrl}
+                  alt={fileName || 'Project Poster'}
+                  className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-md border border-slate-200"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -543,26 +491,101 @@ const PosterCard: React.FC<{
   );
 };
 
-// ─── Event Pass Placeholder Card ──────────────────────────────────────────────
+// ─── Event Pass Card ──────────────────────────────────────────────────────────
 
-const EventPassPlaceholderCard: React.FC = () => {
-  return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5">
-      <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-        <Ticket className="w-4 h-4 text-[#004182]" />
-        Event Pass
-      </h2>
-      <div className="bg-slate-50/80 border border-slate-100 rounded-2xl p-5 text-center flex flex-col items-center justify-center">
-        <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500 mb-3 shadow-xs">
-          <Ticket className="w-6 h-6" />
+const EventPassCard: React.FC<{
+  profile: ParticipantProfile;
+  onOpenPassModal: () => void;
+}> = ({ profile, onOpenPassModal }) => {
+  const isApproved =
+    profile.registrationStatus?.toLowerCase() === 'approved' ||
+    profile.paymentStatus?.toLowerCase() === 'paid' ||
+    profile.paymentStatus?.toLowerCase() === 'completed' ||
+    profile.paymentStatus?.toLowerCase() === 'not_required' ||
+    profile.paymentStatus?.toLowerCase() === 'free_sru' ||
+    profile.paymentStatus?.toLowerCase() === 'free';
+
+  const isRejected = profile.registrationStatus?.toLowerCase() === 'rejected';
+
+  if (!isApproved) {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 transition-all">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Ticket className="w-4 h-4 text-[#004182]" />
+            Event Pass
+          </h2>
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {isRejected ? 'Unavailable' : 'Pending Approval'}
+          </span>
         </div>
-        <p className="text-xs font-extrabold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full mb-2">
-          Coming Soon
-        </p>
-        <p className="text-xs font-bold text-slate-700">Digital Pass & Stall Details</p>
-        <p className="text-[11px] text-slate-400 mt-1.5 max-w-xs leading-relaxed">
-          Your official event pass with entry credentials, unique QR code, and stall allocation will become available in a future phase of PRAGATHI 2K26.
-        </p>
+
+        <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 text-center flex flex-col items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mb-3 shadow-2xs">
+            <Ticket className="w-6 h-6" />
+          </div>
+          <p className="text-xs font-extrabold text-slate-800 mb-1">
+            {isRejected
+              ? 'Registration Rejected'
+              : 'Digital Event Pass'}
+          </p>
+          <p className="text-[11px] text-slate-500 max-w-xs leading-relaxed">
+            {isRejected
+              ? 'Your registration was not approved, so an event pass is not available.'
+              : 'Your official digital event pass will be available immediately after your registration and payment are approved by the organizers.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-3xl border border-blue-200 shadow-xs p-5 relative overflow-hidden transition-all hover:shadow-md">
+      {/* Top Gold Accent */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#004182] via-amber-400 to-[#004182]" />
+
+      <div className="flex items-center justify-between mb-3.5">
+        <h2 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+          <Ticket className="w-4 h-4 text-[#004182]" />
+          Event Pass
+        </h2>
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          Ready
+        </span>
+      </div>
+
+      <div className="bg-gradient-to-br from-blue-50/80 to-slate-50 border border-blue-100 rounded-2xl p-4 sm:p-5 text-left space-y-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              Registration Pass
+            </span>
+            <span className="text-sm sm:text-base font-mono font-black text-[#004182]">
+              {profile.registrationId}
+            </span>
+          </div>
+          <div className="p-2 bg-white border border-blue-200/80 rounded-xl shadow-2xs shrink-0">
+            <QrCode className="w-6 h-6 text-[#004182]" />
+          </div>
+        </div>
+
+        <div className="space-y-1 text-xs">
+          <p className="font-bold text-slate-800 line-clamp-1">{profile.teamName}</p>
+          <p className="text-[11px] text-slate-500 font-medium line-clamp-1">{profile.projectTitle || profile.category}</p>
+        </div>
+
+        <div className="pt-2 border-t border-blue-200/60 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onOpenPassModal}
+            className="w-full inline-flex items-center justify-center gap-2 bg-[#004182] hover:bg-[#003366] text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <Ticket className="w-3.5 h-3.5" />
+            <span>VIEW YOUR PASS</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -574,6 +597,7 @@ export const ParticipantDashboard: React.FC = () => {
   const { session, profile, profileLoading, signOut } = useParticipantAuth();
   const navigate = useNavigate();
   const [registrationInternalId, setRegistrationInternalId] = useState<string | null>(null);
+  const [isPassModalOpen, setIsPassModalOpen] = useState<boolean>(false);
 
   // Resolve internal UUID from public registration ID for poster linkage
   useEffect(() => {
@@ -672,9 +696,103 @@ export const ParticipantDashboard: React.FC = () => {
 
         {/* Loading skeleton */}
         {profileLoading && (
-          <div className="flex items-center justify-center gap-2 py-8 text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm font-medium">Loading your registration details…</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-pulse" aria-busy="true" aria-label="Loading registration details">
+            {/* LEFT Column Skeletons */}
+            <div className="lg:col-span-2 space-y-5">
+              {/* Registration Details Skeleton */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-slate-200 rounded shrink-0" />
+                  <div className="h-4 w-44 bg-slate-200 rounded-md" />
+                </div>
+                <div className="space-y-3.5 pt-1">
+                  {[
+                    { labelW: 'w-24', valW: 'w-36' },
+                    { labelW: 'w-28', valW: 'w-48' },
+                    { labelW: 'w-24', valW: 'w-56' },
+                    { labelW: 'w-20', valW: 'w-40' },
+                    { labelW: 'w-24', valW: 'w-28' },
+                    { labelW: 'w-20', valW: 'w-24' },
+                  ].map((row, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className={`h-3.5 ${row.labelW} bg-slate-100 rounded`} />
+                      <div className={`h-3.5 ${row.valW} bg-slate-200 rounded`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Project Details Skeleton */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 sm:p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-slate-200 rounded shrink-0" />
+                  <div className="h-4 w-36 bg-slate-200 rounded-md" />
+                </div>
+                <div className="space-y-2 pt-1">
+                  <div className="h-3 w-20 bg-slate-100 rounded" />
+                  <div className="h-5 w-4/5 bg-slate-200 rounded-md" />
+                  <div className="h-6 w-32 bg-slate-100 rounded-full mt-2" />
+                </div>
+              </div>
+
+              {/* Team Members Skeleton */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-slate-200 rounded shrink-0" />
+                    <div className="h-4 w-32 bg-slate-200 rounded-md" />
+                  </div>
+                  <div className="h-5 w-20 bg-slate-100 rounded-full" />
+                </div>
+                <div className="space-y-2.5">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-4 w-40 bg-slate-200 rounded" />
+                        <div className="h-3 w-52 bg-slate-100 rounded" />
+                      </div>
+                      <div className="h-6 w-16 bg-slate-200 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT Column Skeletons */}
+            <div className="space-y-5">
+              {/* Event Info Skeleton */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-3">
+                <div className="h-4 w-28 bg-slate-200 rounded-md" />
+                <div className="space-y-2 pt-1">
+                  <div className="h-9 bg-slate-100 rounded-xl" />
+                  <div className="h-9 bg-slate-100 rounded-xl" />
+                  <div className="h-9 bg-slate-100 rounded-xl" />
+                </div>
+              </div>
+
+              {/* Poster & Pass Skeletons */}
+              <div className="space-y-3">
+                <div className="h-3 w-24 bg-slate-200 rounded px-1" />
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="h-4 w-28 bg-slate-200 rounded" />
+                    <div className="h-4 w-16 bg-slate-100 rounded-full" />
+                  </div>
+                  <div className="h-20 bg-slate-50 rounded-2xl border border-slate-100" />
+                  <div className="h-9 bg-slate-200 rounded-xl" />
+                </div>
+
+                <div className="h-3 w-24 bg-slate-200 rounded px-1 mt-4" />
+                <div className="bg-white rounded-3xl border border-blue-200 shadow-xs p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="h-4 w-24 bg-slate-200 rounded" />
+                    <div className="h-4 w-14 bg-emerald-100 rounded-full" />
+                  </div>
+                  <div className="h-20 bg-blue-50/60 rounded-2xl border border-blue-100" />
+                  <div className="h-9 bg-[#004182]/20 rounded-xl" />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -835,7 +953,10 @@ export const ParticipantDashboard: React.FC = () => {
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 mt-4">
                   Event Pass
                 </p>
-                <EventPassPlaceholderCard />
+                <EventPassCard
+                  profile={profile}
+                  onOpenPassModal={() => setIsPassModalOpen(true)}
+                />
               </div>
             </div>
           </div>
@@ -872,6 +993,15 @@ export const ParticipantDashboard: React.FC = () => {
               </Link>
             </div>
           </div>
+        )}
+
+        {/* Event Pass Modal */}
+        {profile && (
+          <EventPassModal
+            isOpen={isPassModalOpen}
+            onClose={() => setIsPassModalOpen(false)}
+            profile={profile}
+          />
         )}
 
       </main>

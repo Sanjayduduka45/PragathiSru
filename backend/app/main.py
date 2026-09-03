@@ -12,7 +12,8 @@ from app.api import (
     contact,
     registrations,
     testimonials,
-    settings as settings_api
+    settings as settings_api,
+    posters
 )
 
 app = FastAPI(
@@ -51,6 +52,7 @@ app.include_router(contact.router)
 app.include_router(registrations.router)
 app.include_router(testimonials.router)
 app.include_router(settings_api.router)
+app.include_router(posters.router)
 
 @app.get("/")
 @app.get("/api")

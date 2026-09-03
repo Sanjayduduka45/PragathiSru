@@ -870,7 +870,7 @@ export const Register: React.FC = () => {
 
                     return {
                       success: true,
-                      registrationId: submissionRes.record.registrationId || `PRAGATHI26-${Math.floor(1000 + Math.random() * 9000)}`,
+                      registrationId: submissionRes.registrationId || submissionRes.record.registrationId,
                     };
                   }}
                   onGoHome={() => navigate(getHomePath())}

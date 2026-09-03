@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Clock,
   Search,
+  Download,
 } from 'lucide-react';
 import { PosterService, type AdminPosterRecord } from '../../services/posterService';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
@@ -62,10 +63,41 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
-// ── Poster Preview (exact template layout) ───────────────────────────────────
+// ── Poster Preview (uploaded file or legacy template layout) ─────────────────
 
 const PosterPreview: React.FC<{ record: AdminPosterRecord }> = ({ record }) => {
-  const content = record.posterContent || {
+  const content = record.posterContent;
+  const fileUrl = content?.fileUrl;
+  const fileName = content?.fileName;
+  const isPdf =
+    content?.fileType === 'application/pdf' ||
+    fileName?.toLowerCase().endsWith('.pdf') ||
+    fileUrl?.toLowerCase().includes('.pdf');
+
+  if (fileUrl) {
+    if (isPdf) {
+      return (
+        <div className="w-full h-full min-h-[600px] flex flex-col items-center justify-center p-2 bg-slate-100 rounded-2xl">
+          <iframe
+            src={fileUrl}
+            title={fileName || 'Project Poster PDF'}
+            className="w-full h-[750px] rounded-xl border border-slate-200 bg-white"
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="w-full h-full flex items-center justify-center p-2 bg-slate-100 rounded-2xl">
+        <img
+          src={fileUrl}
+          alt={fileName || 'Project Poster'}
+          className="max-w-full max-h-[800px] object-contain rounded-xl shadow-md border border-slate-200"
+        />
+      </div>
+    );
+  }
+
+  const fallbackContent = content || {
     teamName: record.teamName,
     projectTitle: record.projectTitle,
     category: record.category,
@@ -74,7 +106,7 @@ const PosterPreview: React.FC<{ record: AdminPosterRecord }> = ({ record }) => {
     leaderEmail: record.leaderEmail,
   };
 
-  return <CanonicalPoster content={content} isEditable={false} />;
+  return <CanonicalPoster content={fallbackContent} isEditable={false} />;
 };
 
 // ── Poster View Modal ────────────────────────────────────────────────────────
@@ -83,7 +115,9 @@ const PosterViewModal: React.FC<{
   record: AdminPosterRecord;
   onClose: () => void;
 }> = ({ record, onClose }) => {
-  const printAreaRef = useRef<HTMLDivElement>(null);
+  const hasUploadedFile = !!record.posterContent?.fileUrl;
+  const fileUrl = record.posterContent?.fileUrl;
+  const fileName = record.posterContent?.fileName || `PRAGATHI26-POSTER-${record.registrationId}`;
 
   const handlePrint = useCallback(() => {
     const printContent = document.getElementById('poster-print-area');
@@ -237,6 +271,7 @@ const PosterViewModal: React.FC<{
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (hasUploadedFile) return;
     const handleResize = () => {
       if (!containerRef.current) return;
       const parentWidth = containerRef.current.clientWidth;
@@ -250,7 +285,7 @@ const PosterViewModal: React.FC<{
       window.removeEventListener('resize', handleResize);
       clearTimeout(t);
     };
-  }, []);
+  }, [hasUploadedFile]);
 
   return (
     <div
@@ -266,7 +301,7 @@ const PosterViewModal: React.FC<{
       />
 
       {/* Modal Panel */}
-      <div className="relative z-10 w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-4">
+      <div className="relative z-10 w-full max-w-5xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-4">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3 min-w-0">
@@ -277,19 +312,35 @@ const PosterViewModal: React.FC<{
               <p className="text-sm font-extrabold text-slate-900 truncate">
                 {record.teamName}
               </p>
-              <p className="text-xs text-slate-400 truncate">{record.registrationId}</p>
+              <p className="text-xs text-slate-400 truncate font-mono">
+                {record.registrationId} • {record.projectTitle || record.category}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              id="admin-poster-print-btn"
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-[#004182] hover:bg-[#003266] px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Print / Download</span>
-            </button>
+            {hasUploadedFile && fileUrl ? (
+              <a
+                id="admin-poster-download-btn"
+                href={fileUrl}
+                download={fileName}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-xs font-bold text-white bg-[#004182] hover:bg-[#003266] px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Poster</span>
+              </a>
+            ) : (
+              <button
+                id="admin-poster-print-btn"
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center gap-2 text-xs font-bold text-white bg-[#004182] hover:bg-[#003266] px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Print / Download</span>
+              </button>
+            )}
             <button
               id="admin-poster-modal-close"
               type="button"
@@ -306,19 +357,25 @@ const PosterViewModal: React.FC<{
         <div
           className="p-5 overflow-y-auto bg-slate-50 flex flex-col items-center justify-start min-h-[500px]"
           ref={containerRef}
-          style={{ height: `${1200 * scale + 60}px` }}
+          style={hasUploadedFile ? { minHeight: '600px' } : { height: `${1200 * scale + 60}px` }}
         >
-          <div
-            style={{
-              width: '960px',
-              height: '1200px',
-              transform: `scale(${scale})`,
-              transformOrigin: 'top center',
-            }}
-            className="shrink-0"
-          >
-            <PosterPreview record={record} />
-          </div>
+          {hasUploadedFile ? (
+            <div className="w-full">
+              <PosterPreview record={record} />
+            </div>
+          ) : (
+            <div
+              style={{
+                width: '960px',
+                height: '1200px',
+                transform: `scale(${scale})`,
+                transformOrigin: 'top center',
+              }}
+              className="shrink-0"
+            >
+              <PosterPreview record={record} />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -330,103 +387,141 @@ const PosterViewModal: React.FC<{
 const PosterTableRow: React.FC<{
   record: AdminPosterRecord;
   onView: (r: AdminPosterRecord) => void;
-}> = ({ record, onView }) => (
-  <tr className="hover:bg-slate-50 transition-colors group">
-    <td className="px-4 py-3.5 align-top">
-      <p className="text-sm font-bold text-slate-900">{record.teamName}</p>
-      <p className="text-xs text-slate-400 mt-0.5 font-mono">{record.registrationId}</p>
-    </td>
-    <td className="px-4 py-3.5 align-top hidden sm:table-cell">
-      <p className="text-sm font-medium text-slate-700 line-clamp-2">
-        {record.projectTitle || '—'}
-      </p>
-    </td>
-    <td className="px-4 py-3.5 align-top hidden md:table-cell">
-      <p className="text-sm text-slate-600">{record.leaderName}</p>
-      <p className="text-xs text-slate-400">{record.leaderEmail}</p>
-    </td>
-    <td className="px-4 py-3.5 align-top hidden lg:table-cell">
-      <p className="text-xs text-slate-600 line-clamp-2">{record.institutionName || '—'}</p>
-    </td>
-    <td className="px-4 py-3.5 align-top hidden md:table-cell">
-      {record.category ? (
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-[#004182] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
-          {record.category}
-        </span>
-      ) : (
-        <span className="text-xs text-slate-400">—</span>
-      )}
-    </td>
-    <td className="px-4 py-3.5 align-top">
-      <StatusBadge status={record.status} />
-    </td>
-    <td className="px-4 py-3.5 align-top hidden sm:table-cell">
-      <p className="text-xs text-slate-600">{formatDateTime(record.submittedAt)}</p>
-    </td>
-    <td className="px-4 py-3.5 align-top text-right">
-      <button
-        id={`view-poster-${record.posterId}`}
-        type="button"
-        onClick={() => onView(record)}
-        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] hover:text-white bg-blue-50 hover:bg-[#004182] border border-blue-200 hover:border-[#004182] px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer whitespace-nowrap"
-      >
-        <Eye className="w-3.5 h-3.5" />
-        View
-      </button>
-    </td>
-  </tr>
-);
+}> = ({ record, onView }) => {
+  const fileUrl = record.posterContent?.fileUrl;
+  const fileName = record.posterContent?.fileName || `PRAGATHI26-POSTER-${record.registrationId}`;
+
+  return (
+    <tr className="hover:bg-slate-50 transition-colors group">
+      <td className="px-4 py-3.5 align-top">
+        <p className="text-sm font-bold text-slate-900">{record.teamName}</p>
+        <p className="text-xs text-slate-400 mt-0.5 font-mono">{record.registrationId}</p>
+      </td>
+      <td className="px-4 py-3.5 align-top hidden sm:table-cell">
+        <p className="text-sm font-medium text-slate-700 line-clamp-2">
+          {record.projectTitle || '—'}
+        </p>
+      </td>
+      <td className="px-4 py-3.5 align-top hidden md:table-cell">
+        <p className="text-sm text-slate-600">{record.leaderName}</p>
+        <p className="text-xs text-slate-400">{record.leaderEmail}</p>
+      </td>
+      <td className="px-4 py-3.5 align-top hidden lg:table-cell">
+        <p className="text-xs text-slate-600 line-clamp-2">{record.institutionName || '—'}</p>
+      </td>
+      <td className="px-4 py-3.5 align-top hidden md:table-cell">
+        {record.category ? (
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-[#004182] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
+            {record.category}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3.5 align-top">
+        <StatusBadge status={record.status} />
+      </td>
+      <td className="px-4 py-3.5 align-top hidden sm:table-cell">
+        <p className="text-xs text-slate-600">{formatDateTime(record.submittedAt)}</p>
+      </td>
+      <td className="px-4 py-3.5 align-top text-right">
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            id={`view-poster-${record.posterId}`}
+            type="button"
+            onClick={() => onView(record)}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] hover:text-white bg-blue-50 hover:bg-[#004182] border border-blue-200 hover:border-[#004182] px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer whitespace-nowrap"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            View
+          </button>
+          {fileUrl && (
+            <a
+              href={fileUrl}
+              download={fileName}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-[#004182] bg-slate-100 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+              title="Download Poster File"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 // ── Mobile Card ───────────────────────────────────────────────────────────────
 
 const PosterMobileCard: React.FC<{
   record: AdminPosterRecord;
   onView: (r: AdminPosterRecord) => void;
-}> = ({ record, onView }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 hover:border-blue-200 hover:shadow-sm transition-all">
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-extrabold text-slate-900">{record.teamName}</p>
-        <p className="text-xs font-mono text-slate-400 mt-0.5">{record.registrationId}</p>
-      </div>
-      <StatusBadge status={record.status} />
-    </div>
+}> = ({ record, onView }) => {
+  const fileUrl = record.posterContent?.fileUrl;
+  const fileName = record.posterContent?.fileName || `PRAGATHI26-POSTER-${record.registrationId}`;
 
-    <div className="space-y-1.5 text-xs text-slate-600">
-      {record.projectTitle && (
-        <div className="flex gap-2">
-          <FileImage className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-          <span className="font-medium">{record.projectTitle}</span>
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 hover:border-blue-200 hover:shadow-sm transition-all">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold text-slate-900">{record.teamName}</p>
+          <p className="text-xs font-mono text-slate-400 mt-0.5">{record.registrationId}</p>
         </div>
-      )}
-      <div className="flex gap-2">
-        <Users className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-        <span>{record.leaderName}</span>
+        <StatusBadge status={record.status} />
       </div>
-      {record.institutionName && (
-        <div className="flex gap-2">
-          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-          <span className="line-clamp-1">{record.institutionName}</span>
-        </div>
-      )}
-      {record.submittedAt && (
-        <div className="flex gap-2">
-          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-          <span>{formatDateTime(record.submittedAt)}</span>
-        </div>
-      )}
-    </div>
 
-    <button
-      type="button"
-      onClick={() => onView(record)}
-      className="w-full flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-[#004182] hover:text-white border border-blue-200 hover:border-[#004182] px-3 py-2 rounded-xl transition-all cursor-pointer"
-    >
-      <Eye className="w-3.5 h-3.5" />
-      View Poster
-    </button>
-  </div>
-);
+      <div className="space-y-1.5 text-xs text-slate-600">
+        {record.projectTitle && (
+          <div className="flex gap-2">
+            <FileImage className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+            <span className="font-medium">{record.projectTitle}</span>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Users className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+          <span>{record.leaderName}</span>
+        </div>
+        {record.institutionName && (
+          <div className="flex gap-2">
+            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+            <span className="line-clamp-1">{record.institutionName}</span>
+          </div>
+        )}
+        {record.submittedAt && (
+          <div className="flex gap-2">
+            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+            <span>{formatDateTime(record.submittedAt)}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onView(record)}
+          className="flex-1 flex items-center justify-center gap-2 text-xs font-bold text-[#004182] bg-blue-50 hover:bg-[#004182] hover:text-white border border-blue-200 hover:border-[#004182] px-3 py-2 rounded-xl transition-all cursor-pointer"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          View Poster
+        </button>
+        {fileUrl && (
+          <a
+            href={fileUrl}
+            download={fileName}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center p-2 text-slate-600 hover:text-[#004182] bg-slate-100 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-xl transition-all"
+            title="Download Poster File"
+          >
+            <Download className="w-4 h-4" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 

@@ -23,7 +23,15 @@ export interface PosterContent {
   leaderName: string;
   leaderEmail: string;
 
-  // Slide-specific editable content
+  // Uploaded Poster File details
+  fileUrl?: string;
+  filePath?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  uploadedAt?: string;
+
+  // Slide-specific editable content (legacy support)
   teamMembers?: string;
   departmentDetails?: string;
   introduction?: string;
@@ -32,11 +40,11 @@ export interface PosterContent {
   references?: string;
 
   // Image / Diagram uploads (base64 data URIs)
-  diagram1?: string; // Diagram 1 (GTPVS Configuration)
+  diagram1?: string;
   diagram1Caption?: string;
-  diagram2?: string; // Diagram 2 (Methodology/Control Architecture)
+  diagram2?: string;
   diagram2Caption?: string;
-  diagram3?: string; // Diagram 3 (Results)
+  diagram3?: string;
   diagram3Caption?: string;
 }
 
@@ -215,6 +223,65 @@ export const PosterService = {
     }
 
     return { success: true };
+  },
+
+  /**
+   * Participant: Upload an already-prepared project poster file (PDF, PNG, JPG).
+   * Securely dispatches upload to FastAPI backend (/api/posters/upload) which verifies
+   * Team Leader authorization and stores the file into Supabase Storage project-posters
+   * using server-side service-role credentials.
+   */
+  async uploadPosterFile(
+    registrationInternalId: string,
+    file: File,
+    meta: {
+      registrationId: string;
+      teamName: string;
+      projectTitle: string;
+      category: string;
+      institutionName: string;
+      leaderName: string;
+      leaderEmail: string;
+    },
+    userEmail?: string
+  ): Promise<{ success: boolean; fileUrl?: string; error?: string }> {
+    try {
+      const regId = meta.registrationId || registrationInternalId;
+      const leaderEmail = userEmail || meta.leaderEmail;
+
+      if (!regId) {
+        return { success: false, error: 'Registration ID is required.' };
+      }
+      if (!leaderEmail) {
+        return { success: false, error: 'Team Leader email is required.' };
+      }
+
+      const formData = new FormData();
+      formData.append('registration_id', regId);
+      formData.append('leader_email', leaderEmail);
+      formData.append('file', file);
+
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_BASE_URL}/api/posters/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ detail: response.statusText }));
+        const errorMessage = errorBody.detail || errorBody.message || `Upload failed (HTTP ${response.status})`;
+        return { success: false, error: errorMessage };
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        fileUrl: result.fileUrl,
+      };
+    } catch (err: any) {
+      console.error('PosterService.uploadPosterFile error:', err);
+      return { success: false, error: err?.message || 'Failed to connect to backend server for poster upload.' };
+    }
   },
 
   /**

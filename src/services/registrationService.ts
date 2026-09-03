@@ -48,17 +48,224 @@ export interface RegistrationRecord extends RegistrationPayload {
 
 const STORAGE_KEY = 'pragathi_2k26_registrations';
 
+/**
+ * Exact 10 Official PRAGATHI 2K26 Domain Codes
+ */
+export const DOMAIN_CODES: Record<string, string> = {
+  'civil-engineering-smart-infrastructure': 'CIV',
+  'electrical-engineering-energy-systems': 'EEE',
+  'mechanical-engineering-automation': 'MECH',
+  'electronics-communication-technologies': 'ECT',
+  'computer-science-artificial-intelligence': 'CSAI',
+  'business-management-entrepreneurship': 'BME',
+  'agriculture-agri-innovation': 'AGR',
+  'healthcare-biomedical-innovations': 'HBI',
+  'multidisciplinary-smart-solution': 'MIS',
+  'school-innovation-young-innovators': 'SIY',
+};
+
+/**
+ * Maps any category identifier, title, or substring to the authoritative 3-4 letter Domain Code
+ */
+export function getDomainCode(category: string): string {
+  if (!category) return 'MIS';
+  const c = category.trim().toLowerCase();
+
+  if (DOMAIN_CODES[c]) return DOMAIN_CODES[c];
+
+  if (c.includes('civil') || c === 'civ') return 'CIV';
+  if (c.includes('electrical') || c.includes('energy') || c === 'eee') return 'EEE';
+  if (c.includes('mechanical') || c.includes('automation') || c === 'mech') return 'MECH';
+  if (c.includes('electronic') || c.includes('communication') || c === 'ect' || c === 'ece') return 'ECT';
+  if (c.includes('computer') || c.includes('artificial') || c === 'csai' || c === 'cse' || c.includes(' ai')) return 'CSAI';
+  if (c.includes('business') || c.includes('management') || c.includes('entrepreneur') || c === 'bme') return 'BME';
+  if (c.includes('agri') || c === 'agr') return 'AGR';
+  if (c.includes('health') || c.includes('biomed') || c === 'hbi') return 'HBI';
+  if (c.includes('school') || c.includes('young') || c === 'siy') return 'SIY';
+  if (c.includes('multidisciplinary') || c === 'mis') return 'MIS';
+
+  return 'MIS';
+}
+
+/**
+ * The 3 test development emails (case-insensitive & trimmed)
+ */
+export const TEST_EMAILS = [
+  'sanjayduduka70@gmail.com',
+  'dgandesri@gmail.com',
+  'sanjaysanju1259@gmail.com',
+];
+
+export function isTestEmail(email?: string): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return TEST_EMAILS.includes(normalized);
+}
+
+export function isTestPayload(payload: RegistrationPayload): boolean {
+  if (isTestEmail(payload.verifiedSRUEmail)) return true;
+  for (const m of payload.members || []) {
+    if (isTestEmail(m.email)) return true;
+  }
+  return false;
+}
+
+export function formatRegistrationNumber(num: number): string {
+  if (num < 10) {
+    return `0${num}`;
+  }
+  return `${num}`;
+}
+
 export class RegistrationService {
   /**
-   * Generates public Registration ID in format PRAGATHI26-XXXXXX
+   * Helper to retrieve persistent local counter backup
    */
-  public static generateRegistrationId(): string {
-    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+  private static getLocalCounter(domainCode: string, isTest: boolean): number {
+    try {
+      const stored = localStorage.getItem('pragathi_domain_counters');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const key = `${isTest ? 'TEST' : 'REAL'}_${domainCode}`;
+        return typeof parsed[key] === 'number' ? parsed[key] : 0;
+      }
+    } catch {
+      // Ignore local storage error
     }
-    return `PRAGATHI26-${code}`;
+    return 0;
+  }
+
+  /**
+   * Helper to update persistent local counter backup
+   */
+  private static updateLocalCounter(domainCode: string, isTest: boolean, newNum: number): void {
+    try {
+      const stored = localStorage.getItem('pragathi_domain_counters');
+      const parsed = stored ? JSON.parse(stored) : {};
+      const key = `${isTest ? 'TEST' : 'REAL'}_${domainCode}`;
+      const existing = typeof parsed[key] === 'number' ? parsed[key] : 0;
+      if (newNum > existing) {
+        parsed[key] = newNum;
+        localStorage.setItem('pragathi_domain_counters', JSON.stringify(parsed));
+      }
+    } catch {
+      // Ignore local storage error
+    }
+  }
+
+  /**
+   * Generates the next sequential unique Registration ID for the given domain.
+   * Format:
+   *   Real: PRAGATHI26-{DOMAIN_CODE}{NUMBER}  (e.g., PRAGATHI26-CIV01, PRAGATHI26-CSAI09, PRAGATHI26-CIV100)
+   *   Test: TEST-{DOMAIN_CODE}{NUMBER}        (e.g., TEST-CIV01, TEST-CSAI01)
+   *
+   * Counters are persisted domain-wise and never decrement on deletion.
+   */
+  public static async generateNextRegistrationId(
+    category: string,
+    isTest: boolean
+  ): Promise<string> {
+    const domainCode = getDomainCode(category);
+    const prefix = isTest ? `TEST-${domainCode}` : `PRAGATHI26-${domainCode}`;
+
+    // 1. Try Supabase Atomic RPC if available
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.rpc('get_next_registration_id', {
+          p_domain_code: domainCode,
+          p_is_test: isTest,
+        });
+
+        if (!error && data && typeof data === 'string') {
+          const numStr = data.replace(prefix, '');
+          const parsed = parseInt(numStr, 10);
+          if (!isNaN(parsed)) {
+            this.updateLocalCounter(domainCode, isTest, parsed);
+          }
+          return data;
+        }
+      } catch (rpcErr) {
+        // RPC not created or errored, proceed to table-level or query fallback
+      }
+
+      // 2. Try Supabase domain_counters table
+      try {
+        const { data: counterRows, error: fetchErr } = await supabase
+          .from('domain_counters')
+          .select('*')
+          .eq('domain_code', domainCode)
+          .limit(1);
+
+        if (!fetchErr && counterRows) {
+          let nextNum = 1;
+          if (counterRows.length > 0) {
+            const row = counterRows[0];
+            const currentVal = isTest ? (row.last_test_number || 0) : (row.last_real_number || 0);
+            nextNum = currentVal + 1;
+
+            const updatePayload = isTest
+              ? { last_test_number: nextNum, updated_at: new Date().toISOString() }
+              : { last_real_number: nextNum, updated_at: new Date().toISOString() };
+
+            await supabase
+              .from('domain_counters')
+              .update(updatePayload)
+              .eq('domain_code', domainCode);
+          } else {
+            // First time row insertion
+            const insertPayload = {
+              domain_code: domainCode,
+              last_real_number: isTest ? 0 : 1,
+              last_test_number: isTest ? 1 : 0,
+              updated_at: new Date().toISOString(),
+            };
+            await supabase.from('domain_counters').insert([insertPayload]);
+            nextNum = 1;
+          }
+
+          this.updateLocalCounter(domainCode, isTest, nextNum);
+          return `${prefix}${formatRegistrationNumber(nextNum)}`;
+        }
+      } catch (tblErr) {
+        // domain_counters table might not be created yet, fallback to highest scanned ID
+      }
+
+      // 3. Fallback: Query registrations table to find the highest allocated number for this domain prefix
+      try {
+        const searchPattern = `${prefix}%`;
+        const { data: regRows } = await supabase
+          .from('registrations')
+          .select('registration_id')
+          .like('registration_id', searchPattern);
+
+        let maxNum = 0;
+        if (regRows && regRows.length > 0) {
+          for (const r of regRows) {
+            const rawId = (r.registration_id || '').trim();
+            if (rawId.startsWith(prefix)) {
+              const numPart = parseInt(rawId.slice(prefix.length), 10);
+              if (!isNaN(numPart) && numPart > maxNum) {
+                maxNum = numPart;
+              }
+            }
+          }
+        }
+
+        const localMax = this.getLocalCounter(domainCode, isTest);
+        const nextNum = Math.max(maxNum, localMax) + 1;
+
+        this.updateLocalCounter(domainCode, isTest, nextNum);
+        return `${prefix}${formatRegistrationNumber(nextNum)}`;
+      } catch (queryErr) {
+        // Fallback to local storage counter
+      }
+    }
+
+    // 4. Offline / Local fallback: Use persistent localStorage domain counters
+    const localMax = this.getLocalCounter(domainCode, isTest);
+    const nextNum = localMax + 1;
+    this.updateLocalCounter(domainCode, isTest, nextNum);
+    return `${prefix}${formatRegistrationNumber(nextNum)}`;
   }
 
   /**
@@ -147,7 +354,8 @@ export class RegistrationService {
       };
     }
 
-    const publicRegistrationId = this.generateRegistrationId();
+    const isTest = isTestPayload(payload);
+    const publicRegistrationId = await this.generateNextRegistrationId(payload.category, isTest);
     const createdAt = new Date().toISOString();
 
     const participantTypeDB = payload.registrationType === 'SRU_STUDENT' ? 'sru_student' : 'external_student';
@@ -202,27 +410,50 @@ export class RegistrationService {
           }
         }
 
-        // B. Insert Registration Row into public.registrations
-        const { data: regData, error: regError } = await supabase
-          .from('registrations')
-          .insert([
-            {
-              registration_id: publicRegistrationId,
-              participant_type: participantTypeDB,
-              team_name: payload.teamName,
-              team_size: payload.members.length,
-              institution_id: institutionId,
-              leader_name: leader.name,
-              leader_email: leader.email,
-              leader_mobile: leader.phone || null,
-              registration_status: 'submitted',
-              payment_status: paymentStatusDB,
-              payment_amount: paymentAmount,
-              payment_reference: payload.paymentProofPath || payload.transactionRef || null,
-            },
-          ])
-          .select('id')
-          .single();
+        // B. Insert Registration Row into public.registrations with collision retry
+        let regData: { id: string } | null = null;
+        let regError: any = null;
+        let finalRegId = publicRegistrationId;
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) {
+            finalRegId = await this.generateNextRegistrationId(payload.category, isTest);
+            record.registrationId = finalRegId;
+          }
+
+          const insertRes = await supabase
+            .from('registrations')
+            .insert([
+              {
+                registration_id: finalRegId,
+                participant_type: participantTypeDB,
+                team_name: payload.teamName,
+                team_size: payload.members.length,
+                institution_id: institutionId,
+                leader_name: leader.name,
+                leader_email: leader.email,
+                leader_mobile: leader.phone || null,
+                registration_status: 'submitted',
+                payment_status: paymentStatusDB,
+                payment_amount: paymentAmount,
+                payment_reference: payload.paymentProofPath || payload.transactionRef || null,
+              },
+            ])
+            .select('id')
+            .single();
+
+          regData = insertRes.data;
+          regError = insertRes.error;
+
+          if (!regError && regData?.id) {
+            break;
+          }
+
+          // If error is not unique violation (23505), don't keep retrying
+          if (regError && regError.code !== '23505') {
+            break;
+          }
+        }
 
         if (regError || !regData?.id) {
           console.error('Supabase registration insert error:', {
@@ -338,11 +569,11 @@ export class RegistrationService {
         // External participants receive confirmation email ONLY AFTER admin approval.
         if (payload.registrationType === 'SRU_STUDENT') {
           try {
-            console.log(`[EMAIL] Registration confirmed for SRU Student: ${publicRegistrationId}`);
+            console.log(`[EMAIL] Registration confirmed for SRU Student: ${finalRegId}`);
             console.log('[EMAIL] Invoking send-registration-confirmation');
             supabase.functions
               .invoke('send-registration-confirmation', {
-                body: { registrationId: publicRegistrationId },
+                body: { registrationId: finalRegId },
               })
               .then(({ data, error }) => {
                 if (error) {
@@ -358,12 +589,12 @@ export class RegistrationService {
             console.error('[EMAIL] Function invocation failed:', emailTriggerErr?.message || emailTriggerErr);
           }
         } else {
-          console.log(`[EMAIL] External registration ${publicRegistrationId} submitted. Confirmation email deferred until Admin approval.`);
+          console.log(`[EMAIL] External registration ${finalRegId} submitted. Confirmation email deferred until Admin approval.`);
         }
 
         return {
           success: true,
-          registrationId: publicRegistrationId,
+          registrationId: finalRegId,
           message: 'Registration submitted successfully to PRAGATHI 2K26 database!',
           record,
         };
@@ -385,7 +616,7 @@ export class RegistrationService {
   }
 
   /**
-   * Retrieves a registration record by Registration ID (PRAGATHI26-XXXXXX)
+   * Retrieves a registration record by Registration ID
    */
   public static async getRegistrationById(registrationId: string): Promise<RegistrationRecord | null> {
     if (!registrationId) return null;
@@ -441,7 +672,6 @@ export class RegistrationService {
   private static saveToLocalStorage(record: RegistrationRecord): void {
     try {
       const existing = this.getLocalRegistrations();
-      // Avoid duplicates
       const filtered = existing.filter((r) => r.registrationId !== record.registrationId);
       filtered.unshift(record);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
@@ -516,5 +746,3 @@ export class RegistrationService {
     }
   }
 }
-
-
