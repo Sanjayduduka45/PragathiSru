@@ -50,8 +50,8 @@ export const CountdownTimer: React.FC = React.memo(() => {
 
   return (
     <div className="w-full max-w-xl mx-auto lg:mx-0 my-2.5 sm:my-3.5">
-      {/* Main Container */}
-      <div className="relative bg-white rounded-[18px] sm:rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-md shadow-slate-900/5 border-b-2 border-b-amber-400/80">
+      {/* Main Glassmorphic Container */}
+      <div className="relative bg-white/60 backdrop-blur-md rounded-[18px] sm:rounded-2xl p-3.5 sm:p-5 border border-white/80 shadow-md shadow-blue-950/5 border-b-2 border-b-amber-400/80">
         {/* Header */}
         <div className="flex flex-col items-center justify-center mb-3 sm:mb-4">
           <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#004182] uppercase tracking-wider">
@@ -66,12 +66,12 @@ export const CountdownTimer: React.FC = React.memo(() => {
         <div className="flex items-center justify-center gap-1 sm:gap-3">
           {timeBlocks.map((block, idx) => (
             <React.Fragment key={block.label}>
-              {/* Time Card */}
-              <div className="flex-1 min-w-0 bg-slate-50/70 hover:bg-white rounded-[10px] sm:rounded-xl p-2 sm:p-3 text-center border border-slate-200/80 shadow-2xs hover:border-blue-200 transition-all duration-200 group">
+              {/* Frosted Time Card */}
+              <div className="flex-1 min-w-0 bg-white/65 hover:bg-white/85 backdrop-blur-xs rounded-[10px] sm:rounded-xl p-2 sm:p-3 text-center border border-white/80 shadow-2xs hover:border-blue-200/80 transition-all duration-200 group">
                 <div className="text-xl sm:text-3xl font-extrabold text-[#004182] font-display tracking-tight leading-tight">
                   {String(block.value).padStart(2, '0')}
                 </div>
-                <div className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-[#004182]/80 mt-0.5 sm:mt-1 truncate">
+                <div className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-[#004182]/85 mt-0.5 sm:mt-1 truncate">
                   {block.label}
                 </div>
                 {/* Gold Accent Line */}
@@ -80,7 +80,7 @@ export const CountdownTimer: React.FC = React.memo(() => {
 
               {/* Colon Separator (between cards) */}
               {idx < timeBlocks.length - 1 && (
-                <div className="text-slate-300 font-bold text-sm sm:text-lg select-none px-0.5">
+                <div className="text-slate-400/80 font-bold text-sm sm:text-lg select-none px-0.5">
                   :
                 </div>
               )}

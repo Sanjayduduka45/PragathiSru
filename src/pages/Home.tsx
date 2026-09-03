@@ -808,25 +808,73 @@ export const Home: React.FC = () => {
               </span>
             </a>
 
-            {/* Main Headline */}
-            <div className="space-y-1.5">
-              <motion.h1
-                initial={{ opacity: 0, y: 12, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="hero-title-3d font-extrabold tracking-tight leading-[0.92] uppercase font-sora whitespace-nowrap max-w-full"
-                style={{ fontSize: 'clamp(2.5rem, 8vw, 6.5rem)' }}
-              >
-                PRAGATHI 2.0
-              </motion.h1>
+            {/* Main Headline / Event Brand Identity */}
+            <div className="space-y-2">
+              <div className="relative inline-block text-center lg:text-left">
+                <motion.h1
+                  initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  className="font-sora font-extrabold tracking-tight leading-[0.94] uppercase select-none text-[#004182]"
+                  style={{ fontSize: 'clamp(2.5rem, 7.8vw, 6rem)' }}
+                >
+                  <span className="inline-flex items-baseline justify-center lg:justify-start gap-x-2.5 sm:gap-x-3.5 whitespace-nowrap">
+                    {/* PRAGATHI Wordmark */}
+                    <span className="font-black tracking-tight text-[#004182]">
+                      PRAGATHI
+                    </span>
 
+                    {/* 2.0 Cohesive Accent */}
+                    <span className="relative font-black tracking-tight text-[#004182]">
+                      2.0
+                      {/* Subtle micro gold innovation spark */}
+                      <span className="absolute -top-1 -right-2.5 sm:-top-1.5 sm:-right-3 text-amber-500/90 pointer-events-none">
+                        <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 0L14.2 9.8L24 12L14.2 14.2L12 24L9.8 14.2L0 12L9.8 9.8L12 0Z" />
+                        </svg>
+                      </span>
+                    </span>
+                  </span>
+                </motion.h1>
+
+                {/* Subtle Project Expo Trajectory Accent Line */}
+                <div className="flex items-center justify-center lg:justify-start gap-2 pt-1.5 pb-0.5 max-w-[220px] sm:max-w-[260px] mx-auto lg:mx-0">
+                  <span className="h-[2px] w-14 sm:w-18 rounded-full bg-[#004182]" />
+                  <span className="w-1.5 h-1.5 rotate-45 rounded-[0.5px] bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)] shrink-0" />
+                  <span className="h-[1.5px] flex-1 rounded-full bg-gradient-to-r from-blue-300/80 via-blue-200/40 to-transparent" />
+                  <span className="w-1 h-1 rounded-full bg-blue-300/60 shrink-0" />
+                </div>
+              </div>
+
+              {/* Subtitle */}
               <p className="text-lg sm:text-xl md:text-2xl font-bold sm:font-extrabold text-slate-800 font-sora tracking-tight">
                 A National Level Project Expo 2K26
               </p>
 
-              <p className="text-base sm:text-lg text-slate-500 font-medium max-w-2xl mx-auto lg:mx-0 italic">
-                “{eventSettings.tagline}”
-              </p>
+              {/* Supporting Visual Identity Row: INNOVATE | CREATE | INSPIRE */}
+              <div className="flex items-center justify-center lg:justify-start gap-2.5 sm:gap-3.5 pt-0.5 text-[11px] sm:text-xs font-bold tracking-wider text-slate-600 font-sora">
+                {/* Innovate */}
+                <div className="inline-flex items-center gap-1.5 text-[#004182]">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="tracking-widest uppercase">INNOVATE</span>
+                </div>
+
+                <span className="h-3 w-[1px] bg-slate-300/80 shrink-0" />
+
+                {/* Create */}
+                <div className="inline-flex items-center gap-1.5 text-[#004182]">
+                  <Cpu className="w-3.5 h-3.5 text-[#004182] shrink-0" />
+                  <span className="tracking-widest uppercase">CREATE</span>
+                </div>
+
+                <span className="h-3 w-[1px] bg-slate-300/80 shrink-0" />
+
+                {/* Inspire */}
+                <div className="inline-flex items-center gap-1.5 text-[#004182]">
+                  <Users className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span className="tracking-widest uppercase">INSPIRE</span>
+                </div>
+              </div>
             </div>
 
             {/* Metadata Badges */}
