@@ -665,6 +665,7 @@ import {
   TrendingUp,
   Network,
   Mail,
+  FileText,
 } from 'lucide-react';
 
 import { EVENT_DETAILS } from '../utils/constants';
@@ -791,7 +792,7 @@ export const Home: React.FC = () => {
 
         {/* 4. Hero Content Container (Foreground z-10) */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-          <div className="max-w-2xl lg:max-w-4xl space-y-3.5 text-center lg:text-left">
+          <div className="max-w-2xl lg:max-w-2xl xl:max-w-3xl space-y-3.5 text-center lg:text-left">
 
             {/* Event Badge / Location Pill */}
             <a
@@ -876,18 +877,32 @@ export const Home: React.FC = () => {
             >
               <Link
                 to="/register"
-                className="hero-cta-primary w-full sm:w-auto inline-flex items-center justify-center gap-3 text-white px-8 py-3.5 rounded-[20px] font-extrabold text-base tracking-wide shadow-md shadow-blue-900/20 hover:shadow-lg hover:-translate-y-[2px] active:translate-y-[1px] transition-all duration-200 group"
+                className="w-full sm:w-auto inline-flex items-center justify-between bg-[#003870] hover:bg-[#002f60] text-white rounded-[16px] overflow-hidden shadow-md shadow-blue-950/20 hover:shadow-lg hover:shadow-blue-950/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border-t-2 border-t-amber-400 border-l border-l-amber-400/50 group"
               >
-                <span className="relative z-10">REGISTER NOW</span>
-                <ArrowRight className="w-5 h-5 opacity-90 group-hover:translate-x-1 transition-transform duration-200" />
+                <div className="flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4">
+                  <Rocket className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-300 shrink-0" />
+                  <span className="font-extrabold text-sm sm:text-base tracking-wider text-white">
+                    REGISTER NOW
+                  </span>
+                </div>
+                <div className="relative flex items-center justify-center self-stretch pl-4 pr-3.5 sm:pl-4.5 sm:pr-4 bg-white [clip-path:polygon(10px_0,100%_0,100%_100%,0_100%)] shrink-0">
+                  <ArrowRight className="w-4 h-4 text-[#004182] group-hover:translate-x-0.5 transition-transform duration-200" />
+                </div>
               </Link>
 
               <a
                 href="#categories"
-                className="hero-cta-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 text-[#004182] bg-white/90 hover:bg-white border border-slate-200/90 px-7 py-3.5 rounded-2xl font-bold text-base tracking-wide shadow-2xs transition-all duration-200 group"
+                className="w-full sm:w-auto inline-flex items-center justify-between bg-white hover:bg-slate-50 text-[#004182] rounded-[16px] overflow-hidden border border-[#004182]/25 shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 group"
               >
-                <span className="relative z-10">VIEW DOMAINS</span>
-                <ArrowRight className="w-4 h-4 text-[#004182]/50 group-hover:text-[#004182] group-hover:translate-x-1 transition-all duration-300" />
+                <div className="flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4">
+                  <Layers className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#004182] shrink-0" />
+                  <span className="font-bold text-sm sm:text-base tracking-wider text-[#004182]">
+                    VIEW DOMAINS
+                  </span>
+                </div>
+                <div className="relative flex items-center justify-center self-stretch pl-4 pr-3.5 sm:pl-4.5 sm:pr-4 bg-[#004182] [clip-path:polygon(10px_0,100%_0,100%_100%,0_100%)] shrink-0">
+                  <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform duration-200" />
+                </div>
               </a>
             </motion.div>
 
@@ -1664,17 +1679,32 @@ export const Home: React.FC = () => {
 
             <Link
               to="/register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-white text-[#004182] font-extrabold px-8 py-3.5 rounded-[20px] shadow-lg hover:bg-blue-50 hover:-translate-y-[2px] hover:shadow-xl active:translate-y-[1px] motion-reduce:hover:translate-y-0 transition-all duration-200 text-sm sm:text-base group"
+              className="w-full sm:w-auto inline-flex items-center justify-between bg-[#002852] hover:bg-[#002042] text-white rounded-[16px] overflow-hidden shadow-lg shadow-black/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border-t-2 border-t-amber-400 border-l border-l-amber-400/50 group"
             >
-              <span>REGISTER YOUR TEAM NOW</span>
-              <ArrowRight className="w-5 h-5 text-[#004182] group-hover:translate-x-1 transition-transform duration-200" />
+              <div className="flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4">
+                <Users className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-300 shrink-0" />
+                <span className="font-extrabold text-sm sm:text-base tracking-wider text-white">
+                  REGISTER YOUR TEAM NOW
+                </span>
+              </div>
+              <div className="relative flex items-center justify-center self-stretch pl-4 pr-3.5 sm:pl-4.5 sm:pr-4 bg-white [clip-path:polygon(10px_0,100%_0,100%_100%,0_100%)] shrink-0">
+                <ArrowRight className="w-4 h-4 text-[#004182] group-hover:translate-x-0.5 transition-transform duration-200" />
+              </div>
             </Link>
 
             <Link
               to="/about"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-7 py-3.5 rounded-full border border-white/20 hover:border-white/40 hover:-translate-y-0.5 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-200 text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-between bg-white hover:bg-slate-50 text-[#004182] rounded-[16px] overflow-hidden border border-white/40 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 group"
             >
-              <span>Explore Guidelines</span>
+              <div className="flex items-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4">
+                <FileText className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#004182] shrink-0" />
+                <span className="font-bold text-sm sm:text-base tracking-wide text-[#004182]">
+                  Explore Guidelines
+                </span>
+              </div>
+              <div className="relative flex items-center justify-center self-stretch pl-4 pr-3.5 sm:pl-4.5 sm:pr-4 bg-[#004182] [clip-path:polygon(10px_0,100%_0,100%_100%,0_100%)] shrink-0">
+                <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform duration-200" />
+              </div>
             </Link>
 
           </div>
