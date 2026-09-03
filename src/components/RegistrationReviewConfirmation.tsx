@@ -688,7 +688,6 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-5 h-5 text-blue-200" />
                   <span>
                     {data.participantType === 'EXTERNAL' ? 'SUBMIT PAYMENT FOR VERIFICATION' : 'SUBMIT REGISTRATION'}
                   </span>
