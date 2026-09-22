@@ -20,7 +20,6 @@ import {
   Phone,
   Star,
   MessageSquare,
-  FileImage,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -82,7 +81,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
   const [opsExpanded, setOpsExpanded] = useState(
     location.pathname.startsWith('/admin/registrations') ||
     location.pathname.startsWith('/admin/opportunity-enquiries') ||
-    location.pathname.startsWith('/admin/posters') ||
     location.pathname.startsWith('/admin/participants') ||
     location.pathname.startsWith('/admin/results')
   );
@@ -278,16 +276,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
               >
                 <MessageSquare className="w-4 h-4 shrink-0" />
                 Opportunity Enquiries
-              </NavLink>
-              <NavLink
-                to="/admin/posters"
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
-                }
-              >
-                <FileImage className="w-4 h-4 shrink-0" />
-                Project Posters
               </NavLink>
               <NavLink
                 to="/admin/results"

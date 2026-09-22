@@ -40,7 +40,6 @@ const SponsorsAdmin = React.lazy(() => import('./pages/admin/content/SponsorsAdm
 const ContactAdmin = React.lazy(() => import('./pages/admin/content/ContactAdmin').then((m) => ({ default: m.ContactAdmin })));
 const TestimonialsAdmin = React.lazy(() => import('./pages/admin/content/TestimonialsAdmin').then((m) => ({ default: m.TestimonialsAdmin })));
 const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon').then((m) => ({ default: m.AdminComingSoon })));
-const PostersAdmin = React.lazy(() => import('./pages/admin/PostersAdmin').then((m) => ({ default: m.PostersAdmin })));
 const OpportunityEnquiriesAdmin = React.lazy(() => import('./pages/admin/OpportunityEnquiriesAdmin').then((m) => ({ default: m.OpportunityEnquiriesAdmin })));
 const ResultsAdmin = React.lazy(() => import('./pages/admin/ResultsAdmin').then((m) => ({ default: m.ResultsAdmin })));
 const SettingsAdmin = React.lazy(() => import('./pages/admin/SettingsAdmin').then((m) => ({ default: m.SettingsAdmin })));
@@ -182,7 +181,6 @@ export default function App() {
                           {/* Operational Modules */}
                           <Route path="/registrations" element={<RegistrationsAdmin />} />
                           <Route path="/opportunity-enquiries" element={<OpportunityEnquiriesAdmin />} />
-                          <Route path="/posters" element={<PostersAdmin />} />
                           <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
                           <Route path="/results" element={<ResultsAdmin />} />
                           <Route path="/settings" element={<SettingsAdmin />} />
@@ -218,7 +216,6 @@ export default function App() {
                           {/* Operational Modules */}
                           <Route path="/registrations" element={<RegistrationsAdmin />} />
                           <Route path="/opportunity-enquiries" element={<OpportunityEnquiriesAdmin />} />
-                          <Route path="/posters" element={<PostersAdmin />} />
                           <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
                           <Route path="/results" element={<ResultsAdmin />} />
                           <Route path="/settings" element={<SettingsAdmin />} />
