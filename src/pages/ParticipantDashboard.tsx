@@ -770,19 +770,9 @@ export const ParticipantDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Poster & Pass Skeletons */}
+              {/* Event Pass Skeleton */}
               <div className="space-y-3">
                 <div className="h-3 w-24 bg-slate-200 rounded px-1" />
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="h-4 w-28 bg-slate-200 rounded" />
-                    <div className="h-4 w-16 bg-slate-100 rounded-full" />
-                  </div>
-                  <div className="h-20 bg-slate-50 rounded-2xl border border-slate-100" />
-                  <div className="h-9 bg-slate-200 rounded-xl" />
-                </div>
-
-                <div className="h-3 w-24 bg-slate-200 rounded px-1 mt-4" />
                 <div className="bg-white rounded-3xl border border-blue-200 shadow-xs p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="h-4 w-24 bg-slate-200 rounded" />
@@ -929,28 +919,9 @@ export const ParticipantDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Poster + Coming Soon Features */}
+              {/* Event Pass */}
               <div className="space-y-3">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
-                  Your Poster
-                </p>
-                {/* Active Poster Card (Phase 3) */}
-                {registrationInternalId ? (
-                  <PosterCard
-                    profile={profile}
-                    registrationInternalId={registrationInternalId}
-                    isLeader={profile.isCurrentUserLeader}
-                    currentUserEmail={profile.currentUserEmail || session?.userEmail || ''}
-                  />
-                ) : (
-                  <ComingSoonCard
-                    icon={<FileImage className="w-6 h-6" />}
-                    title="Project Poster"
-                    description="Submit your official standardized project poster for Expo Day."
-                  />
-                )}
-
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 mt-4">
                   Event Pass
                 </p>
                 <EventPassCard
