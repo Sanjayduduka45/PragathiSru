@@ -26,9 +26,9 @@ const OFFICIAL_HELPLINE = '+91 9514418276';
 const OFFICIAL_HELPLINE_TEL = '+919514418276';
 
 const OFFICIAL_SOCIAL_LINKS = {
-  linkedin: 'https://www.linkedin.com/in/sru-pragathi-73a876429/',
   facebook: 'https://www.facebook.com/share/19D3TK5Yae/',
   instagram: 'https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1',
+  whatsapp: 'https://chat.whatsapp.com/GwSj79gMwodI8dm8MJYMYI?s=cl&p=i&mlu=4&ilr=4',
 };
 
 interface EmailPayload {
@@ -73,43 +73,8 @@ function buildConfirmationEmailHtml(params: {
 
   const roleDisplay = isLeader ? 'Team Leader' : 'Team Member';
 
-  // Team Leader Specific Section
-  const leaderActionSection = isLeader
-    ? `
-      <!-- TEAM LEADER ACTION REQUIRED -->
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 24px; background-color: #f0f7ff; border: 1.5px solid #b9d9eb; border-radius: 12px; overflow: hidden;">
-        <tr>
-          <td style="padding: 18px 20px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #004182;">
-                  ★ TEAM LEADER ACTION REQUIRED
-                </td>
-              </tr>
-              <tr>
-                <td style="padding-top: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1e293b;">
-                  As the <strong>Team Leader</strong>, you can submit and edit your project poster from your Participant Profile.
-                </td>
-              </tr>
-              <tr>
-                <td style="padding-top: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.6; color: #334155;">
-                  Sign in using your registered email and Registration ID and open:
-                  <div style="margin-top: 6px; padding: 8px 12px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace; font-size: 12px; font-weight: bold; color: #004182;">
-                    Participant Profile &rarr; Project Poster &rarr; Submit / Edit Poster
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding-top: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; color: #64748b;">
-                  Please submit your project poster before the announced deadline.
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    `
-    : '';
+  // Team Leader Action Required section intentionally removed.
+  const leaderActionSection = '';
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -269,6 +234,31 @@ function buildConfirmationEmailHtml(params: {
             </tr>
           </table>
 
+          <!-- JOIN OUR WHATSAPP GROUP -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 24px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; overflow: hidden;">
+            <tr>
+              <td style="background-color: #25d366; padding: 10px 16px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #ffffff;">
+                JOIN OUR WHATSAPP GROUP
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 16px 20px; text-align: center;">
+                <p style="margin: 0 0 14px 0; font-size: 13px; line-height: 1.5; color: #334155;">
+                  Join our official WhatsApp group for the latest updates, announcements, important deadlines, and event-related information.
+                </p>
+                <table role="presentation" align="center" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="background-color: #25d366; border-radius: 8px; text-align: center;">
+                      <a href="${OFFICIAL_SOCIAL_LINKS.whatsapp}" target="_blank" style="display: inline-block; padding: 10px 22px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 8px;">
+                        JOIN WHATSAPP GROUP &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
           <!-- FOLLOW US FOR UPDATES -->
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 24px; text-align: center;">
             <tr>
@@ -285,11 +275,6 @@ function buildConfirmationEmailHtml(params: {
               <td>
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0">
                   <tr>
-                    <td style="padding: 0 8px;">
-                      <a href="${OFFICIAL_SOCIAL_LINKS.linkedin}" target="_blank" style="display: inline-block; padding: 6px 14px; background-color: #0077b5; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">
-                        LinkedIn
-                      </a>
-                    </td>
                     <td style="padding: 0 8px;">
                       <a href="${OFFICIAL_SOCIAL_LINKS.facebook}" target="_blank" style="display: inline-block; padding: 6px 14px; background-color: #1877f2; color: #ffffff; font-size: 12px; font-weight: 700; text-decoration: none; border-radius: 6px;">
                         Facebook
