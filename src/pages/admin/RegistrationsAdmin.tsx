@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   FileText,
   Search,
@@ -9,6 +9,7 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   RefreshCw,
   AlertTriangle,
   Users,
@@ -24,10 +25,12 @@ import {
   Mail,
   Send,
   Clock,
+  Download,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { api } from '../../services/api';
 import { RegistrationService } from '../../services/registrationService';
+import { exportRegistrationsCSV, exportRegistrationsPDF } from '../../utils/exportRegistrations';
 import { Modal } from '../../components/ui/Modal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
@@ -278,6 +281,42 @@ export const RegistrationsAdmin: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<JoinedRegistrationRecord | null>(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Export dropdown
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  // Close export dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    if (exportOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [exportOpen]);
+
+  const handleExportCSV = () => {
+    setExportOpen(false);
+    exportRegistrationsCSV(registrations);
+  };
+
+  const handleExportPDF = async () => {
+    setExportOpen(false);
+    setExportingPDF(true);
+    try {
+      await exportRegistrationsPDF(registrations);
+    } catch (err: any) {
+      console.error('[Export] PDF generation error:', err);
+      addToast('error', 'PDF Export Failed', err?.message || 'An error occurred while generating the PDF.');
+    } finally {
+      setExportingPDF(false);
+    }
+  };
 
   const isExternalRegistration = (reg: JoinedRegistrationRecord | null) => {
     if (!reg) return false;
@@ -730,14 +769,54 @@ export const RegistrationsAdmin: React.FC = () => {
             View, edit, and manage official PRAGATHI 2K26 registered teams stored in Supabase.
           </p>
         </div>
-        <button
-          onClick={fetchRegistrations}
-          disabled={loading}
-          className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50 self-start sm:self-auto"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Data
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Export Dropdown */}
+          <div className="relative" ref={exportRef}>
+            <button
+              onClick={() => setExportOpen((v) => !v)}
+              disabled={loading || exportingPDF || registrations.length === 0}
+              className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {exportingPDF ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              Export
+              <ChevronDown className={`w-3 h-3 transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-100">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Export Registrations</span>
+                </div>
+                <button
+                  onClick={handleExportCSV}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <span className="text-base">📊</span>
+                  Export CSV
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <span className="text-base">📄</span>
+                  Export PDF
+                </button>
+              </div>
+            )}
+          </div>
+          {/* Refresh Data */}
+          <button
+            onClick={fetchRegistrations}
+            disabled={loading}
+            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh Data
+          </button>
+        </div>
       </div>
 
       {/* ── Stats Row ── */}
