@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   FileText,
   HelpCircle,
-  Users,
   Trophy,
   Settings,
   LogOut,
@@ -58,9 +57,9 @@ const NAV_STRUCTURE: Array<NavLinkItem | { group: string; items: NavLinkItem[] }
   {
     group: 'Operations',
     items: [
-      { label: 'Registrations', path: '/admin/registrations', icon: <FileText className="w-4 h-4" />, comingSoon: true },
-      { label: 'Participants', path: '/admin/participants', icon: <Users className="w-4 h-4" />, comingSoon: true },
-      { label: 'Results', path: '/admin/results', icon: <Trophy className="w-4 h-4" />, comingSoon: true },
+      { label: 'Registrations', path: '/admin/registrations', icon: <FileText className="w-4 h-4" /> },
+      { label: 'Opportunity Enquiries', path: '/admin/opportunity-enquiries', icon: <MessageSquare className="w-4 h-4" /> },
+      { label: 'Results', path: '/admin/results', icon: <Trophy className="w-4 h-4" /> },
     ],
   },
 ];
@@ -287,15 +286,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
                 <Trophy className="w-4 h-4 shrink-0" />
                 Results
               </NavLink>
-              <div
-                className={`${linkBase} pl-4 ${linkDisabled} group`}
-              >
-                <Users className="w-4 h-4 shrink-0" />
-                Participants
-                <span className="ml-auto text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                  Soon
-                </span>
-              </div>
             </div>
           )}
         </div>
