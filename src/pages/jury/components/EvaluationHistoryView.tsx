@@ -95,38 +95,39 @@ const EvaluationDetailPanel: React.FC<DetailPanelProps> = ({ evaluation, onClose
             )}
           </div>
 
-          {/* Per-criterion scores */}
-          <div className="space-y-2">
-            {criteria.map((c) => {
-              const score = evaluation.scores?.[c.key] ?? 0;
-              const pct = Math.round((score / c.maxScore) * 100);
-              return (
-                <div key={c.key} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700">{c.label}</span>
-                    <span className="text-xs font-extrabold text-slate-900 font-mono">
-                      {score}
-                      <span className="text-slate-400 font-medium">/{c.maxScore}</span>
+          {/* Official 2-Column Read-Only Scorecard */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
+            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex justify-between items-center text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+              <span>Evaluation Parameter</span>
+              <span>Marks</span>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {criteria.map((c, idx) => {
+                const score = evaluation.scores?.[c.key] ?? 0;
+                return (
+                  <div key={c.key} className="p-3 px-4 flex items-center justify-between gap-3">
+                    <span className="text-xs font-semibold text-slate-900 leading-snug">
+                      {idx + 1}. {c.label}
+                    </span>
+                    <span className="text-xs font-bold text-slate-900 font-mono shrink-0">
+                      {score} <span className="text-slate-400 font-medium">/{c.maxScore}</span>
                     </span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#004182] rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Total */}
-          <div className={`flex items-center justify-between p-3.5 rounded-xl border ${scoreBg(evaluation.totalScore)} mt-2`}>
-            <span className="text-xs font-bold text-slate-700">Total Score</span>
-            <span className={`text-lg font-black font-mono ${scoreColor(evaluation.totalScore)}`}>
-              {evaluation.totalScore}
-              <span className="text-xs font-bold text-slate-400">/100</span>
-            </span>
+                );
+              })}
+            </div>
+            {/* Total Row */}
+            <div className="bg-slate-50 px-4 py-3 border-t-2 border-slate-200 flex justify-between items-center">
+              <span className="font-black text-xs uppercase tracking-wider text-slate-700">
+                TOTAL SCORE
+              </span>
+              <div className="flex items-baseline gap-1 font-mono">
+                <span className="text-base font-black text-[#004182]">
+                  {evaluation.totalScore}
+                </span>
+                <span className="text-xs font-bold text-slate-400">/ 100</span>
+              </div>
+            </div>
           </div>
 
           {/* Comments */}
@@ -176,11 +177,9 @@ const HistoryRow: React.FC<HistoryRowProps> = ({ evaluation, onClick }) => (
     onClick={onClick}
     className="w-full text-left flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 group"
   >
-    {/* Score badge */}
-    <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${scoreBg(evaluation.totalScore)}`}>
-      <span className={`text-sm font-black font-mono ${scoreColor(evaluation.totalScore)}`}>
-        {evaluation.totalScore}
-      </span>
+    {/* Evaluated badge */}
+    <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
     </div>
 
     {/* Project info */}
@@ -188,8 +187,9 @@ const HistoryRow: React.FC<HistoryRowProps> = ({ evaluation, onClick }) => (
       <p className="text-sm font-bold text-slate-900 truncate leading-tight">{evaluation.projectTitle}</p>
       <p className="font-mono text-[11px] font-semibold text-slate-500 mt-0.5">{evaluation.registrationId}</p>
       <div className="flex items-center gap-1.5 mt-1">
-        <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-        <span className="text-[10px] font-semibold text-emerald-700">Evaluated</span>
+        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+          Evaluation Submitted
+        </span>
         <span className="text-[10px] text-slate-300 mx-0.5">·</span>
         <Clock className="w-3 h-3 text-slate-400 shrink-0" />
         <span className="text-[10px] text-slate-400">{formatDateTime(evaluation.submittedAt)}</span>

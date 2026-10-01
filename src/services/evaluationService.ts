@@ -12,7 +12,7 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
   {
     id: 'crit-1',
     key: 'innovation',
-    label: 'Innovation & Novelty',
+    label: 'Innovation & Originality',
     description: 'Originality of concept, uniqueness of approach, creativity',
     maxScore: 20,
     displayOrder: 1,
@@ -20,32 +20,32 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
   {
     id: 'crit-2',
     key: 'technical',
-    label: 'Technical Execution',
+    label: 'Technical / Conceptual Strength',
     description: 'Architecture, engineering depth, prototype functionality, code quality',
     maxScore: 20,
     displayOrder: 2,
   },
   {
     id: 'crit-3',
-    key: 'relevance',
-    label: 'Problem Relevance',
-    description: 'Significance and relevance of the problem addressed',
+    key: 'implementation',
+    label: 'Working Model / Prototype / Implementation',
+    description: 'Working demonstration, hardware/software realization, functional prototype',
     maxScore: 20,
     displayOrder: 3,
   },
   {
     id: 'crit-4',
-    key: 'presentation',
-    label: 'Presentation & Demonstration',
-    description: 'Clarity of explanation, pitch delivery, live prototype demo, Q&A defense',
+    key: 'impact',
+    label: 'Practical Applicability & Impact',
+    description: 'Real-world utility, scalability, market potential, societal impact',
     maxScore: 20,
     displayOrder: 4,
   },
   {
     id: 'crit-5',
-    key: 'impact',
-    label: 'Impact & Feasibility',
-    description: 'Real-world utility, scalability, market potential, societal impact',
+    key: 'presentation',
+    label: 'Presentation & Response to Jury',
+    description: 'Clarity of explanation, pitch delivery, defense during Q&A',
     maxScore: 20,
     displayOrder: 5,
   },
@@ -53,32 +53,9 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
 
 export class EvaluationService {
   /**
-   * Fetch active evaluation criteria
+   * Fetch active evaluation criteria (standardized to the 5 official competition criteria)
    */
   public static async getCriteria(): Promise<EvaluationCriterion[]> {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('evaluation_criteria')
-          .select('*')
-          .eq('is_active', true)
-          .order('display_order', { ascending: true });
-
-        if (!error && data && data.length > 0) {
-          return data.map((d: any) => ({
-            id: String(d.id),
-            key: d.key,
-            label: d.label,
-            description: d.description || '',
-            maxScore: d.max_score || 20,
-            displayOrder: d.display_order || 0,
-          }));
-        }
-      } catch (err) {
-        console.warn('[evaluationService] Criteria DB load notice:', err);
-      }
-    }
-
     return DEFAULT_EVALUATION_CRITERIA;
   }
 
@@ -189,14 +166,21 @@ export class EvaluationService {
       };
     }
 
-    // Compute total score
+    // Compute total score and validate range
     const scores = payload.scores || {};
     const inno = Math.min(20, Math.max(0, Number(scores.innovation) || 0));
     const tech = Math.min(20, Math.max(0, Number(scores.technical) || 0));
-    const relev = Math.min(20, Math.max(0, Number(scores.relevance) || 0));
-    const pres = Math.min(20, Math.max(0, Number(scores.presentation) || 0));
+    const impl = Math.min(20, Math.max(0, Number(scores.implementation ?? scores.relevance) || 0));
     const imp = Math.min(20, Math.max(0, Number(scores.impact) || 0));
-    const total = inno + tech + relev + pres + imp;
+    const pres = Math.min(20, Math.max(0, Number(scores.presentation) || 0));
+    const total = inno + tech + impl + imp + pres;
+
+    if (total > 100) {
+      return {
+        success: false,
+        error: 'Total score cannot exceed 100 marks.',
+      };
+    }
 
     const rowData: Record<string, any> = {
       judge_id: authUserId,
@@ -208,15 +192,16 @@ export class EvaluationService {
       category: payload.category.trim(),
       innovation_score: inno,
       technical_score: tech,
-      relevance_score: relev,
+      relevance_score: impl,
       presentation_score: pres,
       impact_score: imp,
       criteria_scores: {
         innovation: inno,
         technical: tech,
-        relevance: relev,
-        presentation: pres,
+        implementation: impl,
+        relevance: impl,
         impact: imp,
+        presentation: pres,
       },
       total_score: total,
       comments: (payload.comments || '').trim(),
@@ -252,9 +237,10 @@ export class EvaluationService {
       scores: {
         innovation: inno,
         technical: tech,
-        relevance: relev,
-        presentation: pres,
+        implementation: impl,
+        relevance: impl,
         impact: imp,
+        presentation: pres,
       },
       totalScore: total,
       comments: (payload.comments || '').trim(),
@@ -268,12 +254,20 @@ export class EvaluationService {
    * Helper mapper from DB row to typed Evaluation object
    */
   private static mapDbRowToEvaluation(row: any): Evaluation {
-    const scores = row.criteria_scores || {
-      innovation: Number(row.innovation_score) || 0,
-      technical: Number(row.technical_score) || 0,
-      relevance: Number(row.relevance_score) || 0,
-      presentation: Number(row.presentation_score) || 0,
-      impact: Number(row.impact_score) || 0,
+    const rawScores = row.criteria_scores || {};
+    const inno = Number(rawScores.innovation ?? row.innovation_score) || 0;
+    const tech = Number(rawScores.technical ?? row.technical_score) || 0;
+    const impl = Number(rawScores.implementation ?? rawScores.relevance ?? row.relevance_score) || 0;
+    const imp = Number(rawScores.impact ?? row.impact_score) || 0;
+    const pres = Number(rawScores.presentation ?? row.presentation_score) || 0;
+
+    const scores: Record<string, number> = {
+      innovation: inno,
+      technical: tech,
+      implementation: impl,
+      relevance: impl,
+      impact: imp,
+      presentation: pres,
     };
 
     return {
