@@ -18,6 +18,35 @@ function todayStamp(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** Format ISO timestamp to DD-MM-YYYY */
+function formatRegistrationDate(dateStr?: string): string {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+/** Get paid amount display for CSV */
+function getPaidAmountCSV(r: JoinedRegistrationRecord): string {
+  if (r.payment_status === 'not_required' || r.participant_type === 'sru_student') {
+    return '₹0';
+  }
+  const amt = (r.payment_amount != null && r.payment_amount > 0)
+    ? r.payment_amount
+    : (r.payments && r.payments[0]?.amount != null && r.payments[0].amount > 0 ? r.payments[0].amount : 0);
+
+  if (r.payment_status === 'paid') {
+    return amt > 0 ? `₹${amt}` : '₹0';
+  }
+  if (r.payment_status === 'pending') {
+    return '₹0';
+  }
+  return amt > 0 ? `₹${amt}` : '₹0';
+}
+
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -94,10 +123,13 @@ export function exportRegistrationsCSV(registrations: JoinedRegistrationRecord[]
   const headers = [
     'Team Name',
     'Team Unique ID',
+    'Registration Date',
     'Team Leader Name',
     'Team Leader Email',
     'Team Leader Phone',
     'Team Members',
+    'Payment Status',
+    'Paid Amount (₹)',
     'Transaction ID / Reference',
   ];
 
@@ -106,10 +138,13 @@ export function exportRegistrationsCSV(registrations: JoinedRegistrationRecord[]
     return [
       csvEscape(r.team_name || ''),
       csvEscape(r.registration_id || ''),
+      csvEscape(formatRegistrationDate(r.created_at)),
       csvEscape(leader.name),
       csvEscape(leader.email),
       csvEscape(leader.phone),
       csvEscape(buildMemberList(r)),
+      csvEscape(getPaymentStatusLabel(r)),
+      csvEscape(getPaidAmountCSV(r)),
       csvEscape(getTransactionRef(r)),
     ].join(',');
   });
@@ -141,9 +176,12 @@ function getInstitutionName(r: JoinedRegistrationRecord): string {
 
 /** Get payment amount display */
 function getPaymentAmount(r: JoinedRegistrationRecord): string {
-  if (r.payment_status === 'not_required') return 'Rs.0 (Free)';
-  if (r.payment_amount != null && r.payment_amount > 0) return `Rs.${r.payment_amount}`;
-  return 'N/A';
+  if (r.payment_status === 'not_required' || r.participant_type === 'sru_student') return 'Rs.0 (Free)';
+  const amt = (r.payment_amount != null && r.payment_amount > 0)
+    ? r.payment_amount
+    : (r.payments && r.payments[0]?.amount != null && r.payments[0].amount > 0 ? r.payments[0].amount : 0);
+  if (amt > 0) return `Rs.${amt}`;
+  return 'Rs.0';
 }
 
 /** Get human-readable payment status */
@@ -419,11 +457,13 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     const memberCount = members.length || 1;
 
     // ── Estimate height for the whole card ──
-    // Header: 9, Info: 22, Leader: 20, Members header: 7, member rows: n*5.2, Payment: 16, spacing: 10
-    const estHeight = 9 + 22 + 20 + 7 + memberCount * 5.2 + 16 + 10;
+    const dept = members[0]?.department || '';
+    const infoHeight = dept ? 27 : 22;
+    // Header: 9, Info: infoHeight, Leader: 20, Members header: 7, member rows: n*5.2, Payment: 16, spacing: 10
+    const estHeight = 9 + infoHeight + 20 + 7 + memberCount * 5.2 + 16 + 10;
     // If card fits, great. If it doesn't but the non-members part fits, we'll allow
     // the members table to split. Otherwise, go to a new page.
-    const minCardStart = 9 + 22 + 20 + 7 + 5.2 + 16 + 10; // at least one member row
+    const minCardStart = 9 + infoHeight + 20 + 7 + 5.2 + 16 + 10; // at least one member row
     if (yPos + minCardStart > safeBottom) {
       newPage();
     }
@@ -475,7 +515,7 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     yPos += 3;
 
     // ── TEAM INFORMATION (two-column key-value) ──
-    ensureSpace(22);
+    ensureSpace(infoHeight);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...BRAND);
@@ -535,29 +575,39 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     doc.text(instDisp, col2VX, yPos);
     yPos += rowH;
 
-    // Row 3: Team Size | Department (if available)
+    // Row 3: Registration Date | Team Size
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...GRAY);
-    doc.text('Team Size', col1X, yPos);
+    doc.text('Registration Date', col1X, yPos);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...DARK);
-    doc.text(`${r.team_size || memberCount} Member${(r.team_size || memberCount) === 1 ? '' : 's'}`, col1VX, yPos);
+    doc.text(formatRegistrationDate(r.created_at), col1VX, yPos);
 
-    // Department — from first member or institution
-    const dept = members[0]?.department || '';
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...GRAY);
+    doc.text('Team Size', col2X, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...DARK);
+    doc.text(`${r.team_size || memberCount} Member${(r.team_size || memberCount) === 1 ? '' : 's'}`, col2VX, yPos);
+    yPos += rowH;
+
+    // Row 4: Department (if available)
     if (dept) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...GRAY);
-      doc.text('Department', col2X, yPos);
+      doc.text('Department', col1X, yPos);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(...DARK);
-      doc.text(truncateText(dept, (pageWidth - MR) - col2VX - 2, 7), col2VX, yPos);
+      doc.text(truncateText(dept, (pageWidth - MR) - col1VX - 2, 7), col1VX, yPos);
+      yPos += rowH;
     }
-    yPos += rowH + 2;
+    yPos += 2;
 
     // ── TEAM LEADER ──
     ensureSpace(19);
@@ -754,12 +804,12 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     doc.setTextColor(...payFg);
     doc.text(getPaymentStatusLabel(r), ML + 24, yPos + 4);
 
-    // Amount
+    // Paid Amount
     const amtX = ML + CW * 0.4;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6);
     doc.setTextColor(...GRAY);
-    doc.text('Amount', amtX, yPos + 4);
+    doc.text('Paid Amount', amtX, yPos + 4);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...DARK);
