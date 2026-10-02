@@ -128,6 +128,7 @@ export interface SubmitEvaluationPayload {
 // ─── RESULTS & AGGREGATIONS ───────────────────────────────────────────────────
 
 export interface JudgeScoreBreakdown {
+  id?: string;
   judgeId: string;
   judgeName: string;
   judgeEmail: string;
@@ -148,17 +149,117 @@ export interface ProjectResult {
   problemStatement?: string;
   proposedSolution?: string;
   innovation?: string;
-  expectedJudges: number;
-  completedJudges: number;
-  averageScore: number;
-  status: 'Complete' | 'In Progress' | 'Not Evaluated';
+  evaluationsCount: number;
+  rawAverage: number;
+  criteriaAverages?: Record<string, number>;
+  themeMin?: number | null;
+  themeMax?: number | null;
+  normalizedScore?: number | null;
+  meritScore?: number | null;
+  overallRank?: number | null;
+  themeRank?: number | null;
+  award?: string | null;
+  awardType?: 'overall' | 'theme' | null;
+  status: 'Provisional' | 'Not Evaluated' | 'Complete' | 'In Progress';
+  isEligible?: boolean;
+  tieStatus?: 'none' | 'resolved' | 'committee_review_required';
   evaluations: JudgeScoreBreakdown[];
+  // Backwards compatibility aliases
+  completedJudges?: number;
+  expectedJudges?: number;
+  averageScore?: number;
+}
+
+export interface AwardWinnerItem {
+  award_name: string;
+  award_scope: 'overall' | 'theme';
+  category: string;
+  registration_id: string;
+  team_name: string;
+  project_title: string;
+  raw_average: number;
+  normalized_score?: number | null;
+  merit_score?: number | null;
+  overall_rank?: number | null;
+  theme_rank?: number | null;
+  tie_status?: 'none' | 'resolved' | 'committee_review_required';
+  is_disputed?: boolean;
+  disputed_teams?: Array<{ registration_id: string; team_name: string }>;
+}
+
+export interface ThemeSummaryItem {
+  category: string;
+  total_projects: number;
+  evaluated_projects: number;
+  theme_min?: number | null;
+  theme_max?: number | null;
+  theme_first?: AwardWinnerItem | null;
+  theme_second?: AwardWinnerItem | null;
 }
 
 export interface ResultsStats {
   totalProjects: number;
-  fullyEvaluated: number;
-  inProgress: number;
-  notEvaluated: number;
-  highestScore: number;
+  evaluatedProjects?: number;
+  notEvaluatedProjects?: number;
+  totalEvaluations?: number;
+  highestRawScore?: number;
+  highestMeritScore?: number;
+  // Legacy aliases
+  fullyEvaluated?: number;
+  inProgress?: number;
+  notEvaluated?: number;
+  highestScore?: number;
+}
+
+export interface AdminResultsResponse {
+  success: boolean;
+  mode: string;
+  notice: string;
+  stats: {
+    total_projects: number;
+    evaluated_projects: number;
+    not_evaluated_projects: number;
+    total_evaluations: number;
+    highest_raw_score: number;
+    highest_merit_score: number;
+  };
+  themes: ThemeSummaryItem[];
+  awards: AwardWinnerItem[];
+  projects: Array<{
+    registration_id: string;
+    team_name: string;
+    project_title: string;
+    category: string;
+    institution_name: string;
+    leader_name: string;
+    problem_statement?: string;
+    proposed_solution?: string;
+    innovation?: string;
+    members: ParticipantMember[];
+    evaluations_count: number;
+    raw_average: number;
+    criteria_averages: Record<string, number>;
+    theme_min?: number | null;
+    theme_max?: number | null;
+    normalized_score?: number | null;
+    merit_score?: number | null;
+    overall_rank?: number | null;
+    theme_rank?: number | null;
+    award?: string | null;
+    award_type?: string | null;
+    status: string;
+    is_eligible: boolean;
+    tie_status: string;
+    evaluations: Array<{
+      id: string;
+      judge_id: string;
+      judge_name: string;
+      judge_email: string;
+      total_score: number;
+      scores: Record<string, number>;
+      comments?: string;
+      submitted_at: string;
+    }>;
+  }>;
+  calculated_at: string;
 }

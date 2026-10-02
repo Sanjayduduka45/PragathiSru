@@ -3,19 +3,34 @@
  * All frontend requests (Public & Admin Dashboard) call the FastAPI Python backend.
  */
 
+import { supabase } from '../lib/supabaseClient';
+import { AdminResultsResponse } from '../types';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const isAdminEndpoint = endpoint.startsWith('/api/admin/');
+  const isResultsEndpoint = endpoint.startsWith('/api/admin/results');
+  const isLegacyAdminEndpoint = endpoint.startsWith('/api/admin/') && !isResultsEndpoint;
   const isFormData = options?.body instanceof FormData;
+
+  let authToken: string | null = null;
+  if ((isLegacyAdminEndpoint || isResultsEndpoint) && supabase) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      authToken = session?.access_token || null;
+    } catch {
+      // ignore session lookup errors
+    }
+  }
 
   try {
     const response = await fetch(url, {
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(isAdminEndpoint ? { 'X-Admin-Secret': ADMIN_SECRET } : {}),
+        ...(isLegacyAdminEndpoint ? { 'X-Admin-Secret': ADMIN_SECRET } : {}),
+        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         ...options?.headers,
       },
       ...options,
@@ -387,5 +402,14 @@ export const api = {
 
     getAuditLogs: (limit: number = 30) =>
       request<{ success: boolean; data: any[] }>(`/api/admin/audit-logs?limit=${limit}`),
+  },
+
+  results: {
+    get: () => request<AdminResultsResponse>('/api/admin/results'),
+    deleteEvaluation: (evaluationId: string) =>
+      request<{ success: boolean; message: string; deleted_id: string }>(
+        `/api/admin/results/evaluations/${evaluationId}`,
+        { method: 'DELETE' }
+      ),
   },
 };

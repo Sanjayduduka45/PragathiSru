@@ -331,14 +331,16 @@ class Database:
     # --- SUPABASE REST CLIENT ---
     def get_headers(self) -> Dict[str, str]:
         key = settings.get_effective_key()
-        if not key:
-            print("[Database Warning] SUPABASE_SERVICE_ROLE_KEY is not configured! Privileged database operations may fail.")
-        return {
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
+        headers = {
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }
+        if key:
+            headers["apikey"] = key
+            headers["Authorization"] = f"Bearer {key}"
+        else:
+            print("[Database Warning] SUPABASE_SERVICE_ROLE_KEY is not configured! Privileged database operations may fail.")
+        return headers
 
     async def fetch_supabase(self, table: str, query_params: str = "") -> Optional[List[Dict[str, Any]]]:
         url = f"{settings.supabase_url}/rest/v1/{table}?{query_params}" if query_params else f"{settings.supabase_url}/rest/v1/{table}"
