@@ -360,7 +360,7 @@ export const ResultsAdmin: React.FC = () => {
           }`}
         >
           <Award className="w-4 h-4 text-amber-500" />
-          Prize Winners Podium
+          Provisional Prize Standings
         </button>
       </div>
 
@@ -693,9 +693,9 @@ export const ResultsAdmin: React.FC = () => {
                 <Trophy className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-900">Overall Prize Winners</h3>
+                <h3 className="text-lg font-black text-slate-900">Current Overall Standings</h3>
                 <p className="text-xs text-slate-600">
-                  Awarded based on the 70% Normalized + 30% Raw Overall Merit Score.
+                  Current standings based on the 70% Normalized + 30% Raw Overall Merit Score.
                 </p>
               </div>
             </div>
@@ -719,7 +719,11 @@ export const ResultsAdmin: React.FC = () => {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-black text-xs uppercase tracking-wider text-amber-800">
-                        {awardTitle}
+                        {idx === 0
+                          ? 'Current Overall Rank #1'
+                          : idx === 1
+                          ? 'Current Overall Rank #2'
+                          : 'Current Overall Rank #3'}
                       </span>
                       {isDisputed ? (
                         <AlertTriangle className="w-5 h-5 text-amber-600 animate-pulse" />
@@ -780,10 +784,10 @@ export const ResultsAdmin: React.FC = () => {
           <div className="space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <Award className="w-5 h-5 text-blue-600" />
-              Theme-Wise Category Prizes (Actual Raw Average)
+              Current Theme Standings (Actual Raw Average)
             </h3>
             <p className="text-xs text-slate-500 -mt-2">
-              Overall award winners are elevated and excluded from theme prizes (strict exclusivity).
+              Current overall top positions are excluded from provisional theme prize positions, following the one-prize-per-project rule.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -804,7 +808,7 @@ export const ResultsAdmin: React.FC = () => {
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className={t.theme_first?.is_disputed ? 'text-amber-900 flex items-center gap-1' : 'text-blue-900'}>
                           {t.theme_first?.is_disputed && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
-                          Theme First Prize
+                          Current Theme Rank #1
                         </span>
                         <span className="font-mono text-[#004182]">
                           {t.theme_first?.raw_average ? `${t.theme_first.raw_average.toFixed(2)}/100` : '--'}
@@ -838,7 +842,7 @@ export const ResultsAdmin: React.FC = () => {
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className={t.theme_second?.is_disputed ? 'text-amber-900 flex items-center gap-1' : 'text-slate-700'}>
                           {t.theme_second?.is_disputed && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
-                          Theme Second Prize
+                          Current Theme Rank #2
                         </span>
                         <span className="font-mono text-slate-700">
                           {t.theme_second?.raw_average ? `${t.theme_second.raw_average.toFixed(2)}/100` : '--'}
@@ -890,7 +894,13 @@ export const ResultsAdmin: React.FC = () => {
                 {selectedProject.award && (
                   <span className="text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                     <Award className="w-3.5 h-3.5 text-amber-600" />
-                    {selectedProject.award}
+                    {selectedProject.award === 'Overall First Prize'
+                      ? 'Current Overall Rank #1'
+                      : selectedProject.award === 'Overall Second Prize'
+                      ? 'Current Overall Rank #2'
+                      : selectedProject.award === 'Overall Third Prize'
+                      ? 'Current Overall Rank #3'
+                      : selectedProject.award}
                   </span>
                 )}
               </div>
