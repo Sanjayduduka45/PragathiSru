@@ -73,12 +73,17 @@ function buildMemberList(r: JoinedRegistrationRecord): string {
   const members = r.team_members || [];
   if (members.length === 0) {
     // Fall back to leader info from the registration record itself
-    return `Member 1: ${r.leader_name || 'N/A'} | ${r.leader_email || 'N/A'} | ${r.leader_mobile || 'N/A'} | Leader`;
+    const leader = getLeader(r);
+    return `1. ${leader.name || 'N/A'} | Team Leader | ${leader.email || 'N/A'} | ${leader.phone || 'N/A'}`;
   }
-  return members
+
+  // Ensure leader is first
+  const sortedMembers = [...members].sort((a, b) => (b.is_team_leader ? 1 : 0) - (a.is_team_leader ? 1 : 0));
+
+  return sortedMembers
     .map((m, i) => {
-      const role = m.is_team_leader ? 'Leader' : 'Member';
-      return `Member ${i + 1}: ${m.name || 'N/A'} | ${m.email || 'N/A'} | ${m.mobile || 'N/A'} | ${role}`;
+      const role = m.is_team_leader ? 'Team Leader' : 'Member';
+      return `${i + 1}. ${m.name || 'N/A'} | ${role} | ${m.email || 'N/A'} | ${m.mobile || 'N/A'}`;
     })
     .join('\n');
 }
@@ -124,6 +129,7 @@ export function exportRegistrationsCSV(registrations: JoinedRegistrationRecord[]
     'Team Name',
     'Team Unique ID',
     'Registration Date',
+    'Institution Name',
     'Team Leader Name',
     'Team Leader Email',
     'Team Leader Phone',
@@ -139,6 +145,7 @@ export function exportRegistrationsCSV(registrations: JoinedRegistrationRecord[]
       csvEscape(r.team_name || ''),
       csvEscape(r.registration_id || ''),
       csvEscape(formatRegistrationDate(r.created_at)),
+      csvEscape(getInstitutionName(r)),
       csvEscape(leader.name),
       csvEscape(leader.email),
       csvEscape(leader.phone),
@@ -170,6 +177,9 @@ function getParticipantTypeLabel(r: JoinedRegistrationRecord): string {
 /** Get institution name */
 function getInstitutionName(r: JoinedRegistrationRecord): string {
   if (r.institutions?.name) return r.institutions.name;
+  if ((r as unknown as { institution_name?: string }).institution_name) {
+    return (r as unknown as { institution_name?: string }).institution_name!;
+  }
   if (r.participant_type === 'sru_student') return 'SR University, Warangal';
   return 'N/A';
 }
@@ -528,9 +538,9 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
 
     // Two-column layout
     const col1X = ML + 5;
-    const col1VX = ML + 38;
+    const col1VX = ML + 32;
     const col2X = ML + CW / 2 + 2;
-    const col2VX = ML + CW / 2 + 35;
+    const col2VX = ML + CW / 2 + 30;
     const rowH = 4.2;
 
     // Row 1: Team Name | Registration ID
@@ -541,7 +551,7 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...DARK);
-    const tnDisp = truncateText(r.team_name || 'N/A', col2X - col1VX - 4, 7, 'bold');
+    const tnDisp = truncateText(r.team_name || 'N/A', (col2X - 2) - col1VX, 7, 'bold');
     doc.text(tnDisp, col1VX, yPos);
 
     doc.setFont('helvetica', 'normal');
@@ -554,25 +564,25 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     doc.text(r.registration_id || 'N/A', col2VX, yPos);
     yPos += rowH;
 
-    // Row 2: Participant Type | Institution
+    // Row 2: Institution Name | Participant Type
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...GRAY);
-    doc.text('Participant Type', col1X, yPos);
+    doc.text('Institution Name', col1X, yPos);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...DARK);
-    doc.text(getParticipantTypeLabel(r), col1VX, yPos);
+    const instDisp = truncateText(getInstitutionName(r), (col2X - 2) - col1VX, 7);
+    doc.text(instDisp, col1VX, yPos);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...GRAY);
-    doc.text('Institution', col2X, yPos);
+    doc.text('Participant Type', col2X, yPos);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...DARK);
-    const instDisp = truncateText(getInstitutionName(r), (pageWidth - MR) - col2VX - 2, 7);
-    doc.text(instDisp, col2VX, yPos);
+    doc.text(getParticipantTypeLabel(r), col2VX, yPos);
     yPos += rowH;
 
     // Row 3: Registration Date | Team Size
@@ -646,7 +656,7 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     yPos += leaderBoxH + 4;
 
     // ── TEAM MEMBERS TABLE ──
-    ensureSpace(12);
+    ensureSpace(14);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...BRAND);
@@ -668,12 +678,13 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     // Table column definitions
     const tX = ML + 4;
     const tW = CW - 8;
+    const padX = 2;
     const cols = [
-      { label: '#',     x: tX,           w: 7 },
-      { label: 'NAME',  x: tX + 7,       w: tW * 0.28 },
-      { label: 'ROLE',  x: tX + 7 + tW * 0.28, w: tW * 0.12 },
-      { label: 'EMAIL', x: tX + 7 + tW * 0.40, w: tW * 0.35 },
-      { label: 'PHONE', x: tX + 7 + tW * 0.75, w: tW * 0.25 - 7 },
+      { label: '#',           x: tX,            w: 8 },
+      { label: 'MEMBER NAME', x: tX + 8,        w: 44 },
+      { label: 'ROLE',        x: tX + 8 + 44,   w: 26 },
+      { label: 'EMAIL',       x: tX + 52 + 26,  w: 58 },
+      { label: 'PHONE',       x: tX + 78 + 58,  w: 38 },
     ];
 
     /** Draw the table header row */
@@ -687,7 +698,7 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
       doc.setTextColor(255, 255, 255);
 
       for (const col of cols) {
-        doc.text(col.label, col.x + 1.5, yPos + 3.8);
+        doc.text(col.label, col.x + padX, yPos + 3.8);
       }
       yPos += thH;
     }
@@ -695,14 +706,33 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
     drawTableHeader();
 
     // Table rows
-    const memberList = members.length > 0 ? members : [{
-      id: '0', name: leader.name, email: leader.email, mobile: leader.phone,
-      roll_number: null, department: null, is_team_leader: true,
+    const memberList = (members && members.length > 0) ? members : [{
+      id: '0',
+      name: leader.name || 'N/A',
+      email: leader.email || 'N/A',
+      mobile: leader.phone || 'N/A',
+      roll_number: null,
+      department: null,
+      is_team_leader: true,
     }];
 
-    for (let mi = 0; mi < memberList.length; mi++) {
-      const m = memberList[mi];
-      const trH = 5;
+    // Ensure leader is first
+    const sortedMembers = [...memberList].sort((a, b) => (b.is_team_leader ? 1 : 0) - (a.is_team_leader ? 1 : 0));
+
+    for (let mi = 0; mi < sortedMembers.length; mi++) {
+      const m = sortedMembers[mi];
+      const role = m.is_team_leader ? 'Team Leader' : 'Member';
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+
+      const nameLines: string[] = doc.splitTextToSize(m.name || 'N/A', cols[1].w - padX * 2);
+      const emailLines: string[] = doc.splitTextToSize(m.email || 'N/A', cols[3].w - padX * 2);
+      const phoneLines: string[] = doc.splitTextToSize(m.mobile || 'N/A', cols[4].w - padX * 2);
+
+      const maxLines = Math.max(1, nameLines.length, emailLines.length, phoneLines.length);
+      const lineSpacing = 3.2;
+      const trH = Math.max(5.5, maxLines * lineSpacing + 2.2);
 
       // Check if we need a new page for this row
       if (yPos + trH > safeBottom) {
@@ -727,37 +757,39 @@ export async function exportRegistrationsPDF(registrations: JoinedRegistrationRe
       doc.setLineWidth(0.1);
       doc.line(tX, yPos + trH, tX + tW, yPos + trH);
 
-      const rowTextY = yPos + 3.5;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-      doc.setTextColor(...DARK);
+      const rowTextY = yPos + 3.6;
 
       // #
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
       doc.setTextColor(...GRAY);
-      doc.text(String(mi + 1).padStart(2, '0'), cols[0].x + 1.5, rowTextY);
+      doc.text(String(mi + 1).padStart(2, '0'), cols[0].x + padX, rowTextY);
 
-      // Name
+      // Name (wrapped)
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...DARK);
-      doc.text(truncateText(m.name || 'N/A', cols[1].w - 3, 6.5), cols[1].x + 1.5, rowTextY);
+      nameLines.forEach((line, li) => {
+        doc.text(line, cols[1].x + padX, rowTextY + li * lineSpacing);
+      });
 
       // Role
-      const role = m.is_team_leader ? 'Leader' : 'Member';
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(6);
       doc.setTextColor(...(m.is_team_leader ? BRAND : MID));
-      doc.text(role, cols[2].x + 1.5, rowTextY);
+      doc.text(role, cols[2].x + padX, rowTextY);
 
-      // Email
+      // Email (wrapped)
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...MID);
-      doc.text(truncateText(m.email || 'N/A', cols[3].w - 3, 6.5), cols[3].x + 1.5, rowTextY);
+      emailLines.forEach((line, li) => {
+        doc.text(line, cols[3].x + padX, rowTextY + li * lineSpacing);
+      });
 
-      // Phone
-      doc.text(truncateText(m.mobile || 'N/A', cols[4].w - 3, 6.5), cols[4].x + 1.5, rowTextY);
+      // Phone (wrapped)
+      phoneLines.forEach((line, li) => {
+        doc.text(line, cols[4].x + padX, rowTextY + li * lineSpacing);
+      });
 
       yPos += trH;
     }
