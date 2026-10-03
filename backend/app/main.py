@@ -1,6 +1,9 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.database import db
+from app.services.jury_service import jury_service
 from app.api import (
     event,
     about,
@@ -14,20 +17,36 @@ from app.api import (
     testimonials,
     settings as settings_api,
     posters,
-    results
+    results,
+    juries
 )
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: initialize connection pool and pre-warm domain aliases cache
+    db.get_client()
+    try:
+        await jury_service._refresh_aliases_cache()
+    except Exception as e:
+        print(f"[Lifespan Startup Notice] Domain aliases pre-warm: {e}")
+    yield
+    # Shutdown: gracefully close persistent connections
+    await db.close()
 
 app = FastAPI(
     title="PRAGATHI 2K26 Admin Backend API",
     description="FastAPI REST API for PRAGATHI 2K26 Expo Admin & Content Management",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS for React frontend
 origins = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
     "http://127.0.0.1:5173",
     "https://pragathi20-sruin.vercel.app",
     "*"
@@ -55,6 +74,7 @@ app.include_router(testimonials.router)
 app.include_router(settings_api.router)
 app.include_router(posters.router)
 app.include_router(results.router)
+app.include_router(juries.router)
 
 @app.get("/")
 @app.get("/api")

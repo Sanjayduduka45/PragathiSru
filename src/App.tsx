@@ -42,6 +42,7 @@ const TestimonialsAdmin = React.lazy(() => import('./pages/admin/content/Testimo
 const AdminComingSoon = React.lazy(() => import('./pages/admin/AdminComingSoon').then((m) => ({ default: m.AdminComingSoon })));
 const OpportunityEnquiriesAdmin = React.lazy(() => import('./pages/admin/OpportunityEnquiriesAdmin').then((m) => ({ default: m.OpportunityEnquiriesAdmin })));
 const ResultsAdmin = React.lazy(() => import('./pages/admin/ResultsAdmin').then((m) => ({ default: m.ResultsAdmin })));
+const JuryAdmin = React.lazy(() => import('./pages/admin/JuryAdmin').then((m) => ({ default: m.JuryAdmin })));
 const SettingsAdmin = React.lazy(() => import('./pages/admin/SettingsAdmin').then((m) => ({ default: m.SettingsAdmin })));
 
 export default function App() {
@@ -180,6 +181,8 @@ export default function App() {
 
                           {/* Operational Modules */}
                           <Route path="/registrations" element={<RegistrationsAdmin />} />
+                          <Route path="/juries" element={<JuryAdmin />} />
+                          <Route path="/judges" element={<Navigate to="/admin/juries" replace />} />
                           <Route path="/opportunity-enquiries" element={<OpportunityEnquiriesAdmin />} />
                           <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
                           <Route path="/results" element={<ResultsAdmin />} />
@@ -215,6 +218,8 @@ export default function App() {
 
                           {/* Operational Modules */}
                           <Route path="/registrations" element={<RegistrationsAdmin />} />
+                          <Route path="/juries" element={<JuryAdmin />} />
+                          <Route path="/judges" element={<Navigate to="/pragathi-2.0/admin/juries" replace />} />
                           <Route path="/opportunity-enquiries" element={<OpportunityEnquiriesAdmin />} />
                           <Route path="/participants" element={<AdminComingSoon module="Participants Management" />} />
                           <Route path="/results" element={<ResultsAdmin />} />

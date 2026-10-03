@@ -263,3 +263,143 @@ export interface AdminResultsResponse {
   }>;
   calculated_at: string;
 }
+
+// ─── Jury Management & Dynamic Allocation Types ───────────────────────────────
+
+export interface JuryProfile {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  department: string;
+  is_active: boolean;
+  evaluations_completed: number;
+  assigned_domains_count: number;
+  created_at?: string;
+}
+
+export interface DomainAssignmentItem {
+  id: string;
+  judge_user_id: string;
+  domain_id: string;
+  domain_title: string;
+  assignment_mode: 'ALL' | 'SELECTED';
+  is_active: boolean;
+  selected_projects_count: number;
+  created_at: string;
+}
+
+export interface ProjectAssignmentItem {
+  id: string;
+  jury_domain_assignment_id: string;
+  registration_id: string;
+  project_title: string;
+  team_name: string;
+  created_at: string;
+}
+
+export interface ProjectCompletionItem {
+  registration_id: string;
+  team_name: string;
+  project_title: string;
+  category: string;
+  domain_id?: string;
+  domain_title?: string;
+  assigned_juries: Array<{
+    user_id: string;
+    name: string;
+    email: string;
+  }>;
+  submitted_juries: Array<{
+    judge_id: string;
+    judge_name: string;
+    judge_email: string;
+    total_score: number;
+  }>;
+  assigned_count: number;
+  submitted_count: number;
+  status: 'UNASSIGNED' | 'NOT_EVALUATED' | 'IN_PROGRESS' | 'COMPLETED';
+}
+
+export interface JuryCompletionOverviewResponse {
+  success: boolean;
+  total_projects: number;
+  completed_projects: number;
+  in_progress_projects: number;
+  not_evaluated_projects: number;
+  unassigned_projects: number;
+  projects: ProjectCompletionItem[];
+}
+
+export interface AssignedProjectItem {
+  registration_id: string;
+  team_name: string;
+  project_title: string;
+  category: string;
+  institution_name: string;
+  leader_name: string;
+  members: Array<{ name: string; email: string; role: string }>;
+  problem_statement?: string;
+  proposed_solution?: string;
+  innovation?: string;
+  expected_outcomes?: string;
+  is_evaluated: boolean;
+  evaluation_id?: string;
+  assignment_mode: 'ALL' | 'SELECTED';
+  domain_id?: string | null;
+  domain_title?: string | null;
+  evaluation_status?: 'EVALUATED' | 'PENDING';
+  total_score?: number | null;
+  submitted_at?: string | null;
+}
+
+export interface AssignedProjectsResponse {
+  success: boolean;
+  judge_user_id: string;
+  total_assigned: number;
+  completed_count: number;
+  pending_count: number;
+  projects: AssignedProjectItem[];
+}
+
+export interface JuryBootstrapSummary {
+  assigned: number;
+  evaluated: number;
+  remaining: number;
+}
+
+export interface JuryBootstrapResponse {
+  success: boolean;
+  jury: {
+    user_id: string;
+    name: string;
+    email: string;
+    department: string;
+    is_active: boolean;
+  };
+  assignments: DomainAssignmentItem[];
+  projects: AssignedProjectItem[];
+  summary: JuryBootstrapSummary;
+  evaluations: Evaluation[];
+}
+
+export interface JuryProjectProgressItem {
+  registration_id: string;
+  project_title: string;
+  team_name: string;
+  domain_id?: string;
+  domain_title?: string;
+  assignment_mode: 'ALL' | 'SELECTED';
+  evaluation_status: 'EVALUATED' | 'PENDING';
+  total_score: number | null;
+  submitted_at?: string | null;
+}
+
+export interface JuryProjectProgressResponse {
+  success: boolean;
+  jury_user_id: string;
+  assigned_projects: number;
+  evaluated_projects: number;
+  remaining_projects: number;
+  projects: JuryProjectProgressItem[];
+}

@@ -877,28 +877,34 @@ class ResultsService:
         )
 
     @classmethod
-    async def delete_evaluation(cls, evaluation_id: str) -> DeleteEvaluationResponse:
+    async def delete_evaluation(
+        cls,
+        evaluation_id: str,
+        admin_user_id: Optional[str] = None,
+        reset_reason: Optional[str] = None
+    ) -> DeleteEvaluationResponse:
         """
-        Deletes a single jury evaluation row from public.judge_evaluations by ID.
-        Does NOT delete registration, project, team, jury, or any other evaluation.
+        Atomically resets a single jury evaluation row:
+        - Snapshots scores and metadata into public.evaluation_reset_audit
+        - Deletes ONLY the specific row from public.judge_evaluations
+        - Registrations, projects, teams, jury accounts, and other evaluations are untouched
+        - Allows the jury to submit a fresh evaluation if needed
+        - Results automatically recalculate on next fetch
         """
         eval_id_clean = evaluation_id.strip()
         if not eval_id_clean:
             raise ValueError("Evaluation ID is required.")
 
-        # Check if evaluation row exists
-        existing = await db.fetch_supabase("judge_evaluations", f"id=eq.{eval_id_clean}")
-        if not existing or len(existing) == 0:
-            raise LookupError(f"Evaluation with ID '{eval_id_clean}' not found.")
-
-        # Delete only that specific evaluation row
-        success = await db.delete_supabase("judge_evaluations", "id", eval_id_clean)
-        if not success:
-            raise RuntimeError(f"Failed to delete evaluation '{eval_id_clean}' from database.")
+        from app.services.jury_service import jury_service
+        res = await jury_service.atomic_reset_evaluation(
+            eval_id_clean,
+            admin_user_id=admin_user_id or "admin",
+            reset_reason=reset_reason or "Administrative reset for re-evaluation"
+        )
 
         return DeleteEvaluationResponse(
             success=True,
-            message="Evaluation deleted successfully.",
+            message="Evaluation reset successfully.",
             deleted_id=eval_id_clean,
         )
 

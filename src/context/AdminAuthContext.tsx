@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { JuryService } from '../services/juryService';
 
 interface AdminAuthContextType {
   user: User | null;
@@ -23,30 +24,32 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const roleCache = React.useRef(new Map<string, { role: string | null; timestamp: number }>());
+
   const resolveUserRole = async (userObj: User | null): Promise<string | null> => {
     if (!userObj || !userObj.id) return null;
 
+    const cached = roleCache.current.get(userObj.id);
+    if (cached && Date.now() - cached.timestamp < 15000) {
+      return cached.role;
+    }
+
+    let resolvedRole: string | null = null;
+
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data: roleRow, error: roleError } = await supabase
+        const { data: roleRow } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', userObj.id)
           .maybeSingle();
 
-        console.log('=== ROLE DEBUG ===');
-        console.log('Auth user ID:', userObj.id);
-        console.log('Auth email:', userObj.email);
-        console.log('Role row:', roleRow);
-        console.log('Role error:', roleError);
-        console.log('==================');
-
         if (roleRow && roleRow.role) {
           const rawRole = roleRow.role.toLowerCase();
-          if (rawRole === 'jury' || rawRole === 'judge') return 'jury';
-          if (rawRole === 'admin' || rawRole === 'superadmin' || rawRole === 'coordinator') return 'admin';
-          if (rawRole === 'participant') return 'participant';
-          return rawRole;
+          if (rawRole === 'jury' || rawRole === 'judge') resolvedRole = 'jury';
+          else if (rawRole === 'admin' || rawRole === 'superadmin' || rawRole === 'coordinator') resolvedRole = 'admin';
+          else if (rawRole === 'participant') resolvedRole = 'participant';
+          else resolvedRole = rawRole;
         }
       } catch (err) {
         console.warn('[AdminAuthContext] Role lookup failed:', err);
@@ -54,17 +57,19 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     // Fallback: check user_metadata from auth token
-    const metaRole = userObj.user_metadata?.role;
-    if (metaRole) {
-      const lower = String(metaRole).toLowerCase();
-      if (lower === 'jury' || lower === 'judge') return 'jury';
-      if (lower === 'admin' || lower === 'superadmin' || lower === 'coordinator') return 'admin';
-      if (lower === 'participant') return 'participant';
-      return lower;
+    if (!resolvedRole) {
+      const metaRole = userObj.user_metadata?.role;
+      if (metaRole) {
+        const lower = String(metaRole).toLowerCase();
+        if (lower === 'jury' || lower === 'judge') resolvedRole = 'jury';
+        else if (lower === 'admin' || lower === 'superadmin' || lower === 'coordinator') resolvedRole = 'admin';
+        else if (lower === 'participant') resolvedRole = 'participant';
+        else resolvedRole = lower;
+      }
     }
 
-    // Never default an unknown or unassigned role to admin
-    return null;
+    roleCache.current.set(userObj.id, { role: resolvedRole, timestamp: Date.now() });
+    return resolvedRole;
   };
 
   useEffect(() => {
@@ -112,6 +117,8 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const signOut = async () => {
+    roleCache.current.clear();
+    JuryService.clearBootstrapCache();
     if (supabase) {
       await supabase.auth.signOut();
     }

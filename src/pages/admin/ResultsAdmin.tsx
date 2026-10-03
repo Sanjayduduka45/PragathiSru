@@ -16,6 +16,7 @@ import {
   Medal,
   ChevronRight,
   ShieldAlert,
+  RotateCcw,
 } from 'lucide-react';
 import { ProjectResult, AwardWinnerItem, ThemeSummaryItem, ResultsStats } from '../../types';
 import { api } from '../../services/api';
@@ -59,7 +60,7 @@ export const ResultsAdmin: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<ProjectResult | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
-  // Delete Confirmation Modal State
+  // Reset Evaluation Modal State
   const [evalToDelete, setEvalToDelete] = useState<{
     id: string;
     judgeName: string;
@@ -68,6 +69,7 @@ export const ResultsAdmin: React.FC = () => {
     projectTitle: string;
     registrationId: string;
   } | null>(null);
+  const [resetReason, setResetReason] = useState('');
   const [deletingEval, setDeletingEval] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -214,19 +216,24 @@ export const ResultsAdmin: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (!evalToDelete) return;
+    if (!resetReason.trim()) {
+      addToast('error', 'Reset Reason Required', 'Please provide an administrative reason for resetting this evaluation.');
+      return;
+    }
     setDeletingEval(true);
     try {
-      const res = await api.results.deleteEvaluation(evalToDelete.id);
+      const res = await api.results.deleteEvaluation(evalToDelete.id, resetReason.trim());
       if (res && res.success) {
-        addToast('success', 'Evaluation Deleted', 'Evaluation deleted successfully.');
+        addToast('success', 'Evaluation Reset', 'Evaluation was atomically reset. The jury member can now re-evaluate this project.');
         setEvalToDelete(null);
+        setResetReason('');
         await loadData();
       } else {
-        addToast('error', 'Deletion Failed', res.message || 'Could not delete evaluation.');
+        addToast('error', 'Reset Failed', res.message || 'Could not reset evaluation.');
       }
     } catch (err: any) {
-      console.error('[ResultsAdmin] Delete evaluation error:', err);
-      addToast('error', 'Deletion Failed', err.message || 'Error occurred while deleting evaluation.');
+      console.error('[ResultsAdmin] Reset evaluation error:', err);
+      addToast('error', 'Reset Failed', err.message || 'Error occurred while resetting evaluation.');
     } finally {
       setDeletingEval(false);
     }
@@ -999,7 +1006,8 @@ export const ResultsAdmin: React.FC = () => {
                         {ev.id && (
                           <button
                             type="button"
-                            onClick={() =>
+                            onClick={() => {
+                              setResetReason('');
                               setEvalToDelete({
                                 id: ev.id!,
                                 judgeName: ev.judgeName,
@@ -1007,13 +1015,13 @@ export const ResultsAdmin: React.FC = () => {
                                 totalScore: ev.totalScore,
                                 projectTitle: selectedProject.projectTitle,
                                 registrationId: selectedProject.registrationId,
-                              })
-                            }
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                            title="Delete this evaluation"
+                              });
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-amber-700 hover:text-white hover:bg-amber-600 border border-amber-300 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                            title="Reset this jury evaluation"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reset Evaluation
                           </button>
                         )}
                       </div>
@@ -1081,23 +1089,31 @@ export const ResultsAdmin: React.FC = () => {
         )}
       </Modal>
 
-      {/* CONFIRM DELETE INDIVIDUAL EVALUATION MODAL */}
+      {/* ATOMIC RESET EVALUATION MODAL */}
       <Modal
         isOpen={Boolean(evalToDelete)}
-        onClose={() => setEvalToDelete(null)}
-        title="Delete Jury Evaluation"
+        onClose={() => {
+          if (!deletingEval) {
+            setEvalToDelete(null);
+            setResetReason('');
+          }
+        }}
+        title="Reset Jury Evaluation"
       >
         {evalToDelete && (
           <div className="space-y-4">
-            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-rose-900">
-                  Are you sure you want to delete this evaluation?
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <p className="text-xs font-bold text-amber-950">
+                  Are you sure you want to reset this jury evaluation?
                 </p>
-                <p className="text-xs text-rose-700 leading-relaxed">
-                  This will permanently remove this jury evaluation. The jury will be able to evaluate this project again.
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  Only this Jury&apos;s evaluation will be reset. Project, domain assignment, and other Jury scores remain unchanged. This Jury will be able to evaluate this project again immediately.
                 </p>
+                <div className="text-[11px] text-amber-700 bg-amber-100/60 p-2 rounded-lg font-medium border border-amber-200/50">
+                  <strong>Atomic Audit Guarantee:</strong> A complete snapshot of these scores and the provided reason will be safely archived to <code className="font-mono text-[10px] bg-amber-200/60 px-1 py-0.5 rounded">evaluation_reset_audit</code> before clearing.
+                </div>
               </div>
             </div>
 
@@ -1115,15 +1131,36 @@ export const ResultsAdmin: React.FC = () => {
                 <span className="font-medium text-slate-800">{evalToDelete.judgeName} ({evalToDelete.judgeEmail})</span>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-1.5">
-                <span className="text-slate-500 font-bold">Raw Score:</span>
+                <span className="text-slate-500 font-bold">Current Raw Score:</span>
                 <span className="font-mono font-black text-[#004182]">{evalToDelete.totalScore} / 100</span>
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Administrative Reset Reason <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                value={resetReason}
+                onChange={(e) => setResetReason(e.target.value)}
+                placeholder="e.g. Scored incorrect team by mistake, rubric recalculation requested, technical error during scoring, etc."
+                rows={3}
+                disabled={deletingEval}
+                className="w-full text-xs p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#004182] focus:border-transparent bg-white text-slate-900 resize-none disabled:bg-slate-100"
+                required
+              />
+              <p className="text-[11px] text-slate-400">
+                A valid reason is required for compliance audit trails.
+              </p>
             </div>
 
             <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setEvalToDelete(null)}
+                onClick={() => {
+                  setEvalToDelete(null);
+                  setResetReason('');
+                }}
                 disabled={deletingEval}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
@@ -1132,15 +1169,15 @@ export const ResultsAdmin: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                disabled={deletingEval}
-                className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                disabled={deletingEval || !resetReason.trim()}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-sm"
               >
                 {deletingEval ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <RotateCcw className="w-3.5 h-3.5" />
                 )}
-                {deletingEval ? 'Deleting…' : 'Delete Evaluation'}
+                {deletingEval ? 'Resetting…' : 'Confirm Reset Evaluation'}
               </button>
             </div>
           </div>

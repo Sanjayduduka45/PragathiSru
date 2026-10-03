@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { Project, Evaluation, Judge } from '../../types';
-import { ProjectService } from '../../services/projectService';
 import { EvaluationService } from '../../services/evaluationService';
+import { JuryService } from '../../services/juryService';
 import { QRScannerModal } from '../../components/judge/QRScannerModal';
 import { ProjectEvaluationModal } from '../../components/judge/ProjectEvaluationModal';
 import { ToastContainer } from '../../components/ui/Toast';
@@ -182,6 +182,8 @@ export const JuryDashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [myEvaluations, setMyEvaluations] = useState<Evaluation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const isFetchingRef = React.useRef(false);
 
   // ── Lookup state ─────────────────────────────────────────────────────────────
   const [lookupId, setLookupId] = useState('');
@@ -209,27 +211,84 @@ export const JuryDashboard: React.FC = () => {
     user?.email?.split('@')[0]?.replace('.', ' ') ||
     'Jury Evaluator';
 
-  // ── Load data ────────────────────────────────────────────────────────────────
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  // ── Load data via single Bootstrap call ──────────────────────────────────────
+  const loadData = useCallback(async (bypassCache: boolean = false) => {
+    if (!user?.id) return;
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    // Fast-path: Check memory cache first
+    if (!bypassCache) {
+      const cached = JuryService.getCachedBootstrap(user.id);
+      if (cached && Array.isArray(cached.projects)) {
+        const mapped: Project[] = cached.projects.map((ap) => ({
+          id: ap.registration_id,
+          registrationId: (ap.registration_id || '').toUpperCase(),
+          teamName: ap.team_name,
+          title: ap.project_title,
+          category: ap.category,
+          institutionName: ap.institution_name,
+          leaderName: ap.leader_name,
+          leaderEmail: ap.members?.find((m) => m.role === 'Leader')?.email || ap.members?.[0]?.email || '',
+          members: (ap.members || []).map((m) => ({
+            name: m.name,
+            email: m.email,
+            role: m.role || 'Member',
+          })),
+          problemStatement: ap.problem_statement || '',
+          proposedSolution: ap.proposed_solution || '',
+          innovation: ap.innovation || '',
+          expectedOutcomes: ap.expected_outcomes || '',
+          status: 'submitted',
+        }));
+        setProjects(mapped);
+        setMyEvaluations(cached.evaluations || []);
+        setLoading(false);
+      }
+    }
+
     try {
-      const [allProjects, evals] = await Promise.all([
-        ProjectService.getProjects(),
-        EvaluationService.getEvaluationsByJudge(user?.id || juryEmail),
-      ]);
-      setProjects(allProjects);
-      setMyEvaluations(evals);
-    } catch (err) {
-      console.error('[JuryDashboard] Failed to load data:', err);
-      addToast('error', 'Load Error', 'Could not refresh data.');
+      setLoadError(null);
+      const bootstrapRes = await JuryService.bootstrap(user.id);
+      if (bootstrapRes && Array.isArray(bootstrapRes.projects)) {
+        const mapped: Project[] = bootstrapRes.projects.map((ap) => ({
+          id: ap.registration_id,
+          registrationId: (ap.registration_id || '').toUpperCase(),
+          teamName: ap.team_name,
+          title: ap.project_title,
+          category: ap.category,
+          institutionName: ap.institution_name,
+          leaderName: ap.leader_name,
+          leaderEmail: ap.members?.find((m) => m.role === 'Leader')?.email || ap.members?.[0]?.email || '',
+          members: (ap.members || []).map((m) => ({
+            name: m.name,
+            email: m.email,
+            role: m.role || 'Member',
+          })),
+          problemStatement: ap.problem_statement || '',
+          proposedSolution: ap.proposed_solution || '',
+          innovation: ap.innovation || '',
+          expectedOutcomes: ap.expected_outcomes || '',
+          status: 'submitted',
+        }));
+        setProjects(mapped);
+        setMyEvaluations(bootstrapRes.evaluations || []);
+      }
+    } catch (err: any) {
+      console.error('[JuryDashboard] Bootstrap failed:', err);
+      setLoadError(err.message || 'Unable to load jury dashboard');
+      addToast('error', 'Dashboard Notice', err.message || 'Unable to load jury dashboard.');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [user?.id, juryEmail, addToast]);
+  }, [user?.id, addToast]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (user?.id) {
+      loadData();
+    }
+  }, [user?.id, loadData]);
 
   // ── Derived sets ─────────────────────────────────────────────────────────────
   const myEvaluatedIds = useMemo(
@@ -253,21 +312,44 @@ export const JuryDashboard: React.FC = () => {
   // ── Recent evaluations (last 4) ───────────────────────────────────────────────
   const recentEvaluations = useMemo(() => myEvaluations.slice(0, 4), [myEvaluations]);
 
-  // ── Project lookup helper ─────────────────────────────────────────────────────
+  // ── Project lookup helper (Server Authoritative) ──────────────────────────────
   const resolveProject = useCallback(
     async (registrationId: string): Promise<Project | null> => {
       const cleanId = registrationId.trim().toUpperCase();
 
-      // Try from already-loaded list first (fast path)
-      const fromCache = projects.find(
-        (p) => p.registrationId.toUpperCase() === cleanId
-      );
-      if (fromCache) return fromCache;
+      // Authoritative check via assigned project endpoint (GET /api/jury/assigned-projects/{id})
+      try {
+        const item = await JuryService.getAssignedProjectById(cleanId);
+        if (item) {
+          return {
+            id: item.registration_id,
+            registrationId: item.registration_id.toUpperCase(),
+            teamName: item.team_name,
+            title: item.project_title,
+            category: item.category,
+            institutionName: item.institution_name,
+            leaderName: item.leader_name,
+            leaderEmail: item.members?.find((m) => m.role === 'Leader')?.email || item.members?.[0]?.email || '',
+            members: (item.members || []).map((m) => ({
+              name: m.name,
+              email: m.email,
+              role: m.role || 'Member',
+            })),
+            problemStatement: item.problem_statement || '',
+            proposedSolution: item.proposed_solution || '',
+            innovation: item.innovation || '',
+            expectedOutcomes: item.expected_outcomes || '',
+            status: 'submitted',
+          };
+        }
+      } catch (err: any) {
+        console.warn('[JuryDashboard] Project assignment verification:', err);
+        throw err;
+      }
 
-      // Fall back to direct DB lookup
-      return ProjectService.getProjectByRegistrationId(cleanId);
+      return null;
     },
-    [projects]
+    []
   );
 
   // ── Set found project with evaluation status ──────────────────────────────────
@@ -297,12 +379,12 @@ export const JuryDashboard: React.FC = () => {
         } else {
           addToast(
             'error',
-            'Not Found',
-            `No project found for ${registrationId}. Check the QR code.`
+            'Not Assigned',
+            `Project "${registrationId}" is not assigned to your jury panel.`
           );
         }
-      } catch {
-        addToast('error', 'Lookup Failed', 'Could not look up the project. Try again.');
+      } catch (err: any) {
+        addToast('error', 'Access Denied', err.message || `Project "${registrationId}" is not assigned to your jury panel.`);
       } finally {
         setLookupLoading(false);
       }
@@ -331,19 +413,25 @@ export const JuryDashboard: React.FC = () => {
       if (project) {
         setFoundProjectWithEval(project);
       } else {
-        setLookupError(`No project found for "${cleanId}". Please verify the Registration ID.`);
+        setLookupError(`Project "${cleanId}" is not assigned to your jury panel or does not exist.`);
       }
-    } catch {
-      setLookupError('Lookup failed. Please try again.');
+    } catch (err: any) {
+      setLookupError(err.message || `Project "${cleanId}" is not assigned to your jury panel.`);
     } finally {
       setLookupLoading(false);
     }
   };
 
-  // ── Open evaluation modal ─────────────────────────────────────────────────────
-  const handleOpenEvaluation = (project: Project) => {
-    setSelectedProject(project);
-    setEvalModalOpen(true);
+  // ── Open evaluation modal (Server Authoritative) ──────────────────────────────
+  const handleOpenEvaluation = async (project: Project) => {
+    try {
+      // Authoritative check: verify server assignment before opening evaluation modal
+      await JuryService.getAssignedProjectById(project.registrationId);
+      setSelectedProject(project);
+      setEvalModalOpen(true);
+    } catch (err: any) {
+      addToast('error', 'Access Denied', err.message || `Project "${project.registrationId}" is not assigned to your jury panel.`);
+    }
   };
 
   // ── Evaluation submitted ──────────────────────────────────────────────────────
@@ -370,6 +458,7 @@ export const JuryDashboard: React.FC = () => {
   };
 
   const handleSignOut = async () => {
+    JuryService.clearBootstrapCache();
     await signOut();
     navigate('/login', { replace: true });
   };
@@ -462,11 +551,19 @@ export const JuryDashboard: React.FC = () => {
       {/* ── MAIN ───────────────────────────────────────────────────────────────── */}
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-5">
 
-        {/* Loading skeleton */}
-        {loading ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="w-7 h-7 text-[#004182] animate-spin" />
-            <p className="text-xs font-semibold text-slate-500">Loading dashboard...</p>
+        {/* Error state with retry */}
+        {loadError && projects.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-rose-200 p-8 flex flex-col items-center justify-center gap-3 text-center">
+            <AlertCircle className="w-8 h-8 text-rose-600" />
+            <h3 className="text-sm font-extrabold text-slate-900">Unable to load jury dashboard</h3>
+            <p className="text-xs text-slate-500 max-w-sm">{loadError}</p>
+            <button
+              onClick={() => loadData(true)}
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Retry
+            </button>
           </div>
         ) : showHistory ? (
           /* ── HISTORY VIEW ─────────────────────────────────────────────────── */
@@ -499,18 +596,18 @@ export const JuryDashboard: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* Stats pills */}
+                    {/* Stats pills: show '—' while loading */}
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-center px-4 py-2 rounded-xl bg-slate-50 border border-slate-200">
-                        <p className="text-lg font-black text-slate-800">{totalProjects}</p>
+                        <p className="text-lg font-black text-slate-800">{loading ? '—' : totalProjects}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Projects</p>
                       </div>
                       <div className="text-center px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
-                        <p className="text-lg font-black text-emerald-700">{completedCount}</p>
+                        <p className="text-lg font-black text-emerald-700">{loading ? '—' : completedCount}</p>
                         <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Evaluated</p>
                       </div>
                       <div className="text-center px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
-                        <p className="text-lg font-black text-amber-700">{pendingCount}</p>
+                        <p className="text-lg font-black text-amber-700">{loading ? '—' : pendingCount}</p>
                         <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">Remaining</p>
                       </div>
                     </div>
@@ -671,6 +768,15 @@ export const JuryDashboard: React.FC = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Loading skeleton placeholder rows while loading */}
+            {loading && projects.length === 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
+                <div className="h-4 bg-slate-100 rounded w-1/3 animate-pulse" />
+                <div className="h-12 bg-slate-50 rounded-xl animate-pulse" />
+                <div className="h-12 bg-slate-50 rounded-xl animate-pulse" />
               </div>
             )}
 

@@ -19,6 +19,7 @@ import {
   Phone,
   Star,
   MessageSquare,
+  Users,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -58,6 +59,7 @@ const NAV_STRUCTURE: Array<NavLinkItem | { group: string; items: NavLinkItem[] }
     group: 'Operations',
     items: [
       { label: 'Registrations', path: '/admin/registrations', icon: <FileText className="w-4 h-4" /> },
+      { label: 'Jury Management', path: '/admin/juries', icon: <Users className="w-4 h-4" /> },
       { label: 'Opportunity Enquiries', path: '/admin/opportunity-enquiries', icon: <MessageSquare className="w-4 h-4" /> },
       { label: 'Results', path: '/admin/results', icon: <Trophy className="w-4 h-4" /> },
     ],
@@ -79,6 +81,8 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
   );
   const [opsExpanded, setOpsExpanded] = useState(
     location.pathname.startsWith('/admin/registrations') ||
+    location.pathname.startsWith('/admin/juries') ||
+    location.pathname.startsWith('/admin/judges') ||
     location.pathname.startsWith('/admin/opportunity-enquiries') ||
     location.pathname.startsWith('/admin/participants') ||
     location.pathname.startsWith('/admin/results')
@@ -267,6 +271,16 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
                 Registrations
               </NavLink>
               <NavLink
+                to="/admin/juries"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `${linkBase} pl-4 ${isActive ? linkActive : linkInactive}`
+                }
+              >
+                <Users className="w-4 h-4 shrink-0" />
+                Jury Management
+              </NavLink>
+              <NavLink
                 to="/admin/opportunity-enquiries"
                 onClick={onClose}
                 className={({ isActive }) =>
@@ -349,6 +363,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       sponsors: 'Sponsors',
       contact: 'Contact',
       registrations: 'Registrations',
+      juries: 'Jury Management',
       posters: 'Project Posters',
       participants: 'Participants',
       judges: 'Judges',

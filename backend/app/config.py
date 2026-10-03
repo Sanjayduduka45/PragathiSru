@@ -24,6 +24,11 @@ class Settings(BaseSettings):
         validation_alias="ADMIN_SECRET_KEY",
     )
 
+    jury_assignment_enforcement: bool = Field(
+        default=False,
+        validation_alias="JURY_ASSIGNMENT_ENFORCEMENT",
+    )
+
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env", "../../.env"),
         env_file_encoding="utf-8",

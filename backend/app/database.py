@@ -306,12 +306,49 @@ INITIAL_DATA: Dict[str, Any] = {
 
 class Database:
     def __init__(self):
+        self._client: Optional[httpx.AsyncClient] = None
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
             if not os.path.exists(DB_FILE):
                 self.save_local(INITIAL_DATA)
         except OSError as e:
             print(f"[DB] Local filesystem initialization skipped: {e}")
+
+    def get_client(self) -> httpx.AsyncClient:
+        """
+        Returns a persistent reusable httpx.AsyncClient with connection pooling.
+        Reuses TCP/TLS connections to eliminate expensive handshake latency on every query.
+        Headers are NOT attached to the client instance, ensuring strict request isolation.
+        """
+        import asyncio
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+
+        client_loop = getattr(self, "_client_loop", None)
+        if (
+            self._client is None
+            or self._client.is_closed
+            or client_loop != current_loop
+            or (client_loop is not None and client_loop.is_closed())
+        ):
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=5.0, read=15.0, write=10.0, pool=10.0),
+                limits=httpx.Limits(
+                    max_connections=50,
+                    max_keepalive_connections=20,
+                    keepalive_expiry=60.0
+                )
+            )
+            self._client_loop = current_loop
+        return self._client
+
+    async def close(self) -> None:
+        """Gracefully closes persistent HTTP client connection pool on shutdown."""
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     def load_local(self) -> Dict[str, Any]:
         try:
@@ -345,11 +382,11 @@ class Database:
     async def fetch_supabase(self, table: str, query_params: str = "") -> Optional[List[Dict[str, Any]]]:
         url = f"{settings.supabase_url}/rest/v1/{table}?{query_params}" if query_params else f"{settings.supabase_url}/rest/v1/{table}"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.get(url, headers=self.get_headers())
-                if res.status_code == 200:
-                    return res.json()
-                print(f"[Supabase] GET '{table}' returned HTTP {res.status_code}: {res.text[:200]}")
+            client = self.get_client()
+            res = await client.get(url, headers=self.get_headers())
+            if res.status_code == 200:
+                return res.json()
+            print(f"[Supabase] GET '{table}' returned HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase] Query exception on '{table}': {e}")
         return None
@@ -357,30 +394,30 @@ class Database:
     async def delete_supabase(self, table: str, eq_column: str, eq_value: str) -> bool:
         url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                headers = self.get_headers()
-                headers["Prefer"] = "return=representation"
-                res = await client.delete(url, headers=headers)
-                if res.status_code in (200, 204):
-                    try:
-                        deleted = res.json()
-                        if isinstance(deleted, list):
-                            if len(deleted) > 0:
-                                print(f"[Supabase] Successfully deleted {len(deleted)} row(s) from '{table}'")
-                                return True
-                            else:
-                                print(f"[Supabase] DELETE on '{table}' ({eq_column}={eq_value}) affected 0 rows")
-                                return False
-                    except Exception:
-                        pass
+            client = self.get_client()
+            headers = self.get_headers()
+            headers["Prefer"] = "return=representation"
+            res = await client.delete(url, headers=headers)
+            if res.status_code in (200, 204):
+                try:
+                    deleted = res.json()
+                    if isinstance(deleted, list):
+                        if len(deleted) > 0:
+                            print(f"[Supabase] Successfully deleted {len(deleted)} row(s) from '{table}'")
+                            return True
+                        else:
+                            print(f"[Supabase] DELETE on '{table}' ({eq_column}={eq_value}) affected 0 rows")
+                            return False
+                except Exception:
+                    pass
 
-                    check_url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}&select={eq_column}"
-                    check_res = await client.get(check_url, headers=self.get_headers())
-                    if check_res.status_code == 200:
-                        data = check_res.json()
-                        return len(data) == 0
-                    return True
-                print(f"[Supabase] DELETE failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
+                check_url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}&select={eq_column}"
+                check_res = await client.get(check_url, headers=self.get_headers())
+                if check_res.status_code == 200:
+                    data = check_res.json()
+                    return len(data) == 0
+                return True
+            print(f"[Supabase] DELETE failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase] Delete exception on '{table}': {e}")
         return False
@@ -388,31 +425,31 @@ class Database:
     async def update_supabase(self, table: str, eq_column: str, eq_value: str, payload: Dict[str, Any]) -> bool:
         url = f"{settings.supabase_url}/rest/v1/{table}?{eq_column}=eq.{eq_value}"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                headers = self.get_headers()
-                headers["Prefer"] = "return=representation"
-                res = await client.patch(url, headers=headers, json=payload)
-                if res.status_code == 204:
-                    print(f"[Supabase] Successfully updated row(s) in '{table}' (HTTP 204)")
-                    return True
-                if res.status_code == 200:
-                    try:
-                        updated = res.json()
-                        if isinstance(updated, list):
-                            if len(updated) > 0:
-                                print(f"[Supabase] Successfully updated {len(updated)} row(s) in '{table}'")
-                                return True
-                            else:
-                                print(f"[Supabase] UPDATE on '{table}' ({eq_column}={eq_value}) affected 0 rows")
-                                return False
-                        elif isinstance(updated, dict):
-                            print(f"[Supabase] Successfully updated 1 row in '{table}'")
+            client = self.get_client()
+            headers = self.get_headers()
+            headers["Prefer"] = "return=representation"
+            res = await client.patch(url, headers=headers, json=payload)
+            if res.status_code == 204:
+                print(f"[Supabase] Successfully updated row(s) in '{table}' (HTTP 204)")
+                return True
+            if res.status_code == 200:
+                try:
+                    updated = res.json()
+                    if isinstance(updated, list):
+                        if len(updated) > 0:
+                            print(f"[Supabase] Successfully updated {len(updated)} row(s) in '{table}'")
                             return True
-                    except Exception:
-                        pass
-                    return False
-                print(f"[Supabase] UPDATE failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
+                        else:
+                            print(f"[Supabase] UPDATE on '{table}' ({eq_column}={eq_value}) affected 0 rows")
+                            return False
+                    elif isinstance(updated, dict):
+                        print(f"[Supabase] Successfully updated 1 row in '{table}'")
+                        return True
+                except Exception:
+                    pass
                 return False
+            print(f"[Supabase] UPDATE failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
+            return False
         except Exception as e:
             print(f"[Supabase] Update exception on '{table}': {e}")
             return False
@@ -420,19 +457,19 @@ class Database:
     async def insert_supabase(self, table: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         url = f"{settings.supabase_url}/rest/v1/{table}"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                headers = self.get_headers()
-                headers["Prefer"] = "return=representation"
-                res = await client.post(url, headers=headers, json=payload)
-                if res.status_code in (200, 201):
-                    data = res.json()
-                    if isinstance(data, list) and len(data) > 0:
-                        print(f"[Supabase] Successfully inserted row into '{table}'")
-                        return data[0]
-                    elif isinstance(data, dict):
-                        print(f"[Supabase] Successfully inserted row into '{table}'")
-                        return data
-                print(f"[Supabase] INSERT failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
+            client = self.get_client()
+            headers = self.get_headers()
+            headers["Prefer"] = "return=representation"
+            res = await client.post(url, headers=headers, json=payload)
+            if res.status_code in (200, 201):
+                data = res.json()
+                if isinstance(data, list) and len(data) > 0:
+                    print(f"[Supabase] Successfully inserted row into '{table}'")
+                    return data[0]
+                elif isinstance(data, dict):
+                    print(f"[Supabase] Successfully inserted row into '{table}'")
+                    return data
+            print(f"[Supabase] INSERT failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase] Insert exception on '{table}': {e}")
         return None
@@ -440,24 +477,24 @@ class Database:
     async def upsert_supabase(self, table: str, payload: Dict[str, Any], on_conflict: str = "id") -> Optional[Dict[str, Any]]:
         url = f"{settings.supabase_url}/rest/v1/{table}?on_conflict={on_conflict}"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                headers = self.get_headers()
-                headers["Prefer"] = "resolution=merge-duplicates,return=representation"
-                res = await client.post(url, headers=headers, json=payload)
-                if res.status_code in (200, 201):
-                    data = res.json()
-                    if isinstance(data, list) and len(data) > 0:
-                        return data[0]
-                    elif isinstance(data, dict):
-                        return data
-                # If resolution header fails, fallback to patch if on_conflict field is present
-                if on_conflict in payload:
-                    val = payload[on_conflict]
-                    patch_url = f"{settings.supabase_url}/rest/v1/{table}?{on_conflict}=eq.{val}"
-                    patch_res = await client.patch(patch_url, headers=self.get_headers(), json=payload)
-                    if patch_res.status_code in (200, 204):
-                        return payload
-                print(f"[Supabase] Upsert failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
+            client = self.get_client()
+            headers = self.get_headers()
+            headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+            res = await client.post(url, headers=headers, json=payload)
+            if res.status_code in (200, 201):
+                data = res.json()
+                if isinstance(data, list) and len(data) > 0:
+                    return data[0]
+                elif isinstance(data, dict):
+                    return data
+            # If resolution header fails, fallback to patch if on_conflict field is present
+            if on_conflict in payload:
+                val = payload[on_conflict]
+                patch_url = f"{settings.supabase_url}/rest/v1/{table}?{on_conflict}=eq.{val}"
+                patch_res = await client.patch(patch_url, headers=self.get_headers(), json=payload)
+                if patch_res.status_code in (200, 204):
+                    return payload
+            print(f"[Supabase] Upsert failed on '{table}' HTTP {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase] Upsert exception on '{table}': {e}")
         return None
@@ -473,22 +510,22 @@ class Database:
             "Authorization": f"Bearer {key}",
         }
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                await client.post(
-                    bucket_url,
-                    headers={**headers, "Content-Type": "application/json"},
-                    json={"id": bucket, "name": bucket, "public": True}
-                )
-                file_headers = {
-                    **headers,
-                    "Content-Type": content_type,
-                    "x-upsert": "true"
-                }
-                res = await client.post(upload_url, headers=file_headers, content=content)
-                if res.status_code in (200, 201):
-                    return f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
-                else:
-                    print(f"[Supabase Storage] Status {res.status_code}: {res.text[:200]}")
+            client = self.get_client()
+            await client.post(
+                bucket_url,
+                headers={**headers, "Content-Type": "application/json"},
+                json={"id": bucket, "name": bucket, "public": True}
+            )
+            file_headers = {
+                **headers,
+                "Content-Type": content_type,
+                "x-upsert": "true"
+            }
+            res = await client.post(upload_url, headers=file_headers, content=content)
+            if res.status_code in (200, 201):
+                return f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{path}"
+            else:
+                print(f"[Supabase Storage] Status {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase Storage] Error uploading: {e}")
         return None
@@ -504,22 +541,22 @@ class Database:
             "Authorization": f"Bearer {key}",
         }
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                await client.post(
-                    bucket_url,
-                    headers={**headers, "Content-Type": "application/json"},
-                    json={"id": bucket, "name": bucket, "public": False}
-                )
-                file_headers = {
-                    **headers,
-                    "Content-Type": content_type,
-                    "x-upsert": "true"
-                }
-                res = await client.post(upload_url, headers=file_headers, content=content)
-                if res.status_code in (200, 201):
-                    return f"{bucket}/{path}"
-                else:
-                    print(f"[Supabase Storage Private] Upload status {res.status_code}: {res.text[:200]}")
+            client = self.get_client()
+            await client.post(
+                bucket_url,
+                headers={**headers, "Content-Type": "application/json"},
+                json={"id": bucket, "name": bucket, "public": False}
+            )
+            file_headers = {
+                **headers,
+                "Content-Type": content_type,
+                "x-upsert": "true"
+            }
+            res = await client.post(upload_url, headers=file_headers, content=content)
+            if res.status_code in (200, 201):
+                return f"{bucket}/{path}"
+            else:
+                print(f"[Supabase Storage Private] Upload status {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase Storage Private] Error uploading: {e}")
         return None
@@ -539,19 +576,19 @@ class Database:
             "Content-Type": "application/json",
         }
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.post(sign_url, headers=headers, json={"expiresIn": expires_in})
-                if res.status_code in (200, 201):
-                    data = res.json()
-                    signed_path = data.get("signedURL") or data.get("signedUrl")
-                    if signed_path:
-                        if signed_path.startswith("http"):
-                            return signed_path
-                        elif signed_path.startswith("/storage/v1"):
-                            return f"{settings.supabase_url}{signed_path}"
-                        else:
-                            return f"{settings.supabase_url}/storage/v1{signed_path}"
-                print(f"[Supabase Storage Sign] Failed status {res.status_code}: {res.text[:200]}")
+            client = self.get_client()
+            res = await client.post(sign_url, headers=headers, json={"expiresIn": expires_in})
+            if res.status_code in (200, 201):
+                data = res.json()
+                signed_path = data.get("signedURL") or data.get("signedUrl")
+                if signed_path:
+                    if signed_path.startswith("http"):
+                        return signed_path
+                    elif signed_path.startswith("/storage/v1"):
+                        return f"{settings.supabase_url}{signed_path}"
+                    else:
+                        return f"{settings.supabase_url}/storage/v1{signed_path}"
+            print(f"[Supabase Storage Sign] Failed status {res.status_code}: {res.text[:200]}")
         except Exception as e:
             print(f"[Supabase Storage Sign] Error generating signed URL: {e}")
         return None
