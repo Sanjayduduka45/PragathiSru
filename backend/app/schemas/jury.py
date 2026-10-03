@@ -50,6 +50,58 @@ class ProjectAssignmentItem(BaseModel):
 class AddProjectAssignmentsRequest(BaseModel):
     registration_ids: List[str]
 
+class AssignmentCandidateItem(BaseModel):
+    registration_id: str
+    project_title: str
+    team_name: str = ""
+    institution: str = ""
+    canonical_domain_id: str
+    domain_title: str
+    is_assigned: bool = False
+    assigned_to_judge_id: Optional[str] = None
+    assigned_to_judge_name: Optional[str] = None
+    available: bool = True
+
+class AssignmentCandidatesResponse(BaseModel):
+    success: bool = True
+    domain_id: str
+    domain_title: str
+    available_count: int = 0
+    already_assigned_count: int = 0
+    candidates: List[AssignmentCandidateItem] = Field(default_factory=list)
+
+class CreateJuryAccountRequest(BaseModel):
+    name: str = Field(..., min_length=2)
+    email: str = Field(..., min_length=5)
+    department: str = Field(..., min_length=2)
+    temporaryPassword: str = Field(..., min_length=8, max_length=72)
+    isActive: bool = True
+
+class MarksExportItem(BaseModel):
+    registration_id: str
+    project_title: str
+    team_name: str = ""
+    institution: str = ""
+    department: str = ""
+    canonical_theme: str
+    domain_id: str
+    assigned_jury_name: Optional[str] = None
+    evaluation_status: str  # 'Evaluated' | 'Pending'
+    criteria_innovation: Optional[float] = None
+    criteria_technical: Optional[float] = None
+    criteria_prototype: Optional[float] = None
+    criteria_impact: Optional[float] = None
+    criteria_presentation: Optional[float] = None
+    raw_total: Optional[float] = None
+    evaluated_at: Optional[str] = None
+
+class MarksExportResponse(BaseModel):
+    success: bool = True
+    total_projects: int = 0
+    evaluated_count: int = 0
+    pending_count: int = 0
+    records: List[MarksExportItem] = Field(default_factory=list)
+
 class JuryAssignmentsResponse(BaseModel):
     success: bool = True
     judge_user_id: str

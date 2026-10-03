@@ -1,10 +1,38 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.core.auth import verify_admin_auth
 from app.schemas.results import AdminResultsResponse, DeleteEvaluationResponse
+from app.schemas.jury import MarksExportResponse
 from app.services.results_service import results_service
+from app.services.jury_service import jury_service
 
 router = APIRouter(prefix="/api/admin/results", tags=["Admin Results"])
+
+@router.get("/export-marks", response_model=MarksExportResponse)
+async def export_marks(
+    theme_id: Optional[str] = Query(None, description="Optional theme/domain filter"),
+    project_id: Optional[List[str]] = Query(None, description="Optional project IDs filter"),
+    project_ids: Optional[str] = Query(None, description="Optional comma-separated project IDs filter"),
+    auth_data: dict = Depends(verify_admin_auth),
+):
+    """
+    Authoritative Admin endpoint for marks export.
+    Returns complete marks and criteria for all/theme/selected projects with raw submitted marks.
+    Pending projects have null marks (never manufactured zeros).
+    """
+    selected_pids: List[str] = []
+    if project_id:
+        selected_pids.extend(project_id)
+    if project_ids:
+        for pid in project_ids.split(","):
+            clean = pid.strip()
+            if clean and clean not in selected_pids:
+                selected_pids.append(clean)
+
+    return await jury_service.get_marks_export(
+        theme_id=theme_id,
+        project_ids=selected_pids if selected_pids else None,
+    )
 
 @router.get("", response_model=AdminResultsResponse)
 async def get_admin_results(

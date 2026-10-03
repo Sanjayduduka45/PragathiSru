@@ -19,6 +19,7 @@ import {
   AssignedProjectItem,
   JuryProjectProgressResponse,
   JuryBootstrapResponse,
+  AssignmentCandidatesResponse,
 } from '../types';
 
 export interface CreateJuryPayload {
@@ -38,19 +39,38 @@ export class JuryService {
   }
 
   /**
-   * Create a new jury account via the existing Supabase Edge Function `create-judge`
+   * Create a new jury account via Supabase Edge Function `create-judge` or FastAPI backend
    */
   public static async createJury(payload: CreateJuryPayload): Promise<any> {
     if (!supabase) {
-      throw new Error('Supabase client not initialized');
+      return api.juries.create(payload);
     }
-    const { data, error } = await supabase.functions.invoke('create-judge', {
-      body: payload,
-    });
-    if (error) {
-      throw new Error(error.message || 'Failed to create judge account');
+    try {
+      const { data, error } = await supabase.functions.invoke('create-judge', {
+        body: payload,
+      });
+      if (error) {
+        return await api.juries.create(payload);
+      }
+      return data;
+    } catch {
+      return await api.juries.create(payload);
     }
-    return data;
+  }
+
+  /**
+   * Hard delete a jury account (Admin)
+   * Blocked by backend if jury has any submitted evaluations.
+   */
+  public static async deleteJury(judgeUserId: string): Promise<{ success: boolean; message: string }> {
+    return api.juries.delete(judgeUserId);
+  }
+
+  /**
+   * Get assignment candidates strictly for a canonical domain (Admin)
+   */
+  public static async getAssignmentCandidates(domainId: string, forJudgeUserId?: string): Promise<AssignmentCandidatesResponse> {
+    return api.juries.getCandidates(domainId, forJudgeUserId);
   }
 
   /**

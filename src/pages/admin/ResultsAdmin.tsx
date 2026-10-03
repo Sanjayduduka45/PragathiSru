@@ -17,8 +17,12 @@ import {
   ChevronRight,
   ShieldAlert,
   RotateCcw,
+  Download,
+  FileSpreadsheet,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
-import { ProjectResult, AwardWinnerItem, ThemeSummaryItem, ResultsStats } from '../../types';
+import { ProjectResult, AwardWinnerItem, ThemeSummaryItem, ResultsStats, MarksExportItem } from '../../types';
 import { api } from '../../services/api';
 import { PROJECT_CATEGORIES } from '../../data/eventData';
 import { Modal } from '../../components/ui/Modal';
@@ -73,6 +77,14 @@ export const ResultsAdmin: React.FC = () => {
   } | null>(null);
   const [resetReason, setResetReason] = useState('');
   const [deletingEval, setDeletingEval] = useState(false);
+
+  // Export Marks Modal State
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportMode, setExportMode] = useState<'theme_wise' | 'all_projects' | 'selected_themes' | 'selected_projects'>('theme_wise');
+  const [selectedThemesForExport, setSelectedThemesForExport] = useState<string[]>([]);
+  const [selectedProjectIdsForExport, setSelectedProjectIdsForExport] = useState<string[]>([]);
+  const [exportProjectSearch, setExportProjectSearch] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -250,6 +262,142 @@ export const ResultsAdmin: React.FC = () => {
     }
   };
 
+  const sanitizeSheetName = (name: string): string => {
+    const clean = name.replace(/[*?\/\\\[\]:]/g, ' ').trim();
+    return clean.slice(0, 31) || 'Theme';
+  };
+
+  const EXPORT_COLUMNS = [
+    'Registration ID',
+    'Project Title',
+    'Team Name',
+    'Institution / Department',
+    'Canonical Theme / Domain',
+    'Assigned Jury Name',
+    'Evaluation Status',
+    'Innovation & Originality /20',
+    'Technical / Conceptual Strength /20',
+    'Working Model / Prototype /20',
+    'Practical Applicability & Impact /20',
+    'Presentation & Response /20',
+    'Raw Total /100',
+    'Evaluated At',
+  ];
+
+  const mapProjectToRow = (p: MarksExportItem) => {
+    const isEval = p.evaluation_status === 'Evaluated';
+    return [
+      p.registration_id,
+      p.project_title,
+      p.team_name || '',
+      p.institution_name || '',
+      p.canonical_theme,
+      p.assigned_jury_name || 'Unassigned',
+      p.evaluation_status,
+      isEval ? (p.innovation_score ?? '') : '',
+      isEval ? (p.technical_score ?? '') : '',
+      isEval ? (p.working_model_score ?? '') : '',
+      isEval ? (p.applicability_score ?? '') : '',
+      isEval ? (p.presentation_score ?? '') : '',
+      isEval ? (p.raw_total ?? '') : '',
+      isEval ? (p.evaluated_at || '') : '',
+    ];
+  };
+
+  const handleExecuteExport = async () => {
+    setExporting(true);
+    try {
+      let dataRes: { projects: MarksExportItem[] };
+
+      if (exportMode === 'selected_projects') {
+        if (selectedProjectIdsForExport.length === 0) {
+          addToast('error', 'No Projects Selected', 'Please select at least one project to export.');
+          setExporting(false);
+          return;
+        }
+        dataRes = await api.results.getMarksExport(undefined, selectedProjectIdsForExport);
+      } else {
+        dataRes = await api.results.getMarksExport();
+      }
+
+      const allItems = dataRes.projects || [];
+      if (allItems.length === 0) {
+        addToast('error', 'No Data', 'No marks data found for export.');
+        setExporting(false);
+        return;
+      }
+
+      const XLSX = await import('xlsx');
+      const wb = XLSX.utils.book_new();
+      const dateStr = new Date().toISOString().slice(0, 10);
+
+      if (exportMode === 'theme_wise') {
+        const byTheme = new Map<string, MarksExportItem[]>();
+        allItems.forEach((item) => {
+          const t = item.canonical_theme || 'Uncategorized';
+          if (!byTheme.has(t)) byTheme.set(t, []);
+          byTheme.get(t)!.push(item);
+        });
+
+        byTheme.forEach((items, themeName) => {
+          const rows = [EXPORT_COLUMNS, ...items.map(mapProjectToRow)];
+          const ws = XLSX.utils.aoa_to_sheet(rows);
+          XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(themeName));
+        });
+
+        XLSX.writeFile(wb, `PRAGATHI26_Theme_Wise_Marks_${dateStr}.xlsx`);
+      } else if (exportMode === 'all_projects') {
+        const rows = [EXPORT_COLUMNS, ...allItems.map(mapProjectToRow)];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, 'All Project Marks');
+        XLSX.writeFile(wb, `PRAGATHI26_All_Project_Marks_${dateStr}.xlsx`);
+      } else if (exportMode === 'selected_themes') {
+        if (selectedThemesForExport.length === 0) {
+          addToast('error', 'No Themes Selected', 'Please select at least one theme to export.');
+          setExporting(false);
+          return;
+        }
+
+        const selectedSet = new Set(selectedThemesForExport);
+        const filtered = allItems.filter((p) => selectedSet.has(p.canonical_theme));
+
+        if (filtered.length === 0) {
+          addToast('error', 'No Data', 'No projects found in selected themes.');
+          setExporting(false);
+          return;
+        }
+
+        const byTheme = new Map<string, MarksExportItem[]>();
+        filtered.forEach((item) => {
+          const t = item.canonical_theme || 'Uncategorized';
+          if (!byTheme.has(t)) byTheme.set(t, []);
+          byTheme.get(t)!.push(item);
+        });
+
+        byTheme.forEach((items, themeName) => {
+          const rows = [EXPORT_COLUMNS, ...items.map(mapProjectToRow)];
+          const ws = XLSX.utils.aoa_to_sheet(rows);
+          XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(themeName));
+        });
+
+        XLSX.writeFile(wb, `PRAGATHI26_Selected_Themes_Marks_${dateStr}.xlsx`);
+      } else if (exportMode === 'selected_projects') {
+        const rows = [EXPORT_COLUMNS, ...allItems.map(mapProjectToRow)];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, 'Selected Projects');
+        XLSX.writeFile(wb, `PRAGATHI26_Selected_Projects_Marks_${dateStr}.xlsx`);
+      }
+
+      addToast('success', 'Export Complete', 'Marks export workbook generated successfully.');
+      setExportModalOpen(false);
+    } catch (err: any) {
+      console.error('[ResultsAdmin] Export marks error:', err);
+      addToast('error', 'Export Failed', err.message || 'Failed to export marks.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-16">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -271,6 +419,14 @@ export const ResultsAdmin: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setExportModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-2xs cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export Marks
+          </button>
           <button
             type="button"
             onClick={loadData}
@@ -1203,6 +1359,252 @@ export const ResultsAdmin: React.FC = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ─── MODAL: EXPORT MARKS ─────────────────────────────────────────────── */}
+      <Modal
+        isOpen={exportModalOpen}
+        onClose={() => !exporting && setExportModalOpen(false)}
+        title="EXPORT MARKS"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Export authoritative evaluation marks to Microsoft Excel (.xlsx). Evaluated projects include all official criterion scores; un-evaluated projects have blank marks (no manufactured zeros).
+          </p>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700">Export Mode *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <label
+                className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 ${
+                  exportMode === 'theme_wise' ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="exportMode"
+                  value="theme_wise"
+                  checked={exportMode === 'theme_wise'}
+                  onChange={() => setExportMode('theme_wise')}
+                  className="mt-0.5 text-emerald-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">1. Theme-wise Marks</span>
+                  <span className="text-[11px] text-slate-500">One Excel sheet per canonical theme</span>
+                </div>
+              </label>
+
+              <label
+                className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 ${
+                  exportMode === 'all_projects' ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="exportMode"
+                  value="all_projects"
+                  checked={exportMode === 'all_projects'}
+                  onChange={() => setExportMode('all_projects')}
+                  className="mt-0.5 text-emerald-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">2. All Project Marks</span>
+                  <span className="text-[11px] text-slate-500">All registered projects in one consolidated sheet</span>
+                </div>
+              </label>
+
+              <label
+                className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 ${
+                  exportMode === 'selected_themes' ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="exportMode"
+                  value="selected_themes"
+                  checked={exportMode === 'selected_themes'}
+                  onChange={() => setExportMode('selected_themes')}
+                  className="mt-0.5 text-emerald-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">3. Selected Theme(s) Marks</span>
+                  <span className="text-[11px] text-slate-500">Choose one or more canonical themes to export</span>
+                </div>
+              </label>
+
+              <label
+                className={`p-3 rounded-xl border cursor-pointer flex items-start gap-2.5 ${
+                  exportMode === 'selected_projects' ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="exportMode"
+                  value="selected_projects"
+                  checked={exportMode === 'selected_projects'}
+                  onChange={() => setExportMode('selected_projects')}
+                  className="mt-0.5 text-emerald-600"
+                />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">4. Selected Project(s) Marks</span>
+                  <span className="text-[11px] text-slate-500">Search and pick specific projects to export</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* If Selected Themes Mode: Multi-select Theme checkboxes */}
+          {exportMode === 'selected_themes' && (
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">
+                  Select Themes ({selectedThemesForExport.length} selected)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allThemeTitles = themes.map((t) => t.theme_title);
+                    setSelectedThemesForExport(allThemeTitles);
+                  }}
+                  className="text-[11px] font-bold text-emerald-700 hover:underline"
+                >
+                  Select All
+                </button>
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2">
+                {themes.map((t) => {
+                  const isChecked = selectedThemesForExport.includes(t.theme_title);
+                  return (
+                    <div
+                      key={t.theme_id}
+                      onClick={() => {
+                        const next = isChecked
+                          ? selectedThemesForExport.filter((x) => x !== t.theme_title)
+                          : [...selectedThemesForExport, t.theme_title];
+                        setSelectedThemesForExport(next);
+                      }}
+                      className="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded-lg cursor-pointer text-xs"
+                    >
+                      {isChecked ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                      )}
+                      <span className="font-bold text-slate-800">{t.theme_title}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* If Selected Projects Mode: Project selector with search */}
+          {exportMode === 'selected_projects' && (
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">
+                  Select Projects ({selectedProjectIdsForExport.length} selected)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allPids = projects.map((p) => p.registrationId);
+                      setSelectedProjectIdsForExport(allPids);
+                    }}
+                    className="text-[11px] font-bold text-emerald-700 hover:underline"
+                  >
+                    Select All ({projects.length})
+                  </button>
+                  {selectedProjectIdsForExport.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProjectIdsForExport([])}
+                      className="text-[11px] font-bold text-slate-400 hover:text-slate-600"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search project by ID, title, or team..."
+                  value={exportProjectSearch}
+                  onChange={(e) => setExportProjectSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+
+              <div className="max-h-44 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2">
+                {projects
+                  .filter((p) => {
+                    const q = exportProjectSearch.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      p.registrationId.toLowerCase().includes(q) ||
+                      p.projectTitle.toLowerCase().includes(q) ||
+                      p.teamName.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((p) => {
+                    const isChecked = selectedProjectIdsForExport.includes(p.registrationId);
+                    return (
+                      <div
+                        key={p.registrationId}
+                        onClick={() => {
+                          const next = isChecked
+                            ? selectedProjectIdsForExport.filter((id) => id !== p.registrationId)
+                            : [...selectedProjectIdsForExport, p.registrationId];
+                          setSelectedProjectIdsForExport(next);
+                        }}
+                        className="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded-lg cursor-pointer text-xs"
+                      >
+                        {isChecked ? (
+                          <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                        )}
+                        <div className="truncate">
+                          <span className="font-bold text-slate-900 block truncate">{p.projectTitle}</span>
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {p.registrationId} • {p.teamName}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setExportModalOpen(false)}
+              disabled={exporting}
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleExecuteExport}
+              disabled={
+                exporting ||
+                (exportMode === 'selected_themes' && selectedThemesForExport.length === 0) ||
+                (exportMode === 'selected_projects' && selectedProjectIdsForExport.length === 0)
+              }
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
+            >
+              {exporting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+              {exporting ? 'Generating Excel…' : 'Download .xlsx'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

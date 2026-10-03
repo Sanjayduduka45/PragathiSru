@@ -16,6 +16,8 @@ from app.schemas.jury import (
     JuryProjectProgressItem,
     JuryProjectProgressResponse,
     JuryBootstrapResponse,
+    AssignmentCandidatesResponse,
+    CreateJuryAccountRequest,
 )
 
 router = APIRouter(tags=["Jury Management"])
@@ -26,6 +28,40 @@ router = APIRouter(tags=["Jury Management"])
 async def list_juries(auth_data: dict = Depends(verify_admin_auth)):
     """Admin endpoint to list all jury accounts with evaluation and assignment stats."""
     return await jury_service.list_juries()
+
+@router.post("/api/admin/juries")
+async def create_jury_account(
+    payload: CreateJuryAccountRequest,
+    auth_data: dict = Depends(verify_admin_auth)
+):
+    """
+    Authoritative Admin endpoint to create a new jury account with Supabase Auth,
+    public.judges record, and user_roles mapping.
+    """
+    return await jury_service.create_jury_account(payload)
+
+@router.delete("/api/admin/juries/{judge_user_id}")
+async def delete_jury_account(
+    judge_user_id: str,
+    auth_data: dict = Depends(verify_admin_auth)
+):
+    """
+    Admin endpoint to hard delete a jury account.
+    Blocks if jury has any submitted evaluations.
+    """
+    return await jury_service.delete_jury_account(judge_user_id)
+
+@router.get("/api/admin/juries/assignment-candidates", response_model=AssignmentCandidatesResponse)
+async def get_assignment_candidates(
+    domain_id: str = Query(..., description="Canonical Domain ID"),
+    for_judge_user_id: Optional[str] = Query(None, description="Optional target judge user ID to include their own projects as available"),
+    auth_data: dict = Depends(verify_admin_auth)
+):
+    """
+    Admin endpoint returning assignment candidates strictly for the requested canonical domain.
+    Only returns candidates belonging to that domain, with availability status.
+    """
+    return await jury_service.get_assignment_candidates(domain_id, for_judge_user_id=for_judge_user_id)
 
 @router.patch("/api/admin/juries/{judge_user_id}")
 async def update_jury_profile(
@@ -191,7 +227,7 @@ async def get_assigned_project_by_id(
     if not project:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access denied: Project '{registration_id}' is not assigned to your jury panel."
+            detail="This project is not assigned to you for evaluation. Please evaluate the assigned projects only."
         )
     return project
 

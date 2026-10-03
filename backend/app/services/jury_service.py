@@ -1,7 +1,7 @@
 import asyncio
 import os
 import time
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional, Set, Tuple
 from fastapi import HTTPException, status
 from app.config import settings
 from app.database import db
@@ -10,6 +10,11 @@ from app.schemas.jury import (
     UpdateJuryProfileRequest,
     DomainAssignmentItem,
     ProjectAssignmentItem,
+    AssignmentCandidateItem,
+    AssignmentCandidatesResponse,
+    CreateJuryAccountRequest,
+    MarksExportItem,
+    MarksExportResponse,
     ProjectCompletionItem,
     JuryCompletionOverviewResponse,
     AssignedProjectItem,
@@ -339,12 +344,91 @@ class JuryService:
         assignment_mode: str,
         assigned_by: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Assigns a domain to a jury in ALL or SELECTED mode."""
+        """
+        Assigns a domain to a jury in ALL or SELECTED mode.
+        Enforces Strict Project Exclusivity:
+        - Only ONE active ALL-mode jury may own a domain.
+        - If an ALL assignment exists for this domain, another jury cannot be assigned in ALL or SELECTED mode.
+        - If SELECTED assignments exist for this domain, another jury cannot be assigned in ALL mode.
+        """
         clean_mode = "SELECTED" if assignment_mode.upper() == "SELECTED" else "ALL"
+        clean_dom_id = domain_id.strip()
+
+        # Fetch domain title for user-facing error messages
+        domains_raw = await db.fetch_supabase("project_domains", f"id=eq.{clean_dom_id}&select=title") or []
+        domain_title = (domains_raw[0].get("title") if domains_raw else "") or clean_dom_id
+
+        # 0. Attempt authoritative PostgreSQL RPC with per-domain transaction advisory lock
+        rpc_url = f"{settings.supabase_url}/rest/v1/rpc/assign_jury_domain_exclusive"
+        key = settings.get_effective_key()
+        if settings.supabase_url and key:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    rpc_res = await client.post(
+                        rpc_url,
+                        headers={
+                            "apikey": key,
+                            "Authorization": f"Bearer {key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "p_judge_user_id": judge_user_id,
+                            "p_domain_id": clean_dom_id,
+                            "p_assignment_mode": clean_mode,
+                            "p_assigned_by": assigned_by,
+                        }
+                    )
+                    if rpc_res.status_code in (200, 201):
+                        return rpc_res.json()
+                    elif rpc_res.status_code in (400, 409):
+                        err_text = rpc_res.text
+                        if "ALL mode" in err_text or "already assigned" in err_text or "23505" in err_text:
+                            raise HTTPException(
+                                status_code=status.HTTP_409_CONFLICT,
+                                detail=f"Domain assignment conflict: Domain '{domain_title}' cannot be assigned in {clean_mode} mode due to an existing active assignment."
+                            )
+            except HTTPException:
+                raise
+            except Exception as e:
+                pass
+
+        # Fetch all active assignments for this domain
+        active_jdas = await db.fetch_supabase(
+            "jury_domain_assignments",
+            f"domain_id=eq.{clean_dom_id}&is_active=eq.true"
+        ) or []
+
+        # Check for conflicts with OTHER judges
+        for jda in active_jdas:
+            existing_judge_id = str(jda.get("judge_user_id") or "")
+            if existing_judge_id == judge_user_id:
+                continue
+
+            existing_mode = jda.get("assignment_mode") or "ALL"
+
+            if existing_mode == "ALL":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Domain '{domain_title}' is already assigned to another jury member in ALL mode."
+                )
+
+            if clean_mode == "ALL" and existing_mode == "SELECTED":
+                # Check if the other judge has actual projects assigned
+                jda_id = str(jda.get("id") or "")
+                pas = await db.fetch_supabase(
+                    "jury_project_assignments",
+                    f"jury_domain_assignment_id=eq.{jda_id}&select=id"
+                ) or []
+                if pas:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Some projects in this domain are already assigned. Use SELECTED Mode to assign only the remaining projects."
+                    )
 
         payload = {
             "judge_user_id": judge_user_id,
-            "domain_id": domain_id,
+            "domain_id": clean_dom_id,
             "assignment_mode": clean_mode,
             "is_active": True,
             "assigned_by": assigned_by,
@@ -363,72 +447,101 @@ class JuryService:
     async def update_assignment_mode(self, assignment_id: str, assignment_mode: str) -> bool:
         """
         Switches an assignment between ALL and SELECTED mode.
-        Enforces Assignment Integrity Rule:
-        If switching ALL -> SELECTED, verify that any project already evaluated by this jury
-        in this domain is already explicitly assigned in jury_project_assignments.
+        Enforces Assignment Integrity & Exclusivity Rules:
+        - If switching ALL -> SELECTED, verify evaluated projects are already explicitly assigned.
+        - If switching SELECTED -> ALL, verify no other jury has ALL or SELECTED assignments in this domain.
         """
         clean_mode = "SELECTED" if assignment_mode.upper() == "SELECTED" else "ALL"
 
-        if clean_mode == "SELECTED":
-            jda_rows = await db.fetch_supabase("jury_domain_assignments", f"id=eq.{assignment_id}") or []
-            if jda_rows:
-                jda = jda_rows[0]
-                current_mode = jda.get("assignment_mode") or "ALL"
-                if current_mode == "ALL":
-                    judge_user_id = str(jda.get("judge_user_id") or "")
-                    domain_id = str(jda.get("domain_id") or "")
+        jda_rows = await db.fetch_supabase("jury_domain_assignments", f"id=eq.{assignment_id}") or []
+        if not jda_rows:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found.")
 
-                    # 1. Fetch explicit selected project registrations for this assignment
-                    pas = await db.fetch_supabase(
-                        "jury_project_assignments",
-                        f"jury_domain_assignment_id=eq.{assignment_id}&select=registration_id"
-                    ) or []
-                    explicit_reg_ids = {str(p.get("registration_id") or "").strip().upper() for p in pas}
+        jda = jda_rows[0]
+        current_mode = jda.get("assignment_mode") or "ALL"
+        judge_user_id = str(jda.get("judge_user_id") or "")
+        domain_id = str(jda.get("domain_id") or "")
 
-                    # 2. Fetch all registrations in this domain
-                    regs_raw = await db.fetch_supabase(
-                        "registrations",
-                        "select=registration_id,category,projects(category)"
-                    ) or []
-                    domain_reg_ids: Set[str] = set()
-                    for r in regs_raw:
-                        p_data = r.get("projects")
-                        cat = ""
-                        if isinstance(p_data, list) and len(p_data) > 0:
-                            cat = p_data[0].get("category") or ""
-                        elif isinstance(p_data, dict):
-                            cat = p_data.get("category") or ""
-                        if not cat:
-                            cat = r.get("category") or ""
+        if clean_mode == "SELECTED" and current_mode == "ALL":
+            # 1. Fetch explicit selected project registrations for this assignment
+            pas = await db.fetch_supabase(
+                "jury_project_assignments",
+                f"jury_domain_assignment_id=eq.{assignment_id}&select=registration_id"
+            ) or []
+            explicit_reg_ids = {str(p.get("registration_id") or "").strip().upper() for p in pas}
 
-                        resolved = await self.resolve_domain_id(cat)
-                        if resolved == domain_id:
-                            rid = (r.get("registration_id") or "").strip().upper()
-                            if rid:
-                                domain_reg_ids.add(rid)
+            # 2. Fetch all registrations in this domain
+            regs_raw = await db.fetch_supabase(
+                "registrations",
+                "select=registration_id,category,projects(category)"
+            ) or []
+            domain_reg_ids: Set[str] = set()
+            for r in regs_raw:
+                p_data = r.get("projects")
+                cat = ""
+                if isinstance(p_data, list) and len(p_data) > 0:
+                    cat = p_data[0].get("category") or ""
+                elif isinstance(p_data, dict):
+                    cat = p_data.get("category") or ""
+                if not cat:
+                    cat = r.get("category") or ""
 
-                    # 3. Check if jury has submitted evaluations for any project in this domain
-                    if domain_reg_ids:
-                        evals = await db.fetch_supabase(
-                            "judge_evaluations",
-                            f"judge_id=eq.{judge_user_id}&select=registration_id"
-                        ) or []
-                        evaluated_reg_ids = {str(e.get("registration_id") or "").strip().upper() for e in evals}
-                        domain_evaluated_ids = domain_reg_ids.intersection(evaluated_reg_ids)
+                resolved = await self.resolve_domain_id(cat)
+                if resolved == domain_id:
+                    rid = (r.get("registration_id") or "").strip().upper()
+                    if rid:
+                        domain_reg_ids.add(rid)
 
-                        # 4. Check for orphan evaluations (evaluated in domain, but not explicitly in selected projects)
-                        orphaned_ids = domain_evaluated_ids - explicit_reg_ids
-                        if orphaned_ids:
-                            orphan_list = ", ".join(sorted(list(orphaned_ids)))
-                            raise HTTPException(
-                                status_code=status.HTTP_409_CONFLICT,
-                                detail=(
-                                    f"Cannot switch assignment to SELECTED mode: Jury member has already submitted "
-                                    f"evaluation(s) for project(s) in this domain ({orphan_list}) that are not "
-                                    "explicitly assigned in SELECTED mode. Please add these projects to the SELECTED "
-                                    "assignment or reset their evaluations in Results first."
-                                )
-                            )
+            # 3. Check if jury has submitted evaluations for any project in this domain
+            if domain_reg_ids:
+                evals = await db.fetch_supabase(
+                    "judge_evaluations",
+                    f"judge_id=eq.{judge_user_id}&select=registration_id"
+                ) or []
+                evaluated_reg_ids = {str(e.get("registration_id") or "").strip().upper() for e in evals}
+                domain_evaluated_ids = domain_reg_ids.intersection(evaluated_reg_ids)
+
+                # 4. Check for orphan evaluations
+                orphaned_ids = domain_evaluated_ids - explicit_reg_ids
+                if orphaned_ids:
+                    orphan_list = ", ".join(sorted(list(orphaned_ids)))
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            f"Cannot switch assignment to SELECTED mode: Jury member has already submitted "
+                            f"evaluation(s) for project(s) in this domain ({orphan_list}) that are not "
+                            "explicitly assigned in SELECTED mode. Please add these projects to the SELECTED "
+                            "assignment or reset their evaluations in Results first."
+                        )
+                    )
+
+        elif clean_mode == "ALL" and current_mode == "SELECTED":
+            # Switching SELECTED -> ALL: Check if another active judge already owns this domain in ALL mode or has projects
+            other_active_jdas = await db.fetch_supabase(
+                "jury_domain_assignments",
+                f"domain_id=eq.{domain_id}&is_active=eq.true"
+            ) or []
+            for o_jda in other_active_jdas:
+                o_jid = str(o_jda.get("judge_user_id") or "")
+                if o_jid == judge_user_id:
+                    continue
+                o_mode = o_jda.get("assignment_mode") or "ALL"
+                if o_mode == "ALL":
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Domain is already assigned to another jury member in ALL mode."
+                    )
+                # If other judge has SELECTED projects in this domain
+                o_aid = str(o_jda.get("id") or "")
+                o_pas = await db.fetch_supabase(
+                    "jury_project_assignments",
+                    f"jury_domain_assignment_id=eq.{o_aid}&select=id"
+                ) or []
+                if o_pas:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Some projects in this domain are already assigned. Use SELECTED Mode to assign only the remaining projects."
+                    )
 
         return await db.update_supabase("jury_domain_assignments", "id", assignment_id, {"assignment_mode": clean_mode})
 
@@ -547,9 +660,78 @@ class JuryService:
         if not jda_rows:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jury domain assignment not found.")
 
-        target_domain_id = str(jda_rows[0].get("domain_id") or "").strip()
+        current_jda = jda_rows[0]
+        target_domain_id = str(current_jda.get("domain_id") or "").strip()
+        current_judge_id = str(current_jda.get("judge_user_id") or "").strip()
 
-        # Fetch projects/registrations to check their domain
+        # 0. Attempt authoritative PostgreSQL RPC with per-domain transaction advisory lock
+        rpc_url = f"{settings.supabase_url}/rest/v1/rpc/add_jury_selected_projects_exclusive"
+        key = settings.get_effective_key()
+        if settings.supabase_url and key:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    rpc_res = await client.post(
+                        rpc_url,
+                        headers={
+                            "apikey": key,
+                            "Authorization": f"Bearer {key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "p_assignment_id": assignment_id,
+                            "p_registration_ids": [r.strip().upper() for r in registration_ids],
+                            "p_assigned_by": assigned_by,
+                        }
+                    )
+                    if rpc_res.status_code in (200, 201):
+                        data = rpc_res.json()
+                        return data.get("added_count", len(registration_ids))
+                    elif rpc_res.status_code in (400, 409):
+                        err_text = rpc_res.text
+                        for rid in registration_ids:
+                            clean_rid = rid.strip().upper()
+                            if clean_rid in err_text:
+                                raise HTTPException(
+                                    status_code=status.HTTP_409_CONFLICT,
+                                    detail=f"Project {clean_rid} is already assigned to another jury member."
+                                )
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail="One or more selected projects are already assigned to another jury member."
+                        )
+            except HTTPException:
+                raise
+            except Exception as e:
+                pass
+
+        # 1. Verify no OTHER active judge holds this domain in ALL mode
+        other_active_jdas = await db.fetch_supabase(
+            "jury_domain_assignments",
+            f"domain_id=eq.{target_domain_id}&is_active=eq.true"
+        ) or []
+        for o_jda in other_active_jdas:
+            o_jid = str(o_jda.get("judge_user_id") or "")
+            if o_jid != current_judge_id and (o_jda.get("assignment_mode") or "ALL") == "ALL":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Domain '{target_domain_id}' is already assigned to another jury member in ALL mode."
+                )
+
+        # 2. Build active project assignment ownership map across other active judges
+        all_jdas = await db.fetch_supabase("jury_domain_assignments", "is_active=eq.true&select=id,judge_user_id") or []
+        jda_judge_map = {str(j.get("id")): str(j.get("judge_user_id")) for j in all_jdas}
+
+        all_pas = await db.fetch_supabase("jury_project_assignments", "select=jury_domain_assignment_id,registration_id") or []
+        active_project_owners: Dict[str, str] = {}
+        for pa in all_pas:
+            p_jda_id = str(pa.get("jury_domain_assignment_id") or "")
+            p_reg_id = (pa.get("registration_id") or "").strip().upper()
+            owner_judge = jda_judge_map.get(p_jda_id)
+            if owner_judge and p_reg_id:
+                active_project_owners[p_reg_id] = owner_judge
+
+        # 3. Fetch projects/registrations to check their domain
         regs_raw = await db.fetch_supabase("registrations", "select=registration_id,category,projects(category)") or []
         reg_cat_map: Dict[str, str] = {}
         for r in regs_raw:
@@ -567,6 +749,14 @@ class JuryService:
         added_count = 0
         for rid in registration_ids:
             clean_rid = rid.strip().upper()
+
+            # Enforce project exclusivity: reject if already assigned to another jury member
+            existing_owner = active_project_owners.get(clean_rid)
+            if existing_owner and existing_owner != current_judge_id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Project {clean_rid} is already assigned to another jury member."
+                )
 
             # Fallback single lookup if not in batch fetch
             if clean_rid not in reg_cat_map:
@@ -606,8 +796,19 @@ class JuryService:
                 row = await db.insert_supabase("jury_project_assignments", payload)
                 if row:
                     added_count += 1
+                    active_project_owners[clean_rid] = current_judge_id
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Project {clean_rid} is already assigned to another jury member."
+                    )
+            except HTTPException:
+                raise
             except Exception as e:
-                print(f"[JuryService] Project assignment insert notice for {clean_rid}: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Project {clean_rid} is already assigned to another jury member."
+                )
         return added_count
 
     async def remove_selected_project(self, project_assignment_id: str) -> bool:
@@ -775,6 +976,9 @@ class JuryService:
                     selected_reg_ids.add(rid)
                     selected_reg_domain_map[rid] = selected_jda_domain_map.get(aid, "")
 
+        # Build assigned domain IDs set for this jury
+        jury_assigned_domain_ids: Set[str] = all_domain_ids.union(set(selected_jda_domain_map.values()))
+
         domain_name_map = {str(d.get("id")): d.get("title") or str(d.get("id")) for d in domains_raw}
 
         # Build DomainAssignmentItem list
@@ -833,15 +1037,22 @@ class JuryService:
             cat = p_data.get("category") or r.get("category") or "General"
             resolved_dom_id = await self.resolve_domain_id(cat)
 
+            # STEP 1: Absolute Domain Isolation
+            # A jury assigned under one or more canonical domains must NEVER see projects
+            # belonging to unassigned canonical domains (zero cross-domain leakage).
+            if resolved_dom_id not in jury_assigned_domain_ids:
+                continue
+
+            # STEP 2: Within assigned canonical domain(s), enforce project ownership
             is_covered_all = resolved_dom_id in all_domain_ids
             is_covered_selected = reg_id in selected_reg_ids
 
             if not enforce_assignments:
-                # Stage A: preserve legacy jury behavior, return all projects
+                # Stage A: Within assigned domain(s), jury has visibility into domain projects
                 is_covered = True
-                assigned_mode_str = "ALL"
+                assigned_mode_str = "ALL" if is_covered_all else "SELECTED"
             else:
-                # Stage B: enforce assignments strictly
+                # Stage B: Enforce assignments strictly (ALL mode or explicitly SELECTED)
                 is_covered = is_covered_all or is_covered_selected
                 assigned_mode_str = "ALL" if is_covered_all else "SELECTED"
 
@@ -1452,6 +1663,497 @@ class JuryService:
             evaluated_projects=evaluated_count,
             remaining_projects=remaining_count,
             projects=sorted_projects,
+        )
+
+    # ─── Assignment Candidates Endpoint ───────────────────────────────────────
+
+    async def get_assignment_candidates(self, domain_id: str, for_judge_user_id: Optional[str] = None) -> AssignmentCandidatesResponse:
+        """
+        Authoritative candidate loader for SELECTED mode assignment:
+        - Resolves target domain canonically.
+        - Excludes any registration not canonically belonging to this domain.
+        - Determines real-time availability under the exclusive ownership rule.
+        - If for_judge_user_id is provided, projects assigned to that judge remain available for editing,
+          while projects owned by OTHER juries remain unavailable.
+        """
+        clean_dom_id = domain_id.strip()
+        await self._refresh_aliases_cache()
+
+        # 1. Fetch domain title
+        domains_raw = await db.fetch_supabase("project_domains", "select=id,title") or []
+        domain_name_map = {str(d.get("id")): d.get("title") or str(d.get("id")) for d in domains_raw}
+        dom_title = domain_name_map.get(clean_dom_id, clean_dom_id)
+
+        # 2. Fetch active domain assignments and judges
+        judges_raw = await db.fetch_supabase("judges", "is_active=eq.true&select=user_id,name") or []
+        judge_name_map = {str(j.get("user_id")): j.get("name") or "Jury Evaluator" for j in judges_raw if j.get("user_id")}
+
+        jdas_raw = await db.fetch_supabase("jury_domain_assignments", "is_active=eq.true") or []
+        pas_raw = await db.fetch_supabase("jury_project_assignments", "") or []
+
+        # Check if an ALL-mode jury exists for this domain
+        all_mode_judge_id = None
+        all_mode_judge_name = None
+        for jda in jdas_raw:
+            if str(jda.get("domain_id")) == clean_dom_id and (jda.get("assignment_mode") or "ALL") == "ALL":
+                jid = str(jda.get("judge_user_id") or "")
+                if jid:
+                    all_mode_judge_id = jid
+                    all_mode_judge_name = judge_name_map.get(jid, "Jury Evaluator")
+                    break
+
+        # Map active SELECTED project assignments: reg_id -> (judge_id, judge_name)
+        selected_assignment_map: Dict[str, Tuple[str, str]] = {}
+        selected_jda_judge: Dict[str, str] = {}
+        for jda in jdas_raw:
+            if (jda.get("assignment_mode") or "ALL") == "SELECTED":
+                aid = str(jda.get("id") or "")
+                jid = str(jda.get("judge_user_id") or "")
+                if aid and jid:
+                    selected_jda_judge[aid] = jid
+
+        for pa in pas_raw:
+            aid = str(pa.get("jury_domain_assignment_id") or "")
+            reg_id = (pa.get("registration_id") or "").strip().upper()
+            if aid in selected_jda_judge and reg_id:
+                jid = selected_jda_judge[aid]
+                selected_assignment_map[reg_id] = (jid, judge_name_map.get(jid, "Jury Evaluator"))
+
+        # 3. Fetch all registrations and projects
+        regs_raw = await db.fetch_supabase(
+            "registrations",
+            "select=registration_id,team_name,institution_name,category,projects(title,category)"
+        ) or []
+
+        candidates: List[AssignmentCandidateItem] = []
+        available_count = 0
+        already_assigned_count = 0
+
+        for r in regs_raw:
+            reg_id = (r.get("registration_id") or "").strip().upper()
+            if not reg_id:
+                continue
+
+            p_data = r.get("projects")
+            if isinstance(p_data, list) and len(p_data) > 0:
+                p_data = p_data[0]
+            elif not isinstance(p_data, dict):
+                p_data = {}
+
+            title = p_data.get("title") or r.get("project_title") or "Project Title"
+            category = p_data.get("category") or r.get("category") or ""
+            resolved_dom_id = await self.resolve_domain_id(category)
+
+            # Strict domain filtering: exclude any project that does not belong to this canonical domain
+            if resolved_dom_id != clean_dom_id:
+                continue
+
+            # Determine assignment status under the exclusive ownership rule
+            is_assigned = False
+            assigned_judge_id = None
+            assigned_judge_name = None
+
+            if all_mode_judge_id:
+                is_assigned = True
+                assigned_judge_id = all_mode_judge_id
+                assigned_judge_name = all_mode_judge_name
+            elif reg_id in selected_assignment_map:
+                is_assigned = True
+                assigned_judge_id, assigned_judge_name = selected_assignment_map[reg_id]
+
+            if for_judge_user_id:
+                available = (not is_assigned) or (assigned_judge_id == for_judge_user_id)
+            else:
+                available = not is_assigned
+            if available:
+                available_count += 1
+            else:
+                already_assigned_count += 1
+
+            candidates.append(AssignmentCandidateItem(
+                registration_id=reg_id,
+                project_title=title,
+                team_name=r.get("team_name") or "Team",
+                institution=r.get("institution_name") or "",
+                canonical_domain_id=resolved_dom_id,
+                domain_title=dom_title,
+                is_assigned=is_assigned,
+                assigned_to_judge_id=assigned_judge_id,
+                assigned_to_judge_name=assigned_judge_name,
+                available=available,
+            ))
+
+        # Sort: available first, then alphabetical by registration_id
+        candidates.sort(key=lambda x: (0 if x.available else 1, x.registration_id))
+
+        return AssignmentCandidatesResponse(
+            success=True,
+            domain_id=clean_dom_id,
+            domain_title=dom_title,
+            available_count=available_count,
+            already_assigned_count=already_assigned_count,
+            candidates=candidates,
+        )
+
+    # ─── Delete Jury Account ──────────────────────────────────────────────────
+
+    async def delete_jury_account(self, judge_user_id: str) -> Dict[str, Any]:
+        """
+        Hard-deletes a jury account and its associated assignments.
+        Enforces Results Integrity Rule:
+        If ANY submitted/draft evaluation exists in judge_evaluations:
+        BLOCK deletion with 409 Conflict:
+        'This jury member has evaluation history. Reset/remove the associated evaluations before deleting the account.'
+
+        Deterministic & Idempotent Safety Property:
+        1. Verifies zero evaluation history across both user_id and judge table ID.
+        2. Revokes database access first (removes project assignments, domain assignments,
+           public.judges, and public.user_roles). Once this step runs, the account is
+           immediately unauthorized from evaluating or viewing any projects.
+        3. Calls Supabase Auth Admin API to delete the Auth user.
+        4. If Auth deletion temporarily fails, returns HTTP 502 indicating DB access was safely
+           revoked and Auth deletion should be retried. Repeating DELETE is fully idempotent.
+        """
+        canonical_uid = judge_user_id.strip()
+
+        # 1. Fetch judge to check both user_id and internal ID
+        judge_rows = await db.fetch_supabase(
+            "judges",
+            f"user_id=eq.{canonical_uid}&select=id,user_id,email"
+        ) or []
+        possible_judge_ids = [canonical_uid]
+        if judge_rows:
+            jid = str(judge_rows[0].get("id") or "")
+            if jid and jid not in possible_judge_ids:
+                possible_judge_ids.append(jid)
+
+        # Check for any evaluation history across user_id and internal judge id
+        for jid in possible_judge_ids:
+            evals = await db.fetch_supabase(
+                "judge_evaluations",
+                f"judge_id=eq.{jid}&select=id"
+            ) or []
+            if evals and len(evals) > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This jury member has evaluation history. Reset/remove the associated evaluations before deleting the account."
+                )
+
+        # 2. Database-side removal: assignments, judges profile, and user_roles
+        jdas = await db.fetch_supabase(
+            "jury_domain_assignments",
+            f"judge_user_id=eq.{canonical_uid}&select=id"
+        ) or []
+        for jda in jdas:
+            jda_id = str(jda.get("id"))
+            await db.delete_supabase("jury_project_assignments", "jury_domain_assignment_id", jda_id)
+
+        await db.delete_supabase("jury_domain_assignments", "judge_user_id", canonical_uid)
+        await db.delete_supabase("judges", "user_id", canonical_uid)
+        if len(possible_judge_ids) > 1 and possible_judge_ids[1] != canonical_uid:
+            await db.delete_supabase("judges", "id", possible_judge_ids[1])
+        await db.delete_supabase("user_roles", "user_id", canonical_uid)
+
+        # 3. Delete Supabase Auth account via server-side Admin API
+        auth_deleted = True
+        auth_error_msg: Optional[str] = None
+        key = settings.get_effective_key()
+        if settings.supabase_url and key:
+            try:
+                auth_admin_url = f"{settings.supabase_url}/auth/v1/admin/users/{canonical_uid}"
+                client = db.get_client()
+                headers = {
+                    "apikey": key,
+                    "Authorization": f"Bearer {key}",
+                }
+                res = await client.delete(auth_admin_url, headers=headers)
+                # HTTP 200, 204 or 404 (already deleted / idempotent) are successful
+                if res.status_code not in (200, 204, 404):
+                    auth_deleted = False
+                    auth_error_msg = f"Auth admin returned HTTP {res.status_code}: {res.text[:100]}"
+                    print(f"[JuryService Warning] Supabase Auth user delete {canonical_uid}: {auth_error_msg}")
+            except Exception as e:
+                auth_deleted = False
+                auth_error_msg = str(e)
+                print(f"[JuryService Warning] Supabase Auth delete user exception: {e}")
+
+        if not auth_deleted:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Jury database access was safely revoked, but Supabase Auth account deletion encountered an issue and should be retried: {auth_error_msg}"
+            )
+
+        return {"success": True, "message": "Jury account and assignments removed successfully."}
+
+    # ─── Create Jury Account ──────────────────────────────────────────────────
+
+    async def create_jury_account(self, payload: CreateJuryAccountRequest) -> Dict[str, Any]:
+        """
+        Authoritative backend creation for jury accounts:
+        - Validates name, email, department, and password (8-72 chars).
+        - Creates Supabase Auth user via admin API with service-role key.
+        - Creates public.judges profile and public.user_roles record.
+        - Provides compensating cleanup if database insertion fails.
+        - Never logs password.
+        """
+        name = payload.name.strip()
+        email = payload.email.strip().lower()
+        department = payload.department.strip()
+        password = payload.temporaryPassword.strip()
+        is_active = payload.isActive
+
+        if len(password) < 8 or len(password) > 72:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Temporary password must be between 8 and 72 characters long."
+            )
+
+        key = settings.get_effective_key()
+        if not settings.supabase_url or not key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Server configuration error: missing Supabase credentials."
+            )
+
+        client = db.get_client()
+        auth_admin_url = f"{settings.supabase_url}/auth/v1/admin/users"
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        }
+
+        # 1. Create Auth User
+        user_id = None
+        try:
+            create_payload = {
+                "email": email,
+                "password": password,
+                "email_confirm": True,
+                "user_metadata": {
+                    "name": name,
+                    "department": department,
+                    "role": "jury",
+                },
+            }
+            res = await client.post(auth_admin_url, headers=headers, json=create_payload)
+            if res.status_code not in (200, 201):
+                err_text = res.text[:200]
+                if "already registered" in err_text or "already exists" in err_text:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"An account with email '{email}' already exists."
+                    )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to create auth user: {err_text}"
+                )
+            auth_data = res.json()
+            user_id = auth_data.get("id") or (auth_data.get("user") or {}).get("id")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Auth creation exception: {str(e)}"
+            )
+
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Auth user created but no ID was returned."
+            )
+
+        # 2. Insert into public.judges and public.user_roles (with compensating cleanup)
+        try:
+            judge_payload = {
+                "user_id": user_id,
+                "name": name,
+                "email": email,
+                "department": department,
+                "is_active": is_active,
+            }
+            judge_row = await db.insert_supabase("judges", judge_payload)
+            if not judge_row:
+                raise RuntimeError("Failed to insert into public.judges")
+
+            role_payload = {
+                "user_id": user_id,
+                "user_email": email,
+                "role": "jury",
+                "is_active": is_active,
+            }
+            role_row = await db.insert_supabase("user_roles", role_payload)
+            if not role_row:
+                print(f"[JuryService Warning] user_roles insert notice for {email}")
+        except Exception as e:
+            print(f"[JuryService] Database record creation failed, executing compensating cleanup: {e}")
+            try:
+                await client.delete(f"{auth_admin_url}/{user_id}", headers=headers)
+                await db.delete_supabase("judges", "user_id", user_id)
+                await db.delete_supabase("user_roles", "user_id", user_id)
+            except Exception as rb_err:
+                print(f"[JuryService] Compensating rollback notice: {rb_err}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to initialize database records for jury account: {str(e)}"
+            )
+
+        return {
+            "success": True,
+            "user_id": user_id,
+            "name": name,
+            "email": email,
+            "department": department,
+            "temporaryPassword": password,
+            "is_active": is_active,
+        }
+
+    # ─── Marks Export ─────────────────────────────────────────────────────────
+
+    async def get_marks_export(
+        self,
+        theme_id: Optional[str] = None,
+        project_ids: Optional[List[str]] = None
+    ) -> MarksExportResponse:
+        """
+        Authoritative export endpoint for Admin Results:
+        Produces export rows containing registration, project, canonical theme,
+        assigned jury name, evaluation status, and individual criteria marks.
+        Pending projects have blank marks, never manufactured zeros.
+        """
+        # Fetch registrations + projects
+        regs_raw = await db.fetch_supabase(
+            "registrations",
+            "select=registration_id,team_name,institution_name,department,category,projects(title,category)"
+        ) or []
+
+        # Fetch evaluations
+        evals_raw = await db.fetch_supabase("judge_evaluations", "") or []
+        eval_map: Dict[str, Dict[str, Any]] = {}
+        for ev in evals_raw:
+            rid = (ev.get("registration_id") or "").strip().upper()
+            if rid:
+                eval_map[rid] = ev
+
+        # Fetch domains
+        domains_raw = await db.fetch_supabase("project_domains", "select=id,title") or []
+        domain_name_map = {str(d.get("id")): d.get("title") or str(d.get("id")) for d in domains_raw}
+
+        # Fetch judges & assignments
+        judges_raw = await db.fetch_supabase("judges", "select=user_id,name") or []
+        judge_name_map = {str(j.get("user_id")): j.get("name") or "Jury Evaluator" for j in judges_raw if j.get("user_id")}
+
+        jdas_raw = await db.fetch_supabase("jury_domain_assignments", "is_active=eq.true") or []
+        pas_raw = await db.fetch_supabase("jury_project_assignments", "") or []
+
+        domain_all_juries: Dict[str, str] = {}
+        selected_jda_judge: Dict[str, str] = {}
+        for jda in jdas_raw:
+            jid = str(jda.get("judge_user_id") or "")
+            dom = str(jda.get("domain_id") or "")
+            mode = jda.get("assignment_mode") or "ALL"
+            aid = str(jda.get("id") or "")
+            if mode == "ALL":
+                domain_all_juries[dom] = judge_name_map.get(jid, "Jury Evaluator")
+            else:
+                selected_jda_judge[aid] = judge_name_map.get(jid, "Jury Evaluator")
+
+        project_selected_juries: Dict[str, str] = {}
+        for pa in pas_raw:
+            aid = str(pa.get("jury_domain_assignment_id") or "")
+            reg_id = (pa.get("registration_id") or "").strip().upper()
+            if aid in selected_jda_judge and reg_id:
+                project_selected_juries[reg_id] = selected_jda_judge[aid]
+
+        records: List[MarksExportItem] = []
+        clean_theme_filter = theme_id.strip() if theme_id else None
+        filter_pids = {p.strip().upper() for p in project_ids} if project_ids else None
+
+        for r in regs_raw:
+            reg_id = (r.get("registration_id") or "").strip().upper()
+            if not reg_id:
+                continue
+
+            if filter_pids is not None and reg_id not in filter_pids:
+                continue
+
+            p_data = r.get("projects")
+            if isinstance(p_data, list) and len(p_data) > 0:
+                p_data = p_data[0]
+            elif not isinstance(p_data, dict):
+                p_data = {}
+
+            title = p_data.get("title") or r.get("project_title") or "Project Title"
+            category = p_data.get("category") or r.get("category") or ""
+            resolved_dom_id = await self.resolve_domain_id(category)
+
+            if clean_theme_filter and resolved_dom_id != clean_theme_filter:
+                continue
+
+            dom_title = domain_name_map.get(resolved_dom_id, category or "General")
+
+            # Determine assigned jury name
+            assigned_jury = None
+            if resolved_dom_id in domain_all_juries:
+                assigned_jury = domain_all_juries[resolved_dom_id]
+            elif reg_id in project_selected_juries:
+                assigned_jury = project_selected_juries[reg_id]
+
+            # Evaluation details
+            ev = eval_map.get(reg_id)
+            if ev:
+                eval_status = "Evaluated"
+                raw_scores = ev.get("criteria_scores") or {}
+                c_inno = float(raw_scores.get("innovation") if raw_scores.get("innovation") is not None else (ev.get("innovation_score") or 0.0))
+                c_tech = float(raw_scores.get("technical") if raw_scores.get("technical") is not None else (ev.get("technical_score") or 0.0))
+                c_proto = float(raw_scores.get("working_model") if raw_scores.get("working_model") is not None else (raw_scores.get("implementation") if raw_scores.get("implementation") is not None else (ev.get("relevance_score") or 0.0)))
+                c_impact = float(raw_scores.get("impact") if raw_scores.get("impact") is not None else (ev.get("impact_score") or 0.0))
+                c_pres = float(raw_scores.get("presentation") if raw_scores.get("presentation") is not None else (ev.get("presentation_score") or 0.0))
+                raw_total = float(ev.get("total_score") if ev.get("total_score") is not None else sum([c_inno, c_tech, c_proto, c_impact, c_pres]))
+                eval_at = ev.get("created_at") or ev.get("updated_at")
+                if ev.get("judge_name") and not assigned_jury:
+                    assigned_jury = ev.get("judge_name")
+            else:
+                eval_status = "Pending"
+                c_inno = None
+                c_tech = None
+                c_proto = None
+                c_impact = None
+                c_pres = None
+                raw_total = None
+                eval_at = None
+
+            records.append(MarksExportItem(
+                registration_id=reg_id,
+                project_title=title,
+                team_name=r.get("team_name") or "Team",
+                institution=r.get("institution_name") or "",
+                department=r.get("department") or "",
+                canonical_theme=dom_title,
+                domain_id=resolved_dom_id,
+                assigned_jury_name=assigned_jury,
+                evaluation_status=eval_status,
+                criteria_innovation=c_inno,
+                criteria_technical=c_tech,
+                criteria_prototype=c_proto,
+                criteria_impact=c_impact,
+                criteria_presentation=c_pres,
+                raw_total=raw_total,
+                evaluated_at=eval_at,
+            ))
+
+        records.sort(key=lambda x: (x.canonical_theme, x.registration_id))
+        total_count = len(records)
+        eval_count = sum(1 for r in records if r.evaluation_status == "Evaluated")
+        pend_count = total_count - eval_count
+
+        return MarksExportResponse(
+            success=True,
+            total_projects=total_count,
+            evaluated_count=eval_count,
+            pending_count=pend_count,
+            records=records,
         )
 
 jury_service = JuryService()

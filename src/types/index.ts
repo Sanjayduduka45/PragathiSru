@@ -403,3 +403,49 @@ export interface JuryProjectProgressResponse {
   remaining_projects: number;
   projects: JuryProjectProgressItem[];
 }
+
+export interface AssignmentCandidateItem {
+  registration_id: string;
+  project_title: string;
+  canonical_domain_id: string;
+  canonical_domain_title: string;
+  is_assigned: boolean;
+  assigned_jury_name?: string | null;
+  assigned_jury_id?: string | null;
+  available?: boolean;
+}
+
+export interface AssignmentCandidatesResponse {
+  success: boolean;
+  domain_id: string;
+  domain_title: string;
+  total_candidates: number;
+  available_candidates: number;
+  assigned_candidates: number;
+  candidates: AssignmentCandidateItem[];
+}
+
+export interface MarksExportItem {
+  registration_id: string;
+  project_title: string;
+  team_name?: string | null;
+  institution_name?: string | null;
+  canonical_theme: string;
+  assigned_jury_name?: string | null;
+  evaluation_status: 'Evaluated' | 'Pending';
+  innovation_score?: number | null;
+  technical_score?: number | null;
+  working_model_score?: number | null;
+  applicability_score?: number | null;
+  presentation_score?: number | null;
+  raw_total?: number | null;
+  evaluated_at?: string | null;
+}
+
+export interface MarksExportResponse {
+  success: boolean;
+  total_projects: number;
+  evaluated_count: number;
+  pending_count: number;
+  projects: MarksExportItem[];
+}

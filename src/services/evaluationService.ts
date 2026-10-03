@@ -7,6 +7,7 @@
 
 import { Evaluation, EvaluationCriterion, SubmitEvaluationPayload } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { JuryService } from './juryService';
 
 export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
   {
@@ -154,6 +155,24 @@ export class EvaluationService {
       return {
         success: false,
         error: 'Authentication error: Could not verify evaluator identity. Please log in again.',
+      };
+    }
+
+    // Authoritative check: verify project is actively assigned to this jury member
+    try {
+      const assigned = await JuryService.getAssignedProjectById(cleanRegId);
+      if (!assigned) {
+        return {
+          success: false,
+          error: 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.',
+        };
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message?.includes('not assigned')
+          ? 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.'
+          : (err.message || 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.'),
       };
     }
 

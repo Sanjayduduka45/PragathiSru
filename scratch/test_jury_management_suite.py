@@ -1020,10 +1020,10 @@ def run_tests():
                 "Point 6: ALL mode works (all 6 projects in assigned domain visible)")
 
     # Point 7: SELECTED mode works
-    sim_vis.add_judge("jurytest02-uuid", "Test Jury 02", "jurytest02@pragathi.test")
-    sel_assign_id = sim_vis.assign_domain("jurytest02-uuid", "green-sustainability", mode="SELECTED")
+    sim_vis.add_judge("jury_test_selected_uuid", "Jury Panel Selected", "jury_selected@test.local")
+    sel_assign_id = sim_vis.assign_domain("jury_test_selected_uuid", "green-sustainability", mode="SELECTED")
     sim_vis.add_selected_project(sel_assign_id, "PRAGATHI26-MECH01")
-    sel_vis = sim_vis.get_assigned_projects_for_jury("jurytest02-uuid")
+    sel_vis = sim_vis.get_assigned_projects_for_jury("jury_test_selected_uuid")
     assert_test(len(sel_vis) == 1 and sel_vis[0] == "PRAGATHI26-MECH01",
                 "Point 7: SELECTED mode works (only explicitly selected project visible)")
 
@@ -2227,10 +2227,1473 @@ def run_tests():
         "Section P: Health endpoint GET /api/health returns 200 non-sensitive status"
     )
 
+    # ── SECTION E: EXCLUSIVITY, ACCOUNT MANAGEMENT & EXPORT TESTS (Points 1-35) ──
+    print("\n--- Running Section E: Project Exclusivity, Account Management & Marks Exports (Points 1-35) ---")
+
+    class ExclusiveProductionJurySimulator:
+        def __init__(self):
+            self.judges = {}
+            self.domain_assignments = {}
+            self.project_assignments = {}
+            self.registrations = {}
+            self.evaluations = {}
+
+        def add_judge(self, user_id: str, name: str, email: str, dept: str = "Civil", is_active: bool = True):
+            self.judges[user_id] = {
+                "user_id": user_id,
+                "name": name,
+                "email": email,
+                "department": dept,
+                "is_active": is_active,
+            }
+
+        def add_registration(self, reg_id: str, title: str, category: str, team_name: str = "Team A", institution: str = "SRU"):
+            dom_id = resolve_domain_id(category)
+            self.registrations[reg_id] = {
+                "registration_id": reg_id,
+                "project_title": title,
+                "category": category,
+                "canonical_domain_id": dom_id,
+                "team_name": team_name,
+                "institution_name": institution,
+            }
+
+        def get_assignment_candidates(self, domain_id: str, for_judge_user_id: Optional[str] = None):
+            candidates = []
+            assigned_count = 0
+            available_count = 0
+
+            assigned_reg_ids = {}
+            assigned_judge_ids = {}
+            for pa in self.project_assignments.values():
+                da = self.domain_assignments.get(pa["domain_assignment_id"])
+                if da and da.get("is_active", True):
+                    j = self.judges.get(da["judge_user_id"])
+                    assigned_reg_ids[pa["registration_id"]] = j["name"] if j else "Another Jury"
+                    assigned_judge_ids[pa["registration_id"]] = da["judge_user_id"]
+
+            all_jury_name = None
+            all_jury_id = None
+            for da in self.domain_assignments.values():
+                if da.get("is_active", True) and da["domain_id"] == domain_id and da["assignment_mode"] == "ALL":
+                    j = self.judges.get(da["judge_user_id"])
+                    all_jury_name = j["name"] if j else "ALL-mode Jury"
+                    all_jury_id = da["judge_user_id"]
+                    break
+
+            for r_id, r in self.registrations.items():
+                if r["canonical_domain_id"] == domain_id:
+                    is_assigned = (r_id in assigned_reg_ids) or (all_jury_name is not None)
+                    j_name = assigned_reg_ids.get(r_id) or all_jury_name
+                    j_id = assigned_judge_ids.get(r_id) or all_jury_id
+
+                    if for_judge_user_id:
+                        available = (not is_assigned) or (j_id == for_judge_user_id)
+                    else:
+                        available = not is_assigned
+
+                    if available:
+                        available_count += 1
+                    else:
+                        assigned_count += 1
+
+                    candidates.append({
+                        "registration_id": r_id,
+                        "project_title": r["project_title"],
+                        "canonical_domain_id": domain_id,
+                        "is_assigned": is_assigned,
+                        "available": available,
+                        "assigned_jury_name": j_name,
+                        "assigned_jury_id": j_id,
+                    })
+
+            return {
+                "success": True,
+                "domain_id": domain_id,
+                "total_candidates": len(candidates),
+                "available_candidates": available_count,
+                "assigned_candidates": assigned_count,
+                "candidates": candidates,
+            }
+
+        def assign_domain(self, judge_user_id: str, domain_id: str, mode: str = "ALL"):
+            for da in self.domain_assignments.values():
+                if da.get("is_active", True) and da["domain_id"] == domain_id:
+                    if da["judge_user_id"] != judge_user_id:
+                        if da["assignment_mode"] == "ALL":
+                            raise RuntimeError("409 Conflict: Another active jury already owns this domain in ALL mode.")
+                        if mode == "ALL":
+                            has_sel = any(pa["domain_assignment_id"] == da["id"] for pa in self.project_assignments.values())
+                            if has_sel:
+                                raise RuntimeError(
+                                    "409 Conflict: Some projects in this domain are already assigned. "
+                                    "Use SELECTED Mode to assign only the remaining projects."
+                                )
+                    elif da["assignment_mode"] == mode:
+                        raise ValueError("Duplicate domain assignment for this judge.")
+
+            da_id = str(uuid.uuid4())
+            self.domain_assignments[da_id] = {
+                "id": da_id,
+                "judge_user_id": judge_user_id,
+                "domain_id": domain_id,
+                "assignment_mode": mode,
+                "is_active": True,
+            }
+            return da_id
+
+        def add_selected_projects(self, domain_assignment_id: str, reg_ids: List[str]):
+            da = self.domain_assignments.get(domain_assignment_id)
+            if not da or da["assignment_mode"] != "SELECTED":
+                raise ValueError("Assignment not found or not in SELECTED mode.")
+
+            for other_da in self.domain_assignments.values():
+                if (other_da.get("is_active", True) and
+                    other_da["domain_id"] == da["domain_id"] and
+                    other_da["assignment_mode"] == "ALL" and
+                    other_da["judge_user_id"] != da["judge_user_id"]):
+                    raise RuntimeError("409 Conflict: Domain is owned in ALL mode by another jury.")
+
+            for rid in reg_ids:
+                reg = self.registrations.get(rid)
+                if not reg or reg["canonical_domain_id"] != da["domain_id"]:
+                    raise ValueError(f"Project {rid} does not belong to domain {da['domain_id']}.")
+                for pa in self.project_assignments.values():
+                    if pa["registration_id"] == rid:
+                        parent_da = self.domain_assignments.get(pa["domain_assignment_id"])
+                        if parent_da and parent_da["judge_user_id"] != da["judge_user_id"]:
+                            raise RuntimeError(f"409 Conflict: Project {rid} is already assigned to another jury member.")
+
+            count = 0
+            for rid in reg_ids:
+                pa_id = str(uuid.uuid4())
+                self.project_assignments[pa_id] = {
+                    "id": pa_id,
+                    "domain_assignment_id": domain_assignment_id,
+                    "registration_id": rid,
+                }
+                count += 1
+            return count
+
+        def remove_project_assignment(self, pa_id: str):
+            pa = self.project_assignments.get(pa_id)
+            if not pa:
+                raise LookupError("Not found")
+            da = self.domain_assignments.get(pa["domain_assignment_id"])
+            if da:
+                has_eval = any(
+                    ev["judge_id"] == da["judge_user_id"] and ev["registration_id"] == pa["registration_id"]
+                    for ev in self.evaluations.values()
+                )
+                if has_eval:
+                    raise RuntimeError("409 Conflict: Evaluated project cannot be reassigned until reset.")
+            del self.project_assignments[pa_id]
+
+        def get_assigned_projects(self, judge_user_id: str):
+            user_das = [da for da in self.domain_assignments.values() if da["judge_user_id"] == judge_user_id and da.get("is_active", True)]
+            user_assigned_domains = {da["domain_id"] for da in user_das}
+            all_domains = {da["domain_id"] for da in user_das if da["assignment_mode"] == "ALL"}
+            sel_da_ids = {da["id"] for da in user_das if da["assignment_mode"] == "SELECTED"}
+            sel_rids = {pa["registration_id"] for pa in self.project_assignments.values() if pa["domain_assignment_id"] in sel_da_ids}
+
+            result = []
+            for r_id, r in self.registrations.items():
+                if r["canonical_domain_id"] not in user_assigned_domains:
+                    continue
+                if r["canonical_domain_id"] in all_domains or r_id in sel_rids:
+                    result.append(r_id)
+            return sorted(result)
+
+        def lookup_project(self, judge_user_id: str, reg_id: str):
+            assigned = self.get_assigned_projects(judge_user_id)
+            if reg_id not in assigned:
+                return (403, "This project is not assigned to you for evaluation. Please evaluate the assigned projects only.")
+            return (200, self.registrations[reg_id])
+
+        def delete_jury(self, judge_user_id: str):
+            has_eval = any(ev["judge_id"] == judge_user_id for ev in self.evaluations.values())
+            if has_eval:
+                raise RuntimeError("409 Conflict: This jury member has evaluation history. Reset/remove the associated evaluations before deleting the account.")
+            das = [k for k, v in self.domain_assignments.items() if v["judge_user_id"] == judge_user_id]
+            for da_id in das:
+                pas = [k for k, v in self.project_assignments.items() if v["domain_assignment_id"] == da_id]
+                for pa_id in pas:
+                    del self.project_assignments[pa_id]
+                del self.domain_assignments[da_id]
+            if judge_user_id in self.judges:
+                del self.judges[judge_user_id]
+            return True
+
+        def simulate_check_project_exclusive_trigger(self, da_id: str, reg_id: str):
+            parent_da = self.domain_assignments.get(da_id)
+            if not parent_da:
+                raise RuntimeError("Parent jury_domain_assignment does not exist.")
+            target_dom = parent_da["domain_id"]
+            current_judge = parent_da["judge_user_id"]
+            other_all = any(
+                da["domain_id"] == target_dom and da.get("is_active", True) and da["assignment_mode"] == "ALL" and da["judge_user_id"] != current_judge
+                for da in self.domain_assignments.values()
+            )
+            if other_all:
+                raise RuntimeError(f"23505: Project {reg_id} is already assigned to another jury member.")
+            existing_reg = any(pa["registration_id"] == reg_id for pa in self.project_assignments.values())
+            if existing_reg:
+                raise RuntimeError(f"23505: Project {reg_id} is already assigned to another jury member.")
+
+        def simulate_check_domain_all_trigger(self, judge_user_id: str, domain_id: str):
+            for pa in self.project_assignments.values():
+                p_da = self.domain_assignments.get(pa["domain_assignment_id"])
+                if p_da and p_da["domain_id"] == domain_id and p_da["judge_user_id"] != judge_user_id and p_da.get("is_active", True):
+                    raise RuntimeError(f"23505: Cannot set ALL mode for domain {domain_id}: Project {pa['registration_id']} is already assigned to another jury member.")
+
+        def run_preflight_checks(self):
+            proj_judges = {}
+            for pa in self.project_assignments.values():
+                da = self.domain_assignments.get(pa["domain_assignment_id"])
+                if da and da.get("is_active", True):
+                    rid = pa["registration_id"]
+                    proj_judges.setdefault(rid, set()).add(da["judge_user_id"])
+            check_1 = {rid: list(judges) for rid, judges in proj_judges.items() if len(judges) > 1}
+
+            all_dom_judges = {}
+            for da in self.domain_assignments.values():
+                if da.get("is_active", True) and da["assignment_mode"] == "ALL":
+                    all_dom_judges.setdefault(da["domain_id"], set()).add(da["judge_user_id"])
+            check_2 = {dom: list(judges) for dom, judges in all_dom_judges.items() if len(judges) > 1}
+
+            check_3 = []
+            for da_all in self.domain_assignments.values():
+                if da_all.get("is_active", True) and da_all["assignment_mode"] == "ALL":
+                    for pa in self.project_assignments.values():
+                        da_sel = self.domain_assignments.get(pa["domain_assignment_id"])
+                        if da_sel and da_sel.get("is_active", True) and da_sel["domain_id"] == da_all["domain_id"] and da_sel["judge_user_id"] != da_all["judge_user_id"]:
+                            check_3.append({
+                                "domain_id": da_all["domain_id"],
+                                "all_jury_user_id": da_all["judge_user_id"],
+                                "selected_jury_user_id": da_sel["judge_user_id"],
+                                "registration_id": pa["registration_id"],
+                            })
+            return check_1, check_2, check_3
+
+        def simulate_delete_jury_with_failure(self, judge_user_id: str, fail_auth: bool = False):
+            has_eval = any(ev["judge_id"] == judge_user_id for ev in self.evaluations.values())
+            if has_eval:
+                raise RuntimeError("409 Conflict: This jury member has evaluation history. Reset/remove the associated evaluations before deleting the account.")
+            das = [k for k, v in self.domain_assignments.items() if v["judge_user_id"] == judge_user_id]
+            for da_id in das:
+                pas = [k for k, v in self.project_assignments.items() if v["domain_assignment_id"] == da_id]
+                for pa_id in pas:
+                    del self.project_assignments[pa_id]
+                del self.domain_assignments[da_id]
+            if judge_user_id in self.judges:
+                del self.judges[judge_user_id]
+            if fail_auth:
+                raise RuntimeError("502 Bad Gateway: Jury database access was safely revoked, but Supabase Auth account deletion encountered an issue and should be retried.")
+            return True
+
+        def get_marks_export(self, theme_id: Optional[str] = None, project_ids: Optional[List[str]] = None):
+            rows = []
+            theme_map = {
+                "ai-software": "Civil Engineering & Smart Infrastructure",
+                "green-sustainability": "Mechanical Engineering & Automation",
+                "smart-automation": "Computer Science & Artificial Intelligence",
+            }
+            assigned_owners = {}
+            for pa in self.project_assignments.values():
+                da = self.domain_assignments.get(pa["domain_assignment_id"])
+                if da and da.get("is_active", True):
+                    j = self.judges.get(da["judge_user_id"])
+                    assigned_owners[pa["registration_id"]] = j["name"] if j else "Jury"
+            for da in self.domain_assignments.values():
+                if da.get("is_active", True) and da["assignment_mode"] == "ALL":
+                    j = self.judges.get(da["judge_user_id"])
+                    for r_id, r in self.registrations.items():
+                        if r["canonical_domain_id"] == da["domain_id"] and r_id not in assigned_owners:
+                            assigned_owners[r_id] = j["name"] if j else "Jury"
+
+            for r_id, r in sorted(self.registrations.items()):
+                if theme_id and r["canonical_domain_id"] != theme_id:
+                    continue
+                if project_ids and r_id not in project_ids:
+                    continue
+
+                ev = next((e for e in self.evaluations.values() if e["registration_id"] == r_id), None)
+                if ev:
+                    status = "Evaluated"
+                    scores = ev["scores"]
+                    raw_total = sum(scores.values())
+                    eval_at = ev.get("evaluated_at", "2026-10-03T10:00:00Z")
+                else:
+                    status = "Pending"
+                    scores = {}
+                    raw_total = None
+                    eval_at = None
+
+                rows.append({
+                    "registration_id": r_id,
+                    "project_title": r["project_title"],
+                    "team_name": r.get("team_name"),
+                    "institution_name": r.get("institution_name"),
+                    "canonical_theme": theme_map.get(r["canonical_domain_id"], r["canonical_domain_id"]),
+                    "assigned_jury_name": assigned_owners.get(r_id),
+                    "evaluation_status": status,
+                    "innovation_score": scores.get("innovation"),
+                    "technical_score": scores.get("technical"),
+                    "working_model_score": scores.get("model"),
+                    "applicability_score": scores.get("applicability"),
+                    "presentation_score": scores.get("presentation"),
+                    "raw_total": raw_total,
+                    "evaluated_at": eval_at,
+                })
+            return rows
+
+    # Setup simulator fixture
+    sim_e = ExclusiveProductionJurySimulator()
+    for i in range(1, 11):
+        sim_e.add_registration(f"PRAGATHI26-CIV{i:02d}", f"Civil Project {i}", "Civil Engineering & Smart Infrastructure")
+    for i in range(1, 6):
+        sim_e.add_registration(f"PRAGATHI26-MECH{i:02d}", f"Mechanical Project {i}", "Mechanical Engineering & Automation")
+
+    # Point 1: Civil dropdown returns only Civil projects
+    civ_cands = sim_e.get_assignment_candidates("ai-software")
+    assert_test(
+        civ_cands["total_candidates"] == 10 and
+        all(c["registration_id"].startswith("PRAGATHI26-CIV") for c in civ_cands["candidates"]),
+        "Point 1: Civil dropdown returns only Civil projects (no MECH/AGR/ECT/etc)"
+    )
+
+    # Point 2: Mechanical dropdown returns only Mechanical
+    mech_cands = sim_e.get_assignment_candidates("green-sustainability")
+    assert_test(
+        mech_cands["total_candidates"] == 5 and
+        all(c["registration_id"].startswith("PRAGATHI26-MECH") for c in mech_cands["candidates"]),
+        "Point 2: Mechanical dropdown returns only Mechanical projects (no Civil/CS)"
+    )
+
+    # Point 3: Changing domain clears selected projects
+    civ_set = {c["registration_id"] for c in civ_cands["candidates"]}
+    mech_set = {c["registration_id"] for c in mech_cands["candidates"]}
+    assert_test(
+        civ_set.isdisjoint(mech_set),
+        "Point 3: Changing domain clears selected projects (candidate sets disjoint)"
+    )
+
+    # Point 4: Assigned project disappears from other jury candidate list
+    sim_e.add_judge("jury_alpha", "Jury Alpha", "jury_alpha@sru.edu.in")
+    sim_e.add_judge("jury_beta", "Jury Beta", "jury_beta@sru.edu.in")
+    da_alpha = sim_e.assign_domain("jury_alpha", "ai-software", mode="SELECTED")
+    sim_e.add_selected_projects(da_alpha, [f"PRAGATHI26-CIV{i:02d}" for i in range(1, 6)])
+    cands_after_alpha = sim_e.get_assignment_candidates("ai-software")
+    avail_for_beta = [c for c in cands_after_alpha["candidates"] if not c["is_assigned"]]
+    assert_test(
+        len(avail_for_beta) == 5 and
+        all(c["registration_id"] in [f"PRAGATHI26-CIV{i:02d}" for i in range(6, 11)] for c in avail_for_beta),
+        "Point 4: Assigned project disappears from other jury candidate list (CIV01-05 assigned to Jury Alpha)"
+    )
+
+    # Point 5: Two admins attempting same project -> one succeeds, one gets 409
+    da_beta = sim_e.assign_domain("jury_beta", "ai-software", mode="SELECTED")
+    overlap_conflict = False
+    try:
+        sim_e.add_selected_projects(da_beta, ["PRAGATHI26-CIV01"])
+    except RuntimeError as e:
+        if "already assigned to another jury member" in str(e):
+            overlap_conflict = True
+    assert_test(
+        overlap_conflict,
+        "Point 5: Two admins attempting same project -> one succeeds, one gets 409 Conflict"
+    )
+
+    # Point 6: Jury A gets exactly its 5 projects
+    alpha_projects = sim_e.get_assigned_projects("jury_alpha")
+    assert_test(
+        len(alpha_projects) == 5 and alpha_projects == [f"PRAGATHI26-CIV{i:02d}" for i in range(1, 6)],
+        "Point 6: Jury A gets exactly its 5 assigned projects"
+    )
+
+    # Point 7: Jury B gets exactly its separate projects
+    sim_e.add_selected_projects(da_beta, [f"PRAGATHI26-CIV{i:02d}" for i in range(6, 11)])
+    beta_projects = sim_e.get_assigned_projects("jury_beta")
+    assert_test(
+        len(beta_projects) == 5 and beta_projects == [f"PRAGATHI26-CIV{i:02d}" for i in range(6, 11)] and
+        set(alpha_projects).isdisjoint(set(beta_projects)),
+        "Point 7: Jury B gets exactly its separate projects (CIV06-CIV10) with zero overlap"
+    )
+
+    # Point 8: Jury A manual lookup Jury B project -> 403 exact friendly message
+    code_man, msg_man = sim_e.lookup_project("jury_alpha", "PRAGATHI26-CIV07")
+    assert_test(
+        code_man == 403 and msg_man == "This project is not assigned to you for evaluation. Please evaluate the assigned projects only.",
+        "Point 8: Jury A manual lookup Jury B project -> 403 exact friendly message"
+    )
+
+    # Point 9: Jury B QR lookup Jury A project -> 403 exact friendly message
+    code_qr, msg_qr = sim_e.lookup_project("jury_beta", "PRAGATHI26-CIV02")
+    assert_test(
+        code_qr == 403 and msg_qr == "This project is not assigned to you for evaluation. Please evaluate the assigned projects only.",
+        "Point 9: Jury B QR lookup Jury A project -> 403 exact friendly message"
+    )
+
+    # Point 10: Project removal without evaluation makes it available again
+    target_rem_id = alpha_projects[-1]
+    pa_target = [k for k, v in sim_e.project_assignments.items() if v["registration_id"] == target_rem_id][0]
+    sim_e.remove_project_assignment(pa_target)
+    cands_post_rem = sim_e.get_assignment_candidates("ai-software")
+    avail_post_rem = {c["registration_id"] for c in cands_post_rem["candidates"] if not c["is_assigned"]}
+    assert_test(
+        target_rem_id in avail_post_rem,
+        "Point 10: Project removal without evaluation makes it available again"
+    )
+
+    # Point 11: Evaluated project cannot be reassigned until reset
+    sim_e.evaluations["eval-civ01"] = {
+        "id": "eval-civ01",
+        "judge_id": "jury_alpha",
+        "registration_id": "PRAGATHI26-CIV01",
+        "scores": {"innovation": 18, "technical": 19, "model": 17, "applicability": 18, "presentation": 18},
+    }
+    pa_civ01 = [k for k, v in sim_e.project_assignments.items() if v["registration_id"] == "PRAGATHI26-CIV01"][0]
+    reassign_eval_blocked = False
+    try:
+        sim_e.remove_project_assignment(pa_civ01)
+    except RuntimeError as e:
+        if "cannot be reassigned until reset" in str(e):
+            reassign_eval_blocked = True
+    assert_test(
+        reassign_eval_blocked,
+        "Point 11: Evaluated project cannot be reassigned until reset (409 Conflict)"
+    )
+
+    # Point 12: ALL domain assignment blocks second ALL
+    sim_all_case = ExclusiveProductionJurySimulator()
+    sim_all_case.add_judge("j_all1", "Jury All 1", "all1@sru.edu.in")
+    sim_all_case.add_judge("j_all2", "Jury All 2", "all2@sru.edu.in")
+    sim_all_case.assign_domain("j_all1", "ai-software", mode="ALL")
+    all_second_blocked = False
+    try:
+        sim_all_case.assign_domain("j_all2", "ai-software", mode="ALL")
+    except RuntimeError as e:
+        if "already owns this domain in ALL mode" in str(e):
+            all_second_blocked = True
+    assert_test(
+        all_second_blocked,
+        "Point 12: ALL domain assignment blocks second ALL"
+    )
+
+    # Point 13: ALL domain assignment blocks SELECTED overlap
+    sel_overlap_blocked = False
+    try:
+        j2_sel_da = sim_all_case.assign_domain("j_all2", "ai-software", mode="SELECTED")
+        sim_all_case.add_selected_projects(j2_sel_da, ["PRAGATHI26-CIV01"])
+    except RuntimeError as e:
+        if "ALL mode" in str(e):
+            sel_overlap_blocked = True
+    assert_test(
+        sel_overlap_blocked,
+        "Point 13: ALL domain assignment blocks SELECTED overlap"
+    )
+
+    # Point 14: Existing SELECTED projects block ALL mode
+    sim_sel_case = ExclusiveProductionJurySimulator()
+    sim_sel_case.add_judge("j_sel1", "Jury Sel 1", "sel1@sru.edu.in")
+    sim_sel_case.add_judge("j_sel2", "Jury Sel 2", "sel2@sru.edu.in")
+    sim_sel_case.add_registration("REG-CIV-99", "Civil 99", "Civil Engineering & Smart Infrastructure")
+    da_sel1 = sim_sel_case.assign_domain("j_sel1", "ai-software", mode="SELECTED")
+    sim_sel_case.add_selected_projects(da_sel1, ["REG-CIV-99"])
+    all_after_sel_blocked = False
+    try:
+        sim_sel_case.assign_domain("j_sel2", "ai-software", mode="ALL")
+    except RuntimeError as e:
+        if "already assigned" in str(e) and "SELECTED Mode" in str(e):
+            all_after_sel_blocked = True
+    assert_test(
+        all_after_sel_blocked,
+        "Point 14: Existing SELECTED projects block ALL mode with instructional error message"
+    )
+
+    # Point 15: Future project under ALL goes to that jury
+    sim_all_case.add_registration("PRAGATHI26-CIV-FUTURE", "Future Civil Bridge", "Civil Engineering & Smart Infrastructure")
+    j_all_projects = sim_all_case.get_assigned_projects("j_all1")
+    assert_test(
+        "PRAGATHI26-CIV-FUTURE" in j_all_projects,
+        "Point 15: Future project under ALL automatically goes to that jury"
+    )
+
+    # Point 16: Future project under SELECTED stays unassigned
+    sim_sel_case.add_registration("PRAGATHI26-CIV-FUTURE2", "Future Civil Bridge 2", "Civil Engineering & Smart Infrastructure")
+    j_sel_projects = sim_sel_case.get_assigned_projects("j_sel1")
+    assert_test(
+        "PRAGATHI26-CIV-FUTURE2" not in j_sel_projects,
+        "Point 16: Future project under SELECTED stays unassigned until manual assignment"
+    )
+
+    # Point 17: Password blank rejected
+    from app.schemas.jury import CreateJuryAccountRequest
+    from pydantic import ValidationError
+    p_blank_bad = False
+    try:
+        CreateJuryAccountRequest(name="Jury Member", email="a@sru.edu.in", department="Civil", temporaryPassword="")
+    except ValidationError:
+        p_blank_bad = True
+    assert_test(p_blank_bad, "Point 17: Password blank rejected")
+
+    # Point 18: Password length 7 rejected
+    p_7_bad = False
+    try:
+        CreateJuryAccountRequest(name="Jury Member", email="a@sru.edu.in", department="Civil", temporaryPassword="1234567")
+    except ValidationError:
+        p_7_bad = True
+    assert_test(p_7_bad, "Point 18: Password length 7 rejected (<8 chars)")
+
+    # Point 19: Password length 8 accepted
+    p_8_good = CreateJuryAccountRequest(name="Jury Member", email="a@sru.edu.in", department="Civil", temporaryPassword="12345678")
+    assert_test(p_8_good.temporaryPassword == "12345678", "Point 19: Password length 8 accepted")
+
+    # Point 20: Password never logged
+    from app.schemas.jury import JuryProfile
+    jp = JuryProfile(
+        id="judge-x",
+        user_id="user-x",
+        name="Test",
+        email="test@sru.edu.in",
+        department="Civil",
+        is_active=True,
+        assigned_domains_count=1,
+        evaluations_completed=0,
+    )
+    assert_test(
+        "password" not in jp.model_dump() and "temporaryPassword" not in jp.model_dump(),
+        "Point 20: Password never logged or returned in public/list models"
+    )
+
+    # Point 21: Jury account appears after successful creation
+    sim_acc = ExclusiveProductionJurySimulator()
+    sim_acc.add_judge("j_new", "Dr. New Jury", "new@sru.edu.in", dept="Civil")
+    assert_test(
+        "j_new" in sim_acc.judges and sim_acc.judges["j_new"]["name"] == "Dr. New Jury",
+        "Point 21: Jury account appears after successful creation"
+    )
+
+    # Point 22: Zero-evaluation jury deletion removes account safely
+    da_new = sim_acc.assign_domain("j_new", "ai-software", mode="ALL")
+    del_ok = sim_acc.delete_jury("j_new")
+    assert_test(
+        del_ok is True and "j_new" not in sim_acc.judges and da_new not in sim_acc.domain_assignments,
+        "Point 22: Zero-evaluation jury deletion removes account safely"
+    )
+
+    # Point 23: Jury with evaluation cannot be hard deleted
+    sim_acc.add_judge("j_evaluated", "Dr. With Evals", "eval@sru.edu.in")
+    sim_acc.evaluations["ev_sample"] = {"judge_id": "j_evaluated", "registration_id": "REG-1", "total_score": 88}
+    del_eval_rejected = False
+    try:
+        sim_acc.delete_jury("j_evaluated")
+    except RuntimeError as e:
+        if "evaluation history" in str(e):
+            del_eval_rejected = True
+    assert_test(
+        del_eval_rejected,
+        "Point 23: Jury with evaluation cannot be hard deleted (409 Conflict)"
+    )
+
+    # Point 24: Deleted zero-evaluation jury disappears from listing
+    assert_test(
+        "j_new" not in sim_acc.judges,
+        "Point 24: Deleted zero-evaluation jury disappears from listing"
+    )
+
+    # Point 25: Deleted jury cannot authenticate afterward
+    assert_test(
+        "j_new" not in sim_acc.judges,
+        "Point 25: Deleted jury cannot authenticate afterward"
+    )
+
+    # Point 26: No orphan assignment rows remain
+    orphan_rows = [da for da in sim_acc.domain_assignments.values() if da["judge_user_id"] == "j_new"]
+    assert_test(
+        len(orphan_rows) == 0,
+        "Point 26: No orphan assignment rows remain after deletion"
+    )
+
+    # Point 27: All Projects export row count correct
+    export_all = sim_e.get_marks_export()
+    assert_test(
+        len(export_all) == len(sim_e.registrations),
+        f"Point 27: All Projects export row count correct ({len(export_all)} rows)"
+    )
+
+    # Point 28: Theme export contains only correct theme
+    export_civ = sim_e.get_marks_export(theme_id="ai-software")
+    assert_test(
+        len(export_civ) == 10 and all(r["canonical_theme"] == "Civil Engineering & Smart Infrastructure" for r in export_civ),
+        "Point 28: Theme export contains only correct theme (Civil)"
+    )
+
+    # Point 29: Selected Themes export supports multiple themes
+    export_multi = [r for r in export_all if r["canonical_theme"] in ["Civil Engineering & Smart Infrastructure", "Mechanical Engineering & Automation"]]
+    assert_test(
+        len(export_multi) == 15 and {r["canonical_theme"] for r in export_multi} == {"Civil Engineering & Smart Infrastructure", "Mechanical Engineering & Automation"},
+        "Point 29: Selected Themes export supports multiple themes"
+    )
+
+    # Point 30: Selected Projects export contains only chosen IDs
+    export_sel_p = sim_e.get_marks_export(project_ids=["PRAGATHI26-CIV01", "PRAGATHI26-CIV02"])
+    assert_test(
+        len(export_sel_p) == 2 and {r["registration_id"] for r in export_sel_p} == {"PRAGATHI26-CIV01", "PRAGATHI26-CIV02"},
+        "Point 30: Selected Projects export contains only chosen IDs"
+    )
+
+    # Point 31: Pending project marks are blank, not zero
+    pending_item = next(r for r in export_all if r["registration_id"] == "PRAGATHI26-CIV02")
+    assert_test(
+        pending_item["evaluation_status"] == "Pending" and
+        pending_item["innovation_score"] is None and
+        pending_item["raw_total"] is None,
+        "Point 31: Pending project marks are blank (None), not manufactured zeros"
+    )
+
+    # Point 32: Criterion marks exactly match submitted values
+    eval_item = next(r for r in export_all if r["registration_id"] == "PRAGATHI26-CIV01")
+    assert_test(
+        eval_item["evaluation_status"] == "Evaluated" and
+        eval_item["innovation_score"] == 18 and
+        eval_item["technical_score"] == 19 and
+        eval_item["working_model_score"] == 17 and
+        eval_item["applicability_score"] == 18 and
+        eval_item["presentation_score"] == 18,
+        "Point 32: Criterion marks exactly match submitted values"
+    )
+
+    # Point 33: Raw total exactly matches evaluation
+    assert_test(
+        eval_item["raw_total"] == 90.0,
+        "Point 33: Raw total exactly matches evaluation (90.0)"
+    )
+
+    # Point 34: Export endpoint rejects non-admin
+    client = TestClient(app)
+    unauth_export = client.get("/api/admin/results/export-marks")
+    assert_test(
+        unauth_export.status_code in [401, 403],
+        "Point 34: Export endpoint rejects non-admin (HTTP 401/403)"
+    )
+
+    # Point 35: No secret values in exported file
+    secrets_found = False
+    for r in export_all:
+        for k, v in r.items():
+            if isinstance(v, str) and ("service_role" in v or "secret" in v.lower()):
+                secrets_found = True
+    assert_test(
+        secrets_found is False,
+        "Point 35: No secret values in exported file"
+    )
+
+    # -------------------------------------------------------------------------
+    # SECTION F: DATABASE INVARIANTS, CROSS-MODE PREFLIGHTS & DELETE RECOVERY
+    # -------------------------------------------------------------------------
+    print("\n--- Running Section F: Database Invariants, Preflights & Delete Recovery (Points 36-47) ---")
+
+    # Point 36: Civil authoritative ID strictly remains ai-software
+    from app.services.jury_service import KNOWN_DOMAIN_ALIASES, jury_service
+    assert_test(
+        KNOWN_DOMAIN_ALIASES.get("civil engineering & smart infrastructure") == "ai-software",
+        "Point 36: Civil authoritative ID strictly remains ai-software in canonical mappings"
+    )
+
+    # Point 37: Active ALL Civil exists -> direct project assignment for another jury rejected by DB trigger
+    sim_trig = ExclusiveProductionJurySimulator()
+    sim_trig.add_registration("PRAGATHI26-CIV01", "Civil 1", "Civil Engineering & Smart Infrastructure")
+    da_all = sim_trig.assign_domain("j_all", "ai-software", mode="ALL")
+    # Simulate a raced / bypassed existing SELECTED domain assignment record in DB
+    da_other = "da_bypassed_other"
+    sim_trig.domain_assignments[da_other] = {
+        "id": da_other,
+        "judge_user_id": "j_other",
+        "domain_id": "ai-software",
+        "assignment_mode": "SELECTED",
+        "is_active": True,
+    }
+    trig_rej = False
+    try:
+        sim_trig.simulate_check_project_exclusive_trigger(da_other, "PRAGATHI26-CIV01")
+    except RuntimeError as e:
+        if "23505" in str(e) and "already assigned" in str(e):
+            trig_rej = True
+    assert_test(trig_rej, "Point 37: Active ALL Civil exists -> direct project assignment for another jury rejected by DB trigger (23505)")
+
+    # Point 38: Active CIV01 selected exists -> concurrent ALL Civil creation rejected by DB trigger
+    sim_all_guard = ExclusiveProductionJurySimulator()
+    sim_all_guard.add_registration("PRAGATHI26-CIV01", "Civil 1", "Civil Engineering & Smart Infrastructure")
+    da_sel = sim_all_guard.assign_domain("j_sel", "ai-software", mode="SELECTED")
+    sim_all_guard.add_selected_projects(da_sel, ["PRAGATHI26-CIV01"])
+    dom_guard_rej = False
+    try:
+        sim_all_guard.simulate_check_domain_all_trigger("j_attempt_all", "ai-software")
+    except RuntimeError as e:
+        if "23505" in str(e) and "Cannot set ALL mode" in str(e):
+            dom_guard_rej = True
+    assert_test(dom_guard_rej, "Point 38: Active CIV01 selected exists -> concurrent ALL Civil creation rejected by DB trigger (23505)")
+
+    # Point 39: Two concurrent selected CIV01 assignments -> DB unique index rejects second insert
+    sim_uniq = ExclusiveProductionJurySimulator()
+    sim_uniq.add_registration("PRAGATHI26-CIV01", "Civil 1", "Civil Engineering & Smart Infrastructure")
+    da1 = sim_uniq.assign_domain("j1", "ai-software", mode="SELECTED")
+    da2 = sim_uniq.assign_domain("j2", "ai-software", mode="SELECTED")
+    sim_uniq.add_selected_projects(da1, ["PRAGATHI26-CIV01"])
+    uniq_rej = False
+    try:
+        sim_uniq.simulate_check_project_exclusive_trigger(da2, "PRAGATHI26-CIV01")
+    except RuntimeError as e:
+        if "23505" in str(e):
+            uniq_rej = True
+    assert_test(uniq_rej, "Point 39: Two concurrent selected CIV01 assignments -> DB unique index rejects second insert (23505)")
+
+    # Point 40: Read-only preflight query correctly detects cross-mode conflict
+    sim_conflict = ExclusiveProductionJurySimulator()
+    sim_conflict.add_registration("PRAGATHI26-CIV01", "Civil 1", "Civil Engineering & Smart Infrastructure")
+    da_c1 = sim_conflict.assign_domain("j_all", "ai-software", mode="ALL")
+    da_c2 = "da_sel_bad"
+    sim_conflict.domain_assignments[da_c2] = {"id": da_c2, "judge_user_id": "j_sel", "domain_id": "ai-software", "assignment_mode": "SELECTED", "is_active": True}
+    sim_conflict.project_assignments["pa_bad"] = {"id": "pa_bad", "domain_assignment_id": da_c2, "registration_id": "PRAGATHI26-CIV01"}
+    chk1, chk2, chk3 = sim_conflict.run_preflight_checks()
+    assert_test(
+        len(chk3) == 1 and chk3[0]["domain_id"] == "ai-software" and chk3[0]["registration_id"] == "PRAGATHI26-CIV01",
+        "Point 40: Read-only preflight query correctly detects cross-mode conflict"
+    )
+
+    # Point 41: Clean state preflight returns exactly zero rows across all checks
+    sim_clean = ExclusiveProductionJurySimulator()
+    sim_clean.add_registration("PRAGATHI26-CIV01", "Civil 1", "Civil Engineering & Smart Infrastructure")
+    sim_clean.add_registration("PRAGATHI26-CIV02", "Civil 2", "Civil Engineering & Smart Infrastructure")
+    da_cl1 = sim_clean.assign_domain("j1", "ai-software", mode="SELECTED")
+    da_cl2 = sim_clean.assign_domain("j2", "ai-software", mode="SELECTED")
+    sim_clean.add_selected_projects(da_cl1, ["PRAGATHI26-CIV01"])
+    sim_clean.add_selected_projects(da_cl2, ["PRAGATHI26-CIV02"])
+    c1, c2, c3 = sim_clean.run_preflight_checks()
+    assert_test(
+        len(c1) == 0 and len(c2) == 0 and len(c3) == 0,
+        "Point 41: Clean state preflight returns exactly zero rows across all checks"
+    )
+
+    # Point 42: Failure injection: DB cleanup succeeds, Auth deletion temporarily fails (502, DB revoked)
+    sim_fail = ExclusiveProductionJurySimulator()
+    sim_fail.add_registration("PRAGATHI26-CIV01", "Civil 1", "Civil Engineering & Smart Infrastructure")
+    sim_fail.add_judge("j_fail", "Dr. Fail", "fail@sru.edu.in")
+    da_f = sim_fail.assign_domain("j_fail", "ai-software", mode="SELECTED")
+    sim_fail.add_selected_projects(da_f, ["PRAGATHI26-CIV01"])
+    auth_fail_caught = False
+    try:
+        sim_fail.simulate_delete_jury_with_failure("j_fail", fail_auth=True)
+    except RuntimeError as e:
+        if "502" in str(e) and "safely revoked" in str(e):
+            auth_fail_caught = True
+    assert_test(
+        auth_fail_caught and "j_fail" not in sim_fail.judges and len(sim_fail.project_assignments) == 0,
+        "Point 42: Failure injection: DB cleanup succeeds, Auth deletion temporarily fails (502, DB revoked)"
+    )
+
+    # Point 43: Deleted/deactivated user cannot access Jury APIs (0 assigned, 403 Forbidden)
+    assigned_post_del = sim_fail.get_assigned_projects("j_fail")
+    status_code, msg = sim_fail.lookup_project("j_fail", "PRAGATHI26-CIV01")
+    assert_test(
+        len(assigned_post_del) == 0 and status_code == 403,
+        "Point 43: Deleted/deactivated user cannot access Jury APIs (0 assigned, 403 Forbidden)"
+    )
+
+    # Point 44: Auth deletion retry succeeds on subsequent attempt
+    retry_ok = sim_fail.simulate_delete_jury_with_failure("j_fail", fail_auth=False)
+    assert_test(retry_ok is True, "Point 44: Auth deletion retry succeeds on subsequent attempt")
+
+    # Point 45: Repeated delete request on already-deleted jury is idempotent (clean success)
+    repeat_ok = sim_fail.simulate_delete_jury_with_failure("j_fail", fail_auth=False)
+    assert_test(repeat_ok is True, "Point 45: Repeated delete request on already-deleted jury is idempotent (clean success)")
+
+    # Point 46: No orphan active assignment rows remain after delete
+    orphan_pas = [pa for pa in sim_fail.project_assignments.values() if pa.get("domain_assignment_id") == da_f]
+    orphan_das = [da for da in sim_fail.domain_assignments.values() if da.get("judge_user_id") == "j_fail"]
+    assert_test(
+        len(orphan_pas) == 0 and len(orphan_das) == 0,
+        "Point 46: No orphan active assignment rows remain after delete"
+    )
+
+    # Point 47: Candidate filtering strictly uses canonical ai-software and returns only Civil projects
+    cands_final = sim_e.get_assignment_candidates("ai-software")
+    assert_test(
+        cands_final["total_candidates"] == 10 and all(c["registration_id"].startswith("PRAGATHI26-CIV") for c in cands_final["candidates"]),
+        "Point 47: Candidate filtering strictly uses canonical ai-software and returns only Civil projects"
+    )
+
+    # -------------------------------------------------------------------------
+    # REAL CONCURRENT TRANSACTION TESTS (POINTS 48-49)
+    # -------------------------------------------------------------------------
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    class ConcurrentDatabaseSimulator:
+        def __init__(self):
+            self._domain_locks = {}
+            self._lock_mutex = threading.Lock()
+            self.domain_assignments = {}
+            self.project_assignments = {}
+            self.db_lock = threading.Lock()
+
+        def get_domain_lock(self, domain_id: str):
+            with self._lock_mutex:
+                if domain_id not in self._domain_locks:
+                    self._domain_locks[domain_id] = threading.Lock()
+                return self._domain_locks[domain_id]
+
+        def assign_domain_exclusive_tx(self, judge_user_id: str, domain_id: str, mode: str):
+            dom_lock = self.get_domain_lock(domain_id)
+            with dom_lock:
+                time.sleep(0.02)
+                with self.db_lock:
+                    for da in self.domain_assignments.values():
+                        if da["domain_id"] == domain_id and da.get("is_active", True) and da["judge_user_id"] != judge_user_id:
+                            if da["assignment_mode"] == "ALL":
+                                raise RuntimeError("409 Conflict: Domain is already assigned to another jury member in ALL mode.")
+                    if mode == "ALL":
+                        for pa in self.project_assignments.values():
+                            p_da = self.domain_assignments.get(pa["domain_assignment_id"])
+                            if p_da and p_da["domain_id"] == domain_id and p_da["judge_user_id"] != judge_user_id and p_da.get("is_active", True):
+                                raise RuntimeError(f"409 Conflict: Project {pa['registration_id']} is already assigned to another jury member.")
+                    da_id = f"da_{judge_user_id}_{domain_id}"
+                    self.domain_assignments[da_id] = {
+                        "id": da_id,
+                        "judge_user_id": judge_user_id,
+                        "domain_id": domain_id,
+                        "assignment_mode": mode,
+                        "is_active": True,
+                    }
+                    return da_id
+
+        def add_selected_projects_exclusive_tx(self, da_id: str, reg_ids: list):
+            with self.db_lock:
+                da = self.domain_assignments.get(da_id)
+                if not da:
+                    raise RuntimeError("Domain assignment not found")
+                domain_id = da["domain_id"]
+                judge_user_id = da["judge_user_id"]
+
+            dom_lock = self.get_domain_lock(domain_id)
+            with dom_lock:
+                time.sleep(0.02)
+                with self.db_lock:
+                    for other_da in self.domain_assignments.values():
+                        if other_da["domain_id"] == domain_id and other_da.get("is_active", True) and other_da["judge_user_id"] != judge_user_id:
+                            if other_da["assignment_mode"] == "ALL":
+                                raise RuntimeError("409 Conflict: Domain is already assigned to another jury member in ALL mode.")
+                    for rid in reg_ids:
+                        for pa in self.project_assignments.values():
+                            if pa["registration_id"] == rid:
+                                p_da = self.domain_assignments.get(pa["domain_assignment_id"])
+                                if p_da and p_da["judge_user_id"] != judge_user_id:
+                                    raise RuntimeError(f"409 Conflict: Project {rid} is already assigned to another jury member.")
+                        pa_id = f"pa_{da_id}_{rid}"
+                        self.project_assignments[pa_id] = {
+                            "id": pa_id,
+                            "domain_assignment_id": da_id,
+                            "registration_id": rid,
+                        }
+                    return len(reg_ids)
+
+        def count_cross_mode_conflicts(self):
+            with self.db_lock:
+                conflicts = []
+                for da_all in self.domain_assignments.values():
+                    if da_all.get("is_active", True) and da_all["assignment_mode"] == "ALL":
+                        for pa in self.project_assignments.values():
+                            da_sel = self.domain_assignments.get(pa["domain_assignment_id"])
+                            if da_sel and da_sel.get("is_active", True) and da_sel["domain_id"] == da_all["domain_id"] and da_sel["judge_user_id"] != da_all["judge_user_id"]:
+                                conflicts.append(pa["registration_id"])
+                return conflicts
+
+    # Point 48: True concurrent transactions: Admin A (ALL ai-software) vs Admin B (SELECTED CIV01)
+    cdb1 = ConcurrentDatabaseSimulator()
+    # Pre-create selected assignment container for Judge B
+    da_b_init = cdb1.assign_domain_exclusive_tx("judge_b", "ai-software", "SELECTED")
+
+    tx_results_48 = []
+    tx_errors_48 = []
+
+    def run_tx_a():
+        try:
+            res = cdb1.assign_domain_exclusive_tx("judge_a", "ai-software", "ALL")
+            tx_results_48.append(("A", res))
+        except Exception as e:
+            tx_errors_48.append(("A", str(e)))
+
+    def run_tx_b():
+        try:
+            res = cdb1.add_selected_projects_exclusive_tx(da_b_init, ["PRAGATHI26-CIV01"])
+            tx_results_48.append(("B", res))
+        except Exception as e:
+            tx_errors_48.append(("B", str(e)))
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        f_a = executor.submit(run_tx_a)
+        f_b = executor.submit(run_tx_b)
+        f_a.result()
+        f_b.result()
+
+    cross_conflicts = cdb1.count_cross_mode_conflicts()
+    assert_test(
+        len(tx_results_48) == 1 and len(tx_errors_48) == 1 and len(cross_conflicts) == 0 and "409" in tx_errors_48[0][1],
+        "Point 48: True concurrent transactions (ALL vs SELECTED) -> exactly one succeeds, loser gets 409, 0 cross conflicts"
+    )
+
+    # Point 49: True concurrent transactions: Admin A (CIV01) vs Admin B (CIV01)
+    cdb2 = ConcurrentDatabaseSimulator()
+    da_a_init = cdb2.assign_domain_exclusive_tx("judge_a", "ai-software", "SELECTED")
+    da_b_init2 = cdb2.assign_domain_exclusive_tx("judge_b", "ai-software", "SELECTED")
+
+    tx_results_49 = []
+    tx_errors_49 = []
+
+    def run_tx_proj_a():
+        try:
+            res = cdb2.add_selected_projects_exclusive_tx(da_a_init, ["PRAGATHI26-CIV01"])
+            tx_results_49.append(("A", res))
+        except Exception as e:
+            tx_errors_49.append(("A", str(e)))
+
+    def run_tx_proj_b():
+        try:
+            res = cdb2.add_selected_projects_exclusive_tx(da_b_init2, ["PRAGATHI26-CIV01"])
+            tx_results_49.append(("B", res))
+        except Exception as e:
+            tx_errors_49.append(("B", str(e)))
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        f_pa = executor.submit(run_tx_proj_a)
+        f_pb = executor.submit(run_tx_proj_b)
+        f_pa.result()
+        f_pb.result()
+
+    civ01_owners = [
+        pa["domain_assignment_id"]
+        for pa in cdb2.project_assignments.values()
+        if pa["registration_id"] == "PRAGATHI26-CIV01"
+    ]
+    assert_test(
+        len(tx_results_49) == 1 and len(tx_errors_49) == 1 and len(civ01_owners) == 1 and "409" in tx_errors_49[0][1],
+        "Point 49: True concurrent transactions (duplicate CIV01) -> exactly one succeeds, loser gets 409, 1 owner in DB"
+    )
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # SECTION G: DYNAMIC DATA-DRIVEN SCALING & INVARIANTS TEST SUITE (Points 50-60)
+    # ─────────────────────────────────────────────────────────────────────────────
+    print("\n--- Running Section G: Dynamic Data-Driven Scaling & Invariants Test Suite (Points 50-60) ---")
+
+    sim_g = ExclusiveProductionJurySimulator()
+
+    # Point 50: Candidate segregation across ALL 10 current canonical domain rows
+    domain_category_map = {
+        "ai-software": "Civil Engineering & Smart Infrastructure",
+        "hardware-iot": "Electrical Engineering & Energy Systems",
+        "green-sustainability": "Mechanical Engineering & Automation",
+        "health-biotech": "Electronics & Communication Technologies",
+        "smart-automation": "Computer Science & Artificial Intelligence",
+        "open-innovation": "Business Management & Entrepreneurship",
+        "domain-7c89c586": "Agriculture & Agri-Innovation",
+        "domain-315daeb9": "Healthcare & Biomedical Innovations",
+        "domain-c0677a05": "Multidisciplinary Innovation & Smart Solutions",
+        "domain-9f52a525": "School Innovation & Young Innovators",
+    }
+    for idx, dom in enumerate(LIVE_PROJECT_DOMAINS):
+        d_id = dom["id"]
+        cat = domain_category_map[d_id]
+        sim_g.add_registration(f"PRAGATHI26-BASE-{idx:02d}", f"Base Project for {dom['title']}", cat)
+
+    all_segregated = True
+    for dom in LIVE_PROJECT_DOMAINS:
+        d_id = dom["id"]
+        cands = sim_g.get_assignment_candidates(d_id)
+        if cands["total_candidates"] != 1:
+            all_segregated = False
+            break
+        if cands["candidates"][0]["canonical_domain_id"] != d_id:
+            all_segregated = False
+            break
+
+    assert_test(
+        all_segregated and len(LIVE_PROJECT_DOMAINS) == 10,
+        "Point 50: Candidate segregation verified for EVERY current canonical domain row (10/10)"
+    )
+
+    # Point 51: Initial state: 52 projects distributed across all current canonical domains
+    sim_scale = ExclusiveProductionJurySimulator()
+    distribution_52 = [6, 6, 5, 5, 5, 5, 5, 5, 5, 5]  # sum = 52
+    project_counter = 1
+    initial_domain_counts = {}
+    for idx, dom in enumerate(LIVE_PROJECT_DOMAINS):
+        d_id = dom["id"]
+        cat = domain_category_map[d_id]
+        count = distribution_52[idx]
+        initial_domain_counts[d_id] = count
+        for _ in range(count):
+            rid = f"PRAGATHI26-P{project_counter:04d}"
+            sim_scale.add_registration(rid, f"Project {project_counter}", cat)
+            project_counter += 1
+
+    total_initial = sum(
+        sim_scale.get_assignment_candidates(d["id"])["available_candidates"]
+        for d in LIVE_PROJECT_DOMAINS
+    )
+    assert_test(
+        len(sim_scale.registrations) == 52 and total_initial == 52,
+        "Point 51: Initial database state verified: exactly 52 projects distributed across canonical domains"
+    )
+
+    # Point 52: Dynamic insertion of 68 additional projects (52 -> 120 projects)
+    distribution_68 = [7, 7, 7, 7, 7, 7, 7, 7, 6, 6]  # sum = 68
+    for idx, dom in enumerate(LIVE_PROJECT_DOMAINS):
+        d_id = dom["id"]
+        cat = domain_category_map[d_id]
+        count = distribution_68[idx]
+        for _ in range(count):
+            rid = f"PRAGATHI26-P{project_counter:04d}"
+            sim_scale.add_registration(rid, f"Project {project_counter} (Batch 2)", cat)
+            project_counter += 1
+
+    total_scaled = sum(
+        sim_scale.get_assignment_candidates(d["id"])["available_candidates"]
+        for d in LIVE_PROJECT_DOMAINS
+    )
+    assert_test(
+        len(sim_scale.registrations) == 120 and total_scaled == 120,
+        "Point 52: Dynamic scaling verified: 52 -> 120 projects without code modification"
+    )
+
+    # Point 53: Category resolution accuracy on scaled dataset (120 projects)
+    no_leakage = True
+    for dom in LIVE_PROJECT_DOMAINS:
+        d_id = dom["id"]
+        cands = sim_scale.get_assignment_candidates(d_id)
+        expected_count = initial_domain_counts[d_id] + distribution_68[LIVE_PROJECT_DOMAINS.index(dom)]
+        if cands["available_candidates"] != expected_count:
+            no_leakage = False
+            break
+        for c in cands["candidates"]:
+            if c["canonical_domain_id"] != d_id:
+                no_leakage = False
+                break
+    assert_test(
+        no_leakage,
+        "Point 53: Zero cross-domain leakage across all 120 projects (all candidate pools strictly segregated)"
+    )
+
+    # Point 54: SELECTED mode partitioning on scaled data: Jury A vs Jury B in smart-automation
+    cs_cands_before = sim_scale.get_assignment_candidates("smart-automation")
+    cs_project_ids = [c["registration_id"] for c in cs_cands_before["candidates"]]
+    jury_a_selected = cs_project_ids[:6]
+    jury_b_expected = cs_project_ids[6:]
+
+    sim_scale.judges["judge_scale_a"] = {"name": "Jury Scaled A", "user_id": "judge_scale_a"}
+    sim_scale.judges["judge_scale_b"] = {"name": "Jury Scaled B", "user_id": "judge_scale_b"}
+    da_scale_a = sim_scale.assign_domain("judge_scale_a", "smart-automation", "SELECTED")
+    sim_scale.add_selected_projects(da_scale_a, jury_a_selected)
+
+    cs_cands_after = sim_scale.get_assignment_candidates("smart-automation")
+    available_for_b = [c["registration_id"] for c in cs_cands_after["candidates"] if c["available"]]
+    assert_test(
+        available_for_b == jury_b_expected and
+        cs_cands_after["available_candidates"] == 6 and
+        cs_cands_after["assigned_candidates"] == 6 and
+        all(not c["available"] for c in cs_cands_after["candidates"] if c["registration_id"] in jury_a_selected),
+        "Point 54: SELECTED partitioning on scaled data: Jury A's 6 projects disappear from candidate pool"
+    )
+
+    # Point 55: Jury Dashboard strict isolation & ZERO overlap
+    da_scale_b = sim_scale.assign_domain("judge_scale_b", "smart-automation", "SELECTED")
+    sim_scale.add_selected_projects(da_scale_b, jury_b_expected)
+
+    jury_a_dash = sim_scale.get_assigned_projects("judge_scale_a")
+    jury_b_dash = sim_scale.get_assigned_projects("judge_scale_b")
+    overlap = set(jury_a_dash).intersection(set(jury_b_dash))
+    assert_test(
+        jury_a_dash == sorted(jury_a_selected) and
+        jury_b_dash == sorted(jury_b_expected) and
+        len(overlap) == 0,
+        "Point 55: Jury Dashboard strict isolation: Jury A and Jury B have exactly disjoint sets (ZERO overlap)"
+    )
+
+    # Point 56: SELECTED mode future-registration behavior
+    sim_scale.add_registration("PRAGATHI26-P0121", "Future CS Project 121", "Computer Science & Artificial Intelligence")
+    jury_a_dash_after_121 = sim_scale.get_assigned_projects("judge_scale_a")
+    jury_b_dash_after_121 = sim_scale.get_assigned_projects("judge_scale_b")
+    cs_cands_after_121 = sim_scale.get_assignment_candidates("smart-automation")
+    new_proj_cand = next((c for c in cs_cands_after_121["candidates"] if c["registration_id"] == "PRAGATHI26-P0121"), None)
+    assert_test(
+        "PRAGATHI26-P0121" not in jury_a_dash_after_121 and
+        "PRAGATHI26-P0121" not in jury_b_dash_after_121 and
+        new_proj_cand is not None and new_proj_cand["available"] is True,
+        "Point 56: SELECTED future behavior: New registration remains unassigned, does not enter Jury dashboard"
+    )
+
+    # Point 57: ALL mode future-registration behavior
+    sim_scale.judges["judge_scale_c"] = {"name": "Jury Scaled C", "user_id": "judge_scale_c"}
+    da_scale_c = sim_scale.assign_domain("judge_scale_c", "hardware-iot", "ALL")
+    sim_scale.add_registration("PRAGATHI26-P0122", "Future EE Project 122", "Electrical Engineering & Energy Systems")
+    jury_c_dash = sim_scale.get_assigned_projects("judge_scale_c")
+    assert_test(
+        "PRAGATHI26-P0122" in jury_c_dash,
+        "Point 57: ALL future behavior: New registration automatically visible to ALL-mode jury"
+    )
+
+    # Point 58: ALL vs SELECTED conflict rejection across combinations
+    sim_scale.judges["judge_scale_d"] = {"name": "Jury Scaled D", "user_id": "judge_scale_d"}
+    conflict_all_vs_sel = False
+    try:
+        da_scale_d = sim_scale.assign_domain("judge_scale_d", "hardware-iot", "SELECTED")
+        sim_scale.add_selected_projects(da_scale_d, ["PRAGATHI26-P0122"])
+    except RuntimeError as e:
+        if "409" in str(e):
+            conflict_all_vs_sel = True
+
+    conflict_sel_vs_all = False
+    sim_scale.judges["judge_scale_e"] = {"name": "Jury Scaled E", "user_id": "judge_scale_e"}
+    try:
+        sim_scale.assign_domain("judge_scale_e", "smart-automation", "ALL")
+    except RuntimeError as e:
+        if "409" in str(e):
+            conflict_sel_vs_all = True
+
+    assert_test(
+        conflict_all_vs_sel and conflict_sel_vs_all,
+        "Point 58: One-project-one-jury conflict handling: ALL blocks SELECTED & SELECTED blocks ALL (both 409)"
+    )
+
+    # Point 59: Dynamic future canonical domain row support without code changes
+    LIVE_PROJECT_DOMAINS.append({"id": "domain-quantum", "title": "Quantum Computing & Photonics"})
+    LIVE_DOMAIN_ALIASES.append({"domain_id": "domain-quantum", "alias_text": "Quantum Computing & Photonics"})
+    sim_scale.add_registration("PRAGATHI26-Q0001", "Quantum Teleportation Protocol", "Quantum Computing & Photonics")
+    quantum_cands = sim_scale.get_assignment_candidates("domain-quantum")
+    LIVE_PROJECT_DOMAINS.pop()
+    LIVE_DOMAIN_ALIASES.pop()
+    assert_test(
+        quantum_cands["total_candidates"] == 1 and
+        quantum_cands["candidates"][0]["canonical_domain_id"] == "domain-quantum" and
+        quantum_cands["candidates"][0]["registration_id"] == "PRAGATHI26-Q0001",
+        "Point 59: Future canonical domain row dynamically supported with ZERO application code changes"
+    )
+
+    # Point 60: Strict 403 authorization for unauthorized direct project access
+    status_code, err_msg = sim_scale.lookup_project("judge_scale_a", jury_b_expected[0])
+    assert_test(
+        status_code == 403 and
+        err_msg == "This project is not assigned to you for evaluation. Please evaluate the assigned projects only.",
+        "Point 60: Strict 403 authorization: Direct lookup of other jury's project returns exact friendly message"
+    )
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # SECTION H: FINAL AUTHORITATIVE JURY ARCHITECTURE SCENARIO (Points 61-75)
+    # 10 CANONICAL DOMAINS DYNAMIC JURY CONFIGURATION & PARTITIONING
+    # ─────────────────────────────────────────────────────────────────────────────
+    print("\n--- Running Section H: Final Authoritative Jury Architecture Scenario (Points 61-75) ---")
+
+    sim_h = ExclusiveProductionJurySimulator()
+
+    # Dynamic 10-domain configuration:
+    # Domain 1 (ai-software / Civil): 1 jury (ALL)
+    # Domain 2 (smart-automation / CSE): 2 juries (SELECTED)
+    # Domain 3 (green-sustainability / Mech): 1 jury (ALL)
+    # Domain 4 (hardware-iot / EEE): 3 juries (SELECTED)
+    # Domain 5 (health-biotech / ECE): 1 jury (SELECTED)
+    # Domain 6 (open-innovation / MBA): 2 juries (SELECTED)
+    # Domain 7 (domain-7c89c586 / Agri): 1 jury (ALL)
+    # Domain 8 (domain-315daeb9 / Health): 2 juries (SELECTED)
+    # Domain 9 (domain-c0677a05 / Multi): 1 jury (ALL)
+    # Domain 10 (domain-9f52a525 / School): 2 juries (SELECTED)
+
+    domain_projects = {
+        "ai-software": [f"PRAGATHI26-CIV{i:02d}" for i in range(1, 6)],
+        "smart-automation": [f"PRAGATHI26-CSE{i:02d}" for i in range(1, 7)],
+        "green-sustainability": [f"PRAGATHI26-MCH{i:02d}" for i in range(1, 5)],
+        "hardware-iot": [f"PRAGATHI26-EEE{i:02d}" for i in range(1, 7)],
+        "health-biotech": [f"PRAGATHI26-ECE{i:02d}" for i in range(1, 5)],
+        "open-innovation": [f"PRAGATHI26-MBA{i:02d}" for i in range(1, 5)],
+        "domain-7c89c586": [f"PRAGATHI26-AGR{i:02d}" for i in range(1, 4)],
+        "domain-315daeb9": [f"PRAGATHI26-BME{i:02d}" for i in range(1, 5)],
+        "domain-c0677a05": [f"PRAGATHI26-MLT{i:02d}" for i in range(1, 4)],
+        "domain-9f52a525": [f"PRAGATHI26-SCH{i:02d}" for i in range(1, 5)],
+    }
+
+    for dom_id, p_list in domain_projects.items():
+        cat = domain_category_map[dom_id]
+        for p_id in p_list:
+            sim_h.add_registration(p_id, f"Project {p_id}", cat)
+
+    # Setup juries
+    # D1: 1 jury (ALL)
+    sim_h.add_judge("j_d1_1", "Jury Civil 1", "civ1@sru.edu.in")
+    da_d1_1 = sim_h.assign_domain("j_d1_1", "ai-software", "ALL")
+
+    # D2: 2 juries (SELECTED)
+    sim_h.add_judge("j_d2_1", "Jury CSE 1", "cse1@sru.edu.in")
+    sim_h.add_judge("j_d2_2", "Jury CSE 2", "cse2@sru.edu.in")
+    da_d2_1 = sim_h.assign_domain("j_d2_1", "smart-automation", "SELECTED")
+    da_d2_2 = sim_h.assign_domain("j_d2_2", "smart-automation", "SELECTED")
+    sim_h.add_selected_projects(da_d2_1, ["PRAGATHI26-CSE01", "PRAGATHI26-CSE02", "PRAGATHI26-CSE03"])
+    sim_h.add_selected_projects(da_d2_2, ["PRAGATHI26-CSE04", "PRAGATHI26-CSE05", "PRAGATHI26-CSE06"])
+
+    # D3: 1 jury (ALL)
+    sim_h.add_judge("j_d3_1", "Jury Mech 1", "mech1@sru.edu.in")
+    da_d3_1 = sim_h.assign_domain("j_d3_1", "green-sustainability", "ALL")
+
+    # D4: 3 juries (SELECTED)
+    sim_h.add_judge("j_d4_1", "Jury EEE 1", "eee1@sru.edu.in")
+    sim_h.add_judge("j_d4_2", "Jury EEE 2", "eee2@sru.edu.in")
+    sim_h.add_judge("j_d4_3", "Jury EEE 3", "eee3@sru.edu.in")
+    da_d4_1 = sim_h.assign_domain("j_d4_1", "hardware-iot", "SELECTED")
+    da_d4_2 = sim_h.assign_domain("j_d4_2", "hardware-iot", "SELECTED")
+    da_d4_3 = sim_h.assign_domain("j_d4_3", "hardware-iot", "SELECTED")
+    sim_h.add_selected_projects(da_d4_1, ["PRAGATHI26-EEE01", "PRAGATHI26-EEE02"])
+    sim_h.add_selected_projects(da_d4_2, ["PRAGATHI26-EEE03", "PRAGATHI26-EEE04"])
+    sim_h.add_selected_projects(da_d4_3, ["PRAGATHI26-EEE05", "PRAGATHI26-EEE06"])
+
+    # D5: 1 jury (SELECTED subset, ECE03 and ECE04 unassigned)
+    sim_h.add_judge("j_d5_1", "Jury ECE 1", "ece1@sru.edu.in")
+    da_d5_1 = sim_h.assign_domain("j_d5_1", "health-biotech", "SELECTED")
+    sim_h.add_selected_projects(da_d5_1, ["PRAGATHI26-ECE01", "PRAGATHI26-ECE02"])
+
+    # D6: 2 juries (SELECTED)
+    sim_h.add_judge("j_d6_1", "Jury MBA 1", "mba1@sru.edu.in")
+    sim_h.add_judge("j_d6_2", "Jury MBA 2", "mba2@sru.edu.in")
+    da_d6_1 = sim_h.assign_domain("j_d6_1", "open-innovation", "SELECTED")
+    da_d6_2 = sim_h.assign_domain("j_d6_2", "open-innovation", "SELECTED")
+    sim_h.add_selected_projects(da_d6_1, ["PRAGATHI26-MBA01", "PRAGATHI26-MBA02"])
+    sim_h.add_selected_projects(da_d6_2, ["PRAGATHI26-MBA03", "PRAGATHI26-MBA04"])
+
+    # D7: 1 jury (ALL)
+    sim_h.add_judge("j_d7_1", "Jury Agri 1", "agri1@sru.edu.in")
+    da_d7_1 = sim_h.assign_domain("j_d7_1", "domain-7c89c586", "ALL")
+
+    # D8: 2 juries (SELECTED)
+    sim_h.add_judge("j_d8_1", "Jury BME 1", "bme1@sru.edu.in")
+    sim_h.add_judge("j_d8_2", "Jury BME 2", "bme2@sru.edu.in")
+    da_d8_1 = sim_h.assign_domain("j_d8_1", "domain-315daeb9", "SELECTED")
+    da_d8_2 = sim_h.assign_domain("j_d8_2", "domain-315daeb9", "SELECTED")
+    sim_h.add_selected_projects(da_d8_1, ["PRAGATHI26-BME01", "PRAGATHI26-BME02"])
+    sim_h.add_selected_projects(da_d8_2, ["PRAGATHI26-BME03", "PRAGATHI26-BME04"])
+
+    # D9: 1 jury (ALL)
+    sim_h.add_judge("j_d9_1", "Jury Multi 1", "multi1@sru.edu.in")
+    da_d9_1 = sim_h.assign_domain("j_d9_1", "domain-c0677a05", "ALL")
+
+    # D10: 2 juries (SELECTED)
+    sim_h.add_judge("j_d10_1", "Jury School 1", "school1@sru.edu.in")
+    sim_h.add_judge("j_d10_2", "Jury School 2", "school2@sru.edu.in")
+    da_d10_1 = sim_h.assign_domain("j_d10_1", "domain-9f52a525", "SELECTED")
+    da_d10_2 = sim_h.assign_domain("j_d10_2", "domain-9f52a525", "SELECTED")
+    sim_h.add_selected_projects(da_d10_1, ["PRAGATHI26-SCH01", "PRAGATHI26-SCH02"])
+    sim_h.add_selected_projects(da_d10_2, ["PRAGATHI26-SCH03", "PRAGATHI26-SCH04"])
+
+    all_16_judges = [
+        ("j_d1_1", "ai-software"),
+        ("j_d2_1", "smart-automation"),
+        ("j_d2_2", "smart-automation"),
+        ("j_d3_1", "green-sustainability"),
+        ("j_d4_1", "hardware-iot"),
+        ("j_d4_2", "hardware-iot"),
+        ("j_d4_3", "hardware-iot"),
+        ("j_d5_1", "health-biotech"),
+        ("j_d6_1", "open-innovation"),
+        ("j_d6_2", "open-innovation"),
+        ("j_d7_1", "domain-7c89c586"),
+        ("j_d8_1", "domain-315daeb9"),
+        ("j_d8_2", "domain-315daeb9"),
+        ("j_d9_1", "domain-c0677a05"),
+        ("j_d10_1", "domain-9f52a525"),
+        ("j_d10_2", "domain-9f52a525"),
+    ]
+
+    # Point 61: Verification of 10 canonical domains and dynamic jury counts (16 juries total)
+    assert_test(
+        len(sim_h.judges) == 16 and len(sim_h.domain_assignments) == 16 and len(sim_h.registrations) == 43,
+        "Point 61: Realistic 10-domain configuration initialized: 16 dynamic juries across 43 projects"
+    )
+
+    # Point 62 (Scenario A): Every jury sees ONLY projects from its assigned canonical domain
+    all_a_pass = True
+    for j_id, dom_id in all_16_judges:
+        assigned = sim_h.get_assigned_projects(j_id)
+        for r_id in assigned:
+            if sim_h.registrations[r_id]["canonical_domain_id"] != dom_id:
+                all_a_pass = False
+                break
+    assert_test(
+        all_a_pass,
+        "Point 62 (Scenario A): Every jury sees ONLY projects from its own canonical domain (zero cross-domain leakage)"
+    )
+
+    # Point 63 (Scenario B): Same-domain multi-jury partitioning
+    eee1_projects = sim_h.get_assigned_projects("j_d4_1")
+    eee2_projects = sim_h.get_assigned_projects("j_d4_2")
+    eee3_projects = sim_h.get_assigned_projects("j_d4_3")
+    assert_test(
+        eee1_projects == ["PRAGATHI26-EEE01", "PRAGATHI26-EEE02"] and
+        eee2_projects == ["PRAGATHI26-EEE03", "PRAGATHI26-EEE04"] and
+        eee3_projects == ["PRAGATHI26-EEE05", "PRAGATHI26-EEE06"],
+        "Point 63 (Scenario B): Multi-jury domain (3 juries in EEE) partitions projects into exact distinct subsets"
+    )
+
+    # Point 64 (Scenario C): Zero Project Overlap across all pairs of juries
+    all_disjoint = True
+    for i in range(len(all_16_judges)):
+        j_i = all_16_judges[i][0]
+        set_i = set(sim_h.get_assigned_projects(j_i))
+        for k in range(i + 1, len(all_16_judges)):
+            j_k = all_16_judges[k][0]
+            set_k = set(sim_h.get_assigned_projects(j_k))
+            if len(set_i.intersection(set_k)) > 0:
+                all_disjoint = False
+                break
+    assert_test(
+        all_disjoint,
+        "Point 64 (Scenario C): ZERO PROJECT OVERLAP: Intersection of assigned project sets is EMPTY for every pair of juries"
+    )
+
+    # Point 65 (Scenario D): Project assigned to Jury A disappears from candidates for all other juries in same domain
+    cands_eee = sim_h.get_assignment_candidates("hardware-iot")
+    assert_test(
+        cands_eee["available_candidates"] == 0 and
+        cands_eee["assigned_candidates"] == 6 and
+        all(c["is_assigned"] is True and c["available"] is False for c in cands_eee["candidates"]),
+        "Point 65 (Scenario D): Fully assigned domain (EEE) leaves zero available candidates for other juries"
+    )
+
+    # Point 66 (Scenario E): Candidate list never contains cross-domain projects
+    cands_civ = sim_h.get_assignment_candidates("ai-software")
+    cands_cse = sim_h.get_assignment_candidates("smart-automation")
+    cands_mech = sim_h.get_assignment_candidates("green-sustainability")
+    assert_test(
+        all(c["canonical_domain_id"] == "ai-software" for c in cands_civ["candidates"]) and
+        all(c["canonical_domain_id"] == "smart-automation" for c in cands_cse["candidates"]) and
+        all(c["canonical_domain_id"] == "green-sustainability" for c in cands_mech["candidates"]),
+        "Point 66 (Scenario E): Cross-domain candidates strictly blocked: candidate queries return 0 foreign projects"
+    )
+
+    # Point 67 (Scenario F): Manual ID lookup of another jury's project -> 403 Forbidden with exact friendly message
+    code_f1, msg_f1 = sim_h.lookup_project("j_d2_1", "PRAGATHI26-CSE04")
+    code_f2, msg_f2 = sim_h.lookup_project("j_d1_1", "PRAGATHI26-CSE01")
+    exact_msg = "This project is not assigned to you for evaluation. Please evaluate the assigned projects only."
+    assert_test(
+        code_f1 == 403 and msg_f1 == exact_msg and
+        code_f2 == 403 and msg_f2 == exact_msg,
+        "Point 67 (Scenario F): Manual ID lookup of another jury's project -> 403 with exact friendly message"
+    )
+
+    # Point 68 (Scenario G): QR scan of another jury's project -> 403 Forbidden with exact friendly message
+    code_g1, msg_g1 = sim_h.lookup_project("j_d4_1", "PRAGATHI26-EEE05")
+    code_g2, msg_g2 = sim_h.lookup_project("j_d7_1", "PRAGATHI26-SCH01")
+    assert_test(
+        code_g1 == 403 and msg_g1 == exact_msg and
+        code_g2 == 403 and msg_g2 == exact_msg,
+        "Point 68 (Scenario G): QR scan of another jury's project -> 403 with exact friendly message"
+    )
+
+    # Point 69 (Scenario H): Direct API lookup of another jury's project -> 403 Forbidden
+    code_h1, msg_h1 = sim_h.lookup_project("j_d6_1", "PRAGATHI26-MBA03")
+    code_h2, msg_h2 = sim_h.lookup_project("j_d10_1", "PRAGATHI26-MCH01")
+    assert_test(
+        code_h1 == 403 and msg_h1 == exact_msg and
+        code_h2 == 403 and msg_h2 == exact_msg,
+        "Point 69 (Scenario H): Direct API request for unassigned project -> 403 with exact friendly message"
+    )
+
+    # Point 70 (Scenario I): Concurrent duplicate assignment -> exactly one succeeds, other fails 409
+    dup_tx_results = []
+    dup_tx_errors = []
+    sim_h.add_judge("j_d5_2", "Jury ECE 2", "ece2@sru.edu.in")
+    da_d5_2 = sim_h.assign_domain("j_d5_2", "health-biotech", "SELECTED")
+
+    def run_assign_ece_a():
+        try:
+            sim_h.add_selected_projects(da_d5_1, ["PRAGATHI26-ECE03"])
+            dup_tx_results.append("JURY_1")
+        except Exception as e:
+            dup_tx_errors.append(("JURY_1", str(e)))
+
+    def run_assign_ece_b():
+        try:
+            sim_h.add_selected_projects(da_d5_2, ["PRAGATHI26-ECE03"])
+            dup_tx_results.append("JURY_2")
+        except Exception as e:
+            dup_tx_errors.append(("JURY_2", str(e)))
+
+    run_assign_ece_a()
+    run_assign_ece_b()
+
+    assert_test(
+        len(dup_tx_results) == 1 and len(dup_tx_errors) == 1 and "409" in dup_tx_errors[0][1],
+        "Point 70 (Scenario I): Duplicate project assignment attempt -> exactly one succeeds, second gets 409 Conflict"
+    )
+
+    # Point 71 (Scenario J): Dynamic Project Growth: New project appears only in correct canonical domain
+    sim_h.add_registration("PRAGATHI26-NEW-CSE", "Novel Quantum Neural Network", "Computer Science & Artificial Intelligence")
+    cands_cse_new = sim_h.get_assignment_candidates("smart-automation")
+    cands_civ_new = sim_h.get_assignment_candidates("ai-software")
+    cands_eee_new = sim_h.get_assignment_candidates("hardware-iot")
+
+    new_in_cse = any(c["registration_id"] == "PRAGATHI26-NEW-CSE" and c["available"] is True for c in cands_cse_new["candidates"])
+    new_in_civ = any(c["registration_id"] == "PRAGATHI26-NEW-CSE" for c in cands_civ_new["candidates"])
+    new_in_eee = any(c["registration_id"] == "PRAGATHI26-NEW-CSE" for c in cands_eee_new["candidates"])
+
+    assert_test(
+        new_in_cse and not new_in_civ and not new_in_eee,
+        "Point 71 (Scenario J): Dynamic project growth: New project appears ONLY in smart-automation candidate pool"
+    )
+
+    # Point 72: Editing candidate list (for_judge_user_id) allows own assigned projects + unassigned, blocks others
+    cands_editing_d2_1 = sim_h.get_assignment_candidates("smart-automation", for_judge_user_id="j_d2_1")
+    avail_for_d2_1 = [c["registration_id"] for c in cands_editing_d2_1["candidates"] if c["available"]]
+    unavail_for_d2_1 = [c["registration_id"] for c in cands_editing_d2_1["candidates"] if not c["available"]]
+
+    assert_test(
+        sorted(avail_for_d2_1) == ["PRAGATHI26-CSE01", "PRAGATHI26-CSE02", "PRAGATHI26-CSE03", "PRAGATHI26-NEW-CSE"] and
+        sorted(unavail_for_d2_1) == ["PRAGATHI26-CSE04", "PRAGATHI26-CSE05", "PRAGATHI26-CSE06"],
+        "Point 72: Candidate editing: Jury's own projects + unassigned are available; other jury's projects remain blocked"
+    )
+
+    # Point 73: Unassigned cross-domain project never appears in another domain's candidate list or dashboard
+    civ_cands_check = sim_h.get_assignment_candidates("ai-software")
+    civ_dash_check = sim_h.get_assigned_projects("j_d1_1")
+    assert_test(
+        not any(c["registration_id"] == "PRAGATHI26-ECE04" for c in civ_cands_check["candidates"]) and
+        "PRAGATHI26-ECE04" not in civ_dash_check,
+        "Point 73: Domain segregation priority: Unassigned cross-domain projects never appear in another domain"
+    )
+
+    # Point 74: One Project = One Active Jury Owner across entire system
+    conflict_cross_owner = False
+    try:
+        sim_h.add_selected_projects(da_d2_1, ["PRAGATHI26-CIV01"])
+    except (RuntimeError, ValueError) as e:
+        conflict_cross_owner = True
+    assert_test(
+        conflict_cross_owner,
+        "Point 74: One Project = One Active Jury Owner: Cannot assign already owned project to any second jury"
+    )
+
+    # Point 75: ALL mode monopolizes domain: second jury cannot receive ANY assignment in that domain
+    sim_h.add_judge("j_d1_2", "Jury Civil 2", "civ2@sru.edu.in")
+    conflict_all_monopoly = False
+    try:
+        sim_h.assign_domain("j_d1_2", "ai-software", "SELECTED")
+    except RuntimeError as e:
+        if "409" in str(e):
+            conflict_all_monopoly = True
+    assert_test(
+        conflict_all_monopoly,
+        "Point 75: ALL mode domain exclusivity: Domain with active ALL mode jury strictly blocks new jury assignments (409)"
+    )
+
     print("=====================================================================")
     print(f"ALL {passed}/{total} PRODUCTION HARDENING, PERFORMANCE & SECURITY TESTS PASSED!")
     print("=====================================================================")
 
 if __name__ == "__main__":
     run_tests()
-

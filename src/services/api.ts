@@ -14,6 +14,8 @@ import {
   AssignedProjectItem,
   JuryProjectProgressResponse,
   JuryBootstrapResponse,
+  AssignmentCandidatesResponse,
+  MarksExportResponse,
 } from '../types';
 
 import { sessionManager } from './sessionManager';
@@ -519,10 +521,34 @@ export const api = {
         `/api/admin/results/evaluations/${evaluationId}?reset_reason=${encodeURIComponent(resetReason)}`,
         { method: 'DELETE' }
       ),
+    getMarksExport: (themeId?: string, projectIds?: string[]) => {
+      const params = new URLSearchParams();
+      if (themeId) params.append('theme_id', themeId);
+      if (projectIds && projectIds.length > 0) {
+        projectIds.forEach((id) => params.append('project_id', id));
+      }
+      const qs = params.toString();
+      return request<MarksExportResponse>(`/api/admin/results/export-marks${qs ? `?${qs}` : ''}`);
+    },
   },
 
   juries: {
     list: () => request<JuryProfile[]>('/api/admin/juries'),
+    create: (data: { name: string; email: string; department: string; temporaryPassword?: string; isActive?: boolean }) =>
+      request<{ success: boolean; message: string; user?: any }>('/api/admin/juries', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    delete: (judgeUserId: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/juries/${judgeUserId}`, {
+        method: 'DELETE',
+      }),
+    getCandidates: (domainId: string, forJudgeUserId?: string) =>
+      request<AssignmentCandidatesResponse>(
+        `/api/admin/juries/assignment-candidates?domain_id=${encodeURIComponent(domainId)}${
+          forJudgeUserId ? `&for_judge_user_id=${encodeURIComponent(forJudgeUserId)}` : ''
+        }`
+      ),
     updateProfile: (judgeUserId: string, data: { name?: string; department?: string; is_active?: boolean }) =>
       request<{ success: boolean; message: string }>(`/api/admin/juries/${judgeUserId}`, {
         method: 'PATCH',

@@ -242,6 +242,13 @@ async def verify_jury_auth(
     # Allow jury, judge, or admin (admins can inspect jury views)
     allowed_jury_roles = {"jury", "judge", "admin", "superadmin"}
     if role in allowed_jury_roles:
+        is_admin_role = role in {"admin", "superadmin"}
+        has_active_db_auth = (judge_row is not None and judge_row.get("is_active", True)) or (roles_res and len(roles_res) > 0 and roles_res[0].get("is_active", True))
+        if not is_admin_role and not has_active_db_auth:
+            raise HTTPException(
+                status_code=403,
+                detail="Access forbidden: Jury account has been deleted or deactivated."
+            )
         return {
             "authenticated": True,
             "auth_type": "supabase_jwt",

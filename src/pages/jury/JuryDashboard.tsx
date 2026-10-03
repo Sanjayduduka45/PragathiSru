@@ -386,12 +386,18 @@ export const JuryDashboard: React.FC = () => {
         } else {
           addToast(
             'error',
-            'Not Assigned',
-            `Project "${registrationId}" is not assigned to your jury panel.`
+            'Access Denied',
+            'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.'
           );
         }
       } catch (err: any) {
-        addToast('error', 'Access Denied', err.message || `Project "${registrationId}" is not assigned to your jury panel.`);
+        addToast(
+          'error',
+          'Access Denied',
+          err.message?.includes('not assigned') || err.message?.includes('Access denied')
+            ? 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.'
+            : (err.message || 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.')
+        );
       } finally {
         setLookupLoading(false);
       }
@@ -420,10 +426,14 @@ export const JuryDashboard: React.FC = () => {
       if (project) {
         setFoundProjectWithEval(project);
       } else {
-        setLookupError(`Project "${cleanId}" is not assigned to your jury panel or does not exist.`);
+        setLookupError('This project is not assigned to you for evaluation. Please evaluate the assigned projects only.');
       }
     } catch (err: any) {
-      setLookupError(err.message || `Project "${cleanId}" is not assigned to your jury panel.`);
+      setLookupError(
+        err.message?.includes('not assigned') || err.message?.includes('Access denied')
+          ? 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.'
+          : (err.message || 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.')
+      );
     } finally {
       setLookupLoading(false);
     }
@@ -437,7 +447,13 @@ export const JuryDashboard: React.FC = () => {
       setSelectedProject(project);
       setEvalModalOpen(true);
     } catch (err: any) {
-      addToast('error', 'Access Denied', err.message || `Project "${project.registrationId}" is not assigned to your jury panel.`);
+      addToast(
+        'error',
+        'Access Denied',
+        err.message?.includes('not assigned') || err.message?.includes('Access denied')
+          ? 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.'
+          : (err.message || 'This project is not assigned to you for evaluation. Please evaluate the assigned projects only.')
+      );
     }
   };
 

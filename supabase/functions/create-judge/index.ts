@@ -127,9 +127,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!temporaryPassword || temporaryPassword.length < 6) {
+    if (!temporaryPassword || temporaryPassword.length < 8 || temporaryPassword.length > 72) {
       return new Response(
-        JSON.stringify({ error: "Temporary password must be at least 6 characters long." }),
+        JSON.stringify({ error: "Temporary password must be between 8 and 72 characters long." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
