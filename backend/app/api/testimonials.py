@@ -1,6 +1,5 @@
 import uuid
-from typing import Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File, Header, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from app.schemas.testimonial import (
     TestimonialCreate,
     TestimonialUpdate,
@@ -8,30 +7,9 @@ from app.schemas.testimonial import (
     TestimonialListResponse
 )
 from app.services.testimonial_service import testimonial_service
-from app.database import db
-from app.config import settings
+from app.core.auth import verify_admin_auth
 
 router = APIRouter()
-
-async def verify_admin_auth(
-    x_admin_secret: Optional[str] = Header(None, alias="X-Admin-Secret"),
-    authorization: Optional[str] = Header(None)
-):
-    secret = settings.admin_secret_key
-    supa_key = settings.supabase_key
-
-    token = None
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.split("Bearer ")[1].strip()
-
-    valid = (
-        (x_admin_secret and (x_admin_secret == secret or x_admin_secret == supa_key)) or
-        (token and (token == secret or token == supa_key or len(token) > 20))
-    )
-
-    if not valid:
-        raise HTTPException(status_code=401, detail="Unauthorized admin request. Valid Admin Secret or Authorization token required.")
-    return True
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/jpg"}
 ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime", "video/x-msvideo", "video/avi"}
@@ -39,15 +17,19 @@ MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50 MB
 
 @router.get("/api/testimonials", response_model=TestimonialListResponse)
+async def get_public_testimonials():
+    items = await testimonial_service.get_testimonials()
+    return TestimonialListResponse(data=items)
+
 @router.get("/api/admin/testimonials", response_model=TestimonialListResponse)
-async def get_testimonials():
+async def get_admin_testimonials(auth_data: dict = Depends(verify_admin_auth)):
     items = await testimonial_service.get_testimonials()
     return TestimonialListResponse(data=items)
 
 @router.post("/api/admin/testimonials/upload")
 async def upload_testimonial_media(
     file: UploadFile = File(...),
-    authenticated: bool = Depends(verify_admin_auth)
+    auth_data: dict = Depends(verify_admin_auth)
 ):
     filename = file.filename or "media"
     content_type = (file.content_type or "").lower()
@@ -88,16 +70,17 @@ async def upload_testimonial_media(
 @router.post("/api/admin/testimonials", response_model=TestimonialResponse)
 async def create_testimonial(
     data: TestimonialCreate,
-    authenticated: bool = Depends(verify_admin_auth)
+    auth_data: dict = Depends(verify_admin_auth)
 ):
     created = await testimonial_service.create_testimonial(data)
     return TestimonialResponse(data=created)
 
 @router.put("/api/admin/testimonials/{testimonial_id}", response_model=TestimonialResponse)
+@router.patch("/api/admin/testimonials/{testimonial_id}", response_model=TestimonialResponse)
 async def update_testimonial(
     testimonial_id: str,
     data: TestimonialUpdate,
-    authenticated: bool = Depends(verify_admin_auth)
+    auth_data: dict = Depends(verify_admin_auth)
 ):
     updated = await testimonial_service.update_testimonial(testimonial_id, data)
     return TestimonialResponse(data=updated)
@@ -105,7 +88,7 @@ async def update_testimonial(
 @router.delete("/api/admin/testimonials/{testimonial_id}")
 async def delete_testimonial(
     testimonial_id: str,
-    authenticated: bool = Depends(verify_admin_auth)
+    auth_data: dict = Depends(verify_admin_auth)
 ):
     success = await testimonial_service.delete_testimonial(testimonial_id)
     if not success:

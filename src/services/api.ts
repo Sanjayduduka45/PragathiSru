@@ -17,7 +17,6 @@ import {
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
-const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
 
 // ─── Fast In-Memory Session Token Cache ─────────────────────────────────────────
 let cachedAuthToken: string | null = null;
@@ -37,14 +36,12 @@ if (supabase) {
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const isResultsEndpoint = endpoint.startsWith('/api/admin/results');
-  const isJuryAdminEndpoint = endpoint.startsWith('/api/admin/juries') || endpoint.startsWith('/api/admin/jury-');
+  const isAdminEndpoint = endpoint.startsWith('/api/admin/');
   const isJuryEndpoint = endpoint.startsWith('/api/jury');
-  const isLegacyAdminEndpoint = endpoint.startsWith('/api/admin/') && !isResultsEndpoint && !isJuryAdminEndpoint;
   const isFormData = options?.body instanceof FormData;
 
   let authToken: string | null = cachedAuthToken;
-  if ((isLegacyAdminEndpoint || isResultsEndpoint || isJuryAdminEndpoint || isJuryEndpoint) && supabase) {
+  if ((isAdminEndpoint || isJuryEndpoint) && supabase) {
     if (!authToken || Date.now() >= tokenExpiresAt) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -62,7 +59,6 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const response = await fetch(url, {
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...((isLegacyAdminEndpoint || isJuryAdminEndpoint) ? { 'X-Admin-Secret': ADMIN_SECRET } : {}),
         ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         ...options?.headers,
       },
@@ -230,6 +226,11 @@ export const api = {
       request<{ success: boolean; message: string }>(`/api/admin/testimonials/${id}`, {
         method: 'DELETE',
       }),
+    uploadMedia: (formData: FormData) =>
+      request<{ success: boolean; url: string; media_type: string }>('/api/admin/testimonials/upload', {
+        method: 'POST',
+        body: formData,
+      }),
   },
   registrations: {
     list: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),
@@ -390,6 +391,11 @@ export const api = {
     deleteTestimonial: (id: string) =>
       request<{ success: boolean; message: string }>(`/api/admin/testimonials/${id}`, {
         method: 'DELETE',
+      }),
+    uploadTestimonialMedia: (formData: FormData) =>
+      request<{ success: boolean; url: string; media_type: string }>('/api/admin/testimonials/upload', {
+        method: 'POST',
+        body: formData,
       }),
 
     getRegistrations: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),
