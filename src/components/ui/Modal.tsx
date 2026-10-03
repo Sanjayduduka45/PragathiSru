@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ type: 'spring', damping: 25, stiffness: 340 }}
-            className={`relative w-[95%] sm:w-full bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl overflow-hidden z-10 flex flex-col max-h-[85vh] ${maxWidthStyles[maxWidth]} mx-auto`}
+            className={`relative w-[95%] sm:w-full bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90dvh] sm:max-h-[85vh] ${maxWidthStyles[maxWidth]} mx-auto`}
           >
             {/* Sticky Header */}
             {(title || subtitle) && (

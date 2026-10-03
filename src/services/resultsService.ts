@@ -110,6 +110,8 @@ export class ResultsService {
         problemStatement: proj?.problem_statement || '',
         proposedSolution: proj?.proposed_solution || '',
         innovation: proj?.innovation || '',
+        evaluationsCount: completedJudges,
+        rawAverage: averageScore,
         expectedJudges: 3,
         completedJudges,
         averageScore,

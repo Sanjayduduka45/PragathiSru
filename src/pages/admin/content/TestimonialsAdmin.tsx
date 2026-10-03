@@ -29,6 +29,7 @@ import {
   deleteTestimonial,
   type TestimonialEntry,
 } from '../../../services/contentService';
+import { api } from '../../../services/api';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { useContent } from '../../../context/ContentContext';
 import { ImageCropperModal } from '../../../components/admin/ImageCropperModal';
@@ -136,24 +137,7 @@ export const TestimonialsAdmin: React.FC = () => {
       const filename = customFilename || (file as File).name || 'cropped_image.jpg';
       formData.append('file', file, filename);
 
-      const adminSecret = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
-      const apiBaseUrl = import.meta.env.VITE_API_URL || '';
-      console.debug('[Testimonials] UPLOAD start, url:', `${apiBaseUrl}/api/admin/testimonials/upload`);
-      const response = await fetch(`${apiBaseUrl}/api/admin/testimonials/upload`, {
-        method: 'POST',
-        headers: {
-          'X-Admin-Secret': adminSecret,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Upload server error');
-      }
-
-      const resData = await response.json();
-      console.debug('[Testimonials] UPLOAD response:', resData);
+      const resData = await api.admin.uploadTestimonialMedia(formData);
       if (resData.url) {
         setFormMediaUrl(resData.url);
         if (resData.media_type === 'video') {

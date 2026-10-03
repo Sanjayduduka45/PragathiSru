@@ -85,7 +85,7 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
       onClose={onClose}
       title={`Evaluation: ${project.teamName}`}
     >
-      <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+      <div className="space-y-4">
         {/* Project Header Info */}
         <div className="bg-gradient-to-br from-blue-50/80 via-slate-50 to-indigo-50/40 p-4 rounded-2xl border border-blue-100 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -154,10 +154,10 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-bold text-emerald-900">
-                  You have already evaluated this project
+                  Evaluation already submitted
                 </p>
                 <p className="text-[11px] text-emerald-700 mt-0.5 leading-relaxed">
-                  Your submitted scorecard is saved. Individual criteria scores are shown below.
+                  Your evaluation marks for this project have already been recorded.
                 </p>
               </div>
             </div>
@@ -172,7 +172,6 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
               judgeEmail={currentJudge.email}
               criteria={criteria}
               initialScores={existingEval.scores}
-              initialComments={existingEval.comments}
               isReadOnly={true}
             />
 
@@ -182,7 +181,7 @@ export const ProjectEvaluationModal: React.FC<ProjectEvaluationModalProps> = ({
                 onClick={onClose}
                 className="px-5 py-2.5 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
-                Done
+                Close
               </button>
             </div>
           </div>

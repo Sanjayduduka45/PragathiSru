@@ -3,19 +3,63 @@
  * All frontend requests (Public & Admin Dashboard) call the FastAPI Python backend.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET_KEY || 'pragathi_admin_secret_key_2026';
+import { supabase } from '../lib/supabaseClient';
+import {
+  AdminResultsResponse,
+  JuryProfile,
+  DomainAssignmentItem,
+  ProjectAssignmentItem,
+  JuryCompletionOverviewResponse,
+  AssignedProjectsResponse,
+  AssignedProjectItem,
+  JuryProjectProgressResponse,
+  JuryBootstrapResponse,
+} from '../types';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
+
+// ─── Fast In-Memory Session Token Cache ─────────────────────────────────────────
+let cachedAuthToken: string | null = null;
+let tokenExpiresAt: number = 0;
+
+export function setApiAuthToken(token: string | null, expiresInSeconds: number = 3600) {
+  cachedAuthToken = token;
+  tokenExpiresAt = Date.now() + expiresInSeconds * 1000;
+}
+
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    cachedAuthToken = session?.access_token || null;
+    tokenExpiresAt = session?.expires_in ? Date.now() + session.expires_in * 1000 : 0;
+  });
+}
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const isAdminEndpoint = endpoint.startsWith('/api/admin/');
+  const isJuryEndpoint = endpoint.startsWith('/api/jury');
   const isFormData = options?.body instanceof FormData;
+
+  let authToken: string | null = cachedAuthToken;
+  if ((isAdminEndpoint || isJuryEndpoint) && supabase) {
+    if (!authToken || Date.now() >= tokenExpiresAt) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        authToken = session?.access_token || null;
+        if (authToken && session?.expires_in) {
+          setApiAuthToken(authToken, session.expires_in);
+        }
+      } catch {
+        // ignore session lookup errors
+      }
+    }
+  }
 
   try {
     const response = await fetch(url, {
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(isAdminEndpoint ? { 'X-Admin-Secret': ADMIN_SECRET } : {}),
+        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         ...options?.headers,
       },
       ...options,
@@ -182,6 +226,11 @@ export const api = {
       request<{ success: boolean; message: string }>(`/api/admin/testimonials/${id}`, {
         method: 'DELETE',
       }),
+    uploadMedia: (formData: FormData) =>
+      request<{ success: boolean; url: string; media_type: string }>('/api/admin/testimonials/upload', {
+        method: 'POST',
+        body: formData,
+      }),
   },
   registrations: {
     list: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),
@@ -343,6 +392,11 @@ export const api = {
       request<{ success: boolean; message: string }>(`/api/admin/testimonials/${id}`, {
         method: 'DELETE',
       }),
+    uploadTestimonialMedia: (formData: FormData) =>
+      request<{ success: boolean; url: string; media_type: string }>('/api/admin/testimonials/upload', {
+        method: 'POST',
+        body: formData,
+      }),
 
     getRegistrations: () => request<{ success: boolean; data: any[] }>('/api/admin/registrations'),
     getRegistration: (id: string) => request<{ success: boolean; data: any }>(`/api/admin/registrations/${id}`),
@@ -387,5 +441,60 @@ export const api = {
 
     getAuditLogs: (limit: number = 30) =>
       request<{ success: boolean; data: any[] }>(`/api/admin/audit-logs?limit=${limit}`),
+  },
+
+  results: {
+    get: () => request<AdminResultsResponse>('/api/admin/results'),
+    deleteEvaluation: (evaluationId: string, resetReason: string) =>
+      request<{ success: boolean; message: string; deleted_id: string; audit_id?: string }>(
+        `/api/admin/results/evaluations/${evaluationId}?reset_reason=${encodeURIComponent(resetReason)}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  juries: {
+    list: () => request<JuryProfile[]>('/api/admin/juries'),
+    updateProfile: (judgeUserId: string, data: { name?: string; department?: string; is_active?: boolean }) =>
+      request<{ success: boolean; message: string }>(`/api/admin/juries/${judgeUserId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    getAssignments: (judgeUserId: string) =>
+      request<DomainAssignmentItem[]>(`/api/admin/juries/${judgeUserId}/assignments`),
+    assignDomain: (judgeUserId: string, data: { domain_id: string; assignment_mode: 'ALL' | 'SELECTED' }) =>
+      request<{ success: boolean; assignment: any }>(`/api/admin/juries/${judgeUserId}/assignments`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateAssignmentMode: (assignmentId: string, assignmentMode: 'ALL' | 'SELECTED') =>
+      request<{ success: boolean; message: string }>(`/api/admin/jury-domain-assignments/${assignmentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignment_mode: assignmentMode }),
+      }),
+    removeAssignment: (assignmentId: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/jury-domain-assignments/${assignmentId}`, {
+        method: 'DELETE',
+      }),
+    getSelectedProjects: (assignmentId: string) =>
+      request<ProjectAssignmentItem[]>(`/api/admin/jury-domain-assignments/${assignmentId}/projects`),
+    addSelectedProjects: (assignmentId: string, registrationIds: string[]) =>
+      request<{ success: boolean; added_count: number }>(`/api/admin/jury-domain-assignments/${assignmentId}/projects`, {
+        method: 'POST',
+        body: JSON.stringify({ registration_ids: registrationIds }),
+      }),
+    removeSelectedProject: (projectAssignmentId: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/jury-project-assignments/${projectAssignmentId}`, {
+        method: 'DELETE',
+      }),
+    getCompletionOverview: () =>
+      request<JuryCompletionOverviewResponse>('/api/admin/juries/completion-overview'),
+    getProjectProgress: (judgeUserId: string) =>
+      request<JuryProjectProgressResponse>(`/api/admin/juries/${judgeUserId}/project-progress`),
+    getAssignedProjects: () =>
+      request<AssignedProjectsResponse>('/api/jury/assigned-projects'),
+    getAssignedProjectById: (registrationId: string) =>
+      request<AssignedProjectItem>(`/api/jury/assigned-projects/${registrationId}`),
+    bootstrap: () =>
+      request<JuryBootstrapResponse>('/api/jury/bootstrap'),
   },
 };

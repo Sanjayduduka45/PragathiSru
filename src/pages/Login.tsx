@@ -26,6 +26,7 @@ import { useHomePath } from '../context/HomePathContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AppRole } from '../types';
 import { AuthService } from '../services/authService';
+import { JuryService } from '../services/juryService';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
@@ -152,6 +153,10 @@ export const Login: React.FC = () => {
 
         if (!adminError) {
           if (returnedRole) {
+            // Requirement 10: Prefetch bootstrap immediately after successful auth if role is jury
+            if (returnedRole === 'jury' || returnedRole === 'judge') {
+              JuryService.bootstrap();
+            }
             navigate(getRedirectPath(returnedRole), { replace: true });
           } else {
             setError('Your account has no assigned role in the system. Please contact the administrator.');

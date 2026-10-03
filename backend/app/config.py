@@ -20,8 +20,13 @@ class Settings(BaseSettings):
     )
 
     admin_secret_key: str = Field(
-        default="pragathi_admin_secret_key_2026",
+        default="",
         validation_alias="ADMIN_SECRET_KEY",
+    )
+
+    jury_assignment_enforcement: bool = Field(
+        default=False,
+        validation_alias="JURY_ASSIGNMENT_ENFORCEMENT",
     )
 
     model_config = SettingsConfigDict(
@@ -35,7 +40,6 @@ class Settings(BaseSettings):
             self.supabase_key
             or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
             or os.getenv("SUPABASE_KEY", "")
-            or os.getenv("VITE_SUPABASE_SERVICE_ROLE_KEY", "")
             or os.getenv("SUPABASE_ANON_KEY", "")
             or os.getenv("VITE_SUPABASE_ANON_KEY", "")
         )
