@@ -407,9 +407,14 @@ export interface JuryProjectProgressResponse {
 export interface AssignmentCandidateItem {
   registration_id: string;
   project_title: string;
+  team_name?: string;
+  institution?: string;
   canonical_domain_id: string;
-  canonical_domain_title: string;
+  domain_title?: string;
+  canonical_domain_title?: string;
   is_assigned: boolean;
+  assigned_to_judge_id?: string | null;
+  assigned_to_judge_name?: string | null;
   assigned_jury_name?: string | null;
   assigned_jury_id?: string | null;
   available?: boolean;
@@ -419,9 +424,11 @@ export interface AssignmentCandidatesResponse {
   success: boolean;
   domain_id: string;
   domain_title: string;
-  total_candidates: number;
-  available_candidates: number;
-  assigned_candidates: number;
+  total_candidates?: number;
+  available_candidates?: number;
+  assigned_candidates?: number;
+  available_count?: number;
+  already_assigned_count?: number;
   candidates: AssignmentCandidateItem[];
 }
 

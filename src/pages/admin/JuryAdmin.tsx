@@ -401,8 +401,8 @@ export const JuryAdmin: React.FC = () => {
       const res = await JuryService.getAssignmentCandidates(domainId, selectedJuryId || undefined);
       setDomainCandidates(res.candidates || []);
       setCandidatesStats({
-        available: res.available_candidates,
-        assigned: res.assigned_candidates,
+        available: res.available_candidates ?? res.available_count ?? (res.candidates?.filter(c => c.available !== false).length || 0),
+        assigned: res.assigned_candidates ?? res.already_assigned_count ?? (res.candidates?.filter(c => c.is_assigned).length || 0),
       });
     } catch (err: any) {
       console.error('[JuryAdmin] Candidate fetch error:', err);
@@ -662,7 +662,7 @@ export const JuryAdmin: React.FC = () => {
 
   // Projects available for selected domain in Assign Modal (Server Canonical Candidates)
   const availableCandidates = useMemo(() => {
-    return domainCandidates.filter((c) => c.available !== false && !c.is_assigned);
+    return domainCandidates.filter((c) => c.available !== false);
   }, [domainCandidates]);
 
   const filteredCandidates = useMemo(() => {

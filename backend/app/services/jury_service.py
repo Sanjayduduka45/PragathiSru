@@ -103,6 +103,8 @@ class JuryService:
                         d_id = (d.get("id") or "").strip()
                         if d_title and d_id and d_title not in cache:
                             cache[d_title] = d_id
+                        if d_id and d_id.lower() not in cache:
+                            cache[d_id.lower()] = d_id
             except Exception as e:
                 print(f"[JuryService] Failed to load project_domains for alias cache: {e}")
 
@@ -113,7 +115,7 @@ class JuryService:
         """
         Safely resolves a category string to a canonical domain_id.
         1. Checks trim + lowercase in domain_aliases (including known mismatches).
-        2. Fallback exact normalized match against project_domains.title.
+        2. Fallback exact normalized match against project_domains.title or project_domains.id.
         3. Returns 'UNMAPPED' if unresolved. Never silently guesses.
         """
         if not category:
@@ -125,14 +127,14 @@ class JuryService:
         if clean in self._aliases_cache:
             return self._aliases_cache[clean]
 
-        # Fallback: check project_domains titles directly
+        # Fallback: check project_domains titles and ids directly
         try:
             domains_raw = await db.fetch_supabase("project_domains", "select=id,title")
             if domains_raw:
                 for d in domains_raw:
                     d_title = (d.get("title") or "").strip().lower()
                     d_id = (d.get("id") or "").strip()
-                    if d_title == clean:
+                    if d_title == clean or d_id.lower() == clean:
                         self._aliases_cache[clean] = d_id
                         return d_id
         except Exception as e:
@@ -473,8 +475,11 @@ class JuryService:
             # 2. Fetch all registrations in this domain
             regs_raw = await db.fetch_supabase(
                 "registrations",
-                "select=registration_id,category,projects(category)"
-            ) or []
+                "select=registration_id,projects(category)"
+            )
+            if regs_raw is None:
+                regs_raw = await db.fetch_supabase("registrations", "") or []
+
             domain_reg_ids: Set[str] = set()
             for r in regs_raw:
                 p_data = r.get("projects")
@@ -483,8 +488,6 @@ class JuryService:
                     cat = p_data[0].get("category") or ""
                 elif isinstance(p_data, dict):
                     cat = p_data.get("category") or ""
-                if not cat:
-                    cat = r.get("category") or ""
 
                 resolved = await self.resolve_domain_id(cat)
                 if resolved == domain_id:
@@ -564,7 +567,9 @@ class JuryService:
 
         if mode == "ALL":
             # All projects in this domain
-            regs_raw = await db.fetch_supabase("registrations", "select=registration_id,category,projects(category)") or []
+            regs_raw = await db.fetch_supabase("registrations", "select=registration_id,projects(category)")
+            if regs_raw is None:
+                regs_raw = await db.fetch_supabase("registrations", "") or []
             for r in regs_raw:
                 p_data = r.get("projects")
                 cat = ""
@@ -572,8 +577,6 @@ class JuryService:
                     cat = p_data[0].get("category") or ""
                 elif isinstance(p_data, dict):
                     cat = p_data.get("category") or ""
-                if not cat:
-                    cat = r.get("category") or ""
 
                 resolved = await self.resolve_domain_id(cat)
                 if resolved == domain_id:
@@ -732,7 +735,9 @@ class JuryService:
                 active_project_owners[p_reg_id] = owner_judge
 
         # 3. Fetch projects/registrations to check their domain
-        regs_raw = await db.fetch_supabase("registrations", "select=registration_id,category,projects(category)") or []
+        regs_raw = await db.fetch_supabase("registrations", "select=registration_id,projects(category)")
+        if regs_raw is None:
+            regs_raw = await db.fetch_supabase("registrations", "") or []
         reg_cat_map: Dict[str, str] = {}
         for r in regs_raw:
             rid = (r.get("registration_id") or "").strip().upper()
@@ -742,9 +747,8 @@ class JuryService:
                 cat = p_data[0].get("category") or ""
             elif isinstance(p_data, dict):
                 cat = p_data.get("category") or ""
-            if not cat:
-                cat = r.get("category") or ""
-            reg_cat_map[rid] = cat
+            if cat and rid:
+                reg_cat_map[rid] = cat
 
         added_count = 0
         for rid in registration_ids:
@@ -762,8 +766,13 @@ class JuryService:
             if clean_rid not in reg_cat_map:
                 single_reg = await db.fetch_supabase(
                     "registrations",
-                    f"registration_id=eq.{clean_rid}&select=registration_id,category,projects(category)"
-                ) or []
+                    f"registration_id=eq.{clean_rid}&select=registration_id,projects(category)"
+                )
+                if not single_reg:
+                    single_reg = await db.fetch_supabase(
+                        "registrations",
+                        f"registration_id=eq.{clean_rid}"
+                    ) or []
                 if single_reg:
                     r = single_reg[0]
                     p_data = r.get("projects")
@@ -772,9 +781,8 @@ class JuryService:
                         cat = p_data[0].get("category") or ""
                     elif isinstance(p_data, dict):
                         cat = p_data.get("category") or ""
-                    if not cat:
-                        cat = r.get("category") or ""
-                    reg_cat_map[clean_rid] = cat
+                    if cat:
+                        reg_cat_map[clean_rid] = cat
 
             cat = reg_cat_map.get(clean_rid, "")
             resolved_dom = await self.resolve_domain_id(cat)
@@ -1719,11 +1727,16 @@ class JuryService:
                 jid = selected_jda_judge[aid]
                 selected_assignment_map[reg_id] = (jid, judge_name_map.get(jid, "Jury Evaluator"))
 
-        # 3. Fetch all registrations and projects
+        # 3. Fetch all registrations with embedded institutions and projects (strictly using projects.category)
         regs_raw = await db.fetch_supabase(
             "registrations",
-            "select=registration_id,team_name,institution_name,category,projects(title,category)"
-        ) or []
+            "select=registration_id,team_name,institutions(name),projects(title,category)"
+        )
+        if regs_raw is None:
+            regs_raw = await db.fetch_supabase(
+                "registrations",
+                "select=registration_id,team_name,projects(title,category)"
+            ) or []
 
         candidates: List[AssignmentCandidateItem] = []
         available_count = 0
@@ -1734,64 +1747,80 @@ class JuryService:
             if not reg_id:
                 continue
 
+            inst_data = r.get("institutions")
+            if isinstance(inst_data, dict):
+                institution = inst_data.get("name") or ""
+            elif isinstance(inst_data, list) and len(inst_data) > 0:
+                institution = inst_data[0].get("name") or ""
+            else:
+                institution = r.get("institution_name") or ""
+
             p_data = r.get("projects")
-            if isinstance(p_data, list) and len(p_data) > 0:
-                p_data = p_data[0]
-            elif not isinstance(p_data, dict):
-                p_data = {}
+            p_list = p_data if isinstance(p_data, list) else ([p_data] if isinstance(p_data, dict) and p_data else [])
+            if not p_list:
+                p_list = [{"title": r.get("project_title") or "Project Title", "category": ""}]
 
-            title = p_data.get("title") or r.get("project_title") or "Project Title"
-            category = p_data.get("category") or r.get("category") or ""
-            resolved_dom_id = await self.resolve_domain_id(category)
+            for p in p_list:
+                title = p.get("title") or r.get("project_title") or "Project Title"
+                category = p.get("category") or ""
+                resolved_dom_id = await self.resolve_domain_id(category)
 
-            # Strict domain filtering: exclude any project that does not belong to this canonical domain
-            if resolved_dom_id != clean_dom_id:
-                continue
+                # Strict domain filtering: exclude any project that does not belong to this canonical domain
+                if resolved_dom_id != clean_dom_id:
+                    continue
 
-            # Determine assignment status under the exclusive ownership rule
-            is_assigned = False
-            assigned_judge_id = None
-            assigned_judge_name = None
+                # Determine assignment status under the exclusive ownership rule
+                is_assigned = False
+                assigned_judge_id = None
+                assigned_judge_name = None
 
-            if all_mode_judge_id:
-                is_assigned = True
-                assigned_judge_id = all_mode_judge_id
-                assigned_judge_name = all_mode_judge_name
-            elif reg_id in selected_assignment_map:
-                is_assigned = True
-                assigned_judge_id, assigned_judge_name = selected_assignment_map[reg_id]
+                if all_mode_judge_id:
+                    is_assigned = True
+                    assigned_judge_id = all_mode_judge_id
+                    assigned_judge_name = all_mode_judge_name
+                elif reg_id in selected_assignment_map:
+                    is_assigned = True
+                    assigned_judge_id, assigned_judge_name = selected_assignment_map[reg_id]
 
-            if for_judge_user_id:
-                available = (not is_assigned) or (assigned_judge_id == for_judge_user_id)
-            else:
-                available = not is_assigned
-            if available:
-                available_count += 1
-            else:
-                already_assigned_count += 1
+                if for_judge_user_id:
+                    available = (not is_assigned) or (assigned_judge_id == for_judge_user_id)
+                else:
+                    available = not is_assigned
 
-            candidates.append(AssignmentCandidateItem(
-                registration_id=reg_id,
-                project_title=title,
-                team_name=r.get("team_name") or "Team",
-                institution=r.get("institution_name") or "",
-                canonical_domain_id=resolved_dom_id,
-                domain_title=dom_title,
-                is_assigned=is_assigned,
-                assigned_to_judge_id=assigned_judge_id,
-                assigned_to_judge_name=assigned_judge_name,
-                available=available,
-            ))
+                if available:
+                    available_count += 1
+                else:
+                    already_assigned_count += 1
+
+                candidates.append(AssignmentCandidateItem(
+                    registration_id=reg_id,
+                    project_title=title,
+                    team_name=r.get("team_name") or "Team",
+                    institution=institution,
+                    canonical_domain_id=resolved_dom_id,
+                    domain_title=dom_title,
+                    canonical_domain_title=dom_title,
+                    is_assigned=is_assigned,
+                    assigned_to_judge_id=assigned_judge_id,
+                    assigned_to_judge_name=assigned_judge_name,
+                    assigned_jury_id=assigned_judge_id,
+                    assigned_jury_name=assigned_judge_name,
+                    available=available,
+                ))
 
         # Sort: available first, then alphabetical by registration_id
         candidates.sort(key=lambda x: (0 if x.available else 1, x.registration_id))
 
+        total_count = len(candidates)
         return AssignmentCandidatesResponse(
             success=True,
             domain_id=clean_dom_id,
             domain_title=dom_title,
             available_count=available_count,
             already_assigned_count=already_assigned_count,
+            total_candidates=total_count,
+            available_candidates=available_count,
+            assigned_candidates=already_assigned_count,
             candidates=candidates,
         )
 
@@ -2025,8 +2054,13 @@ class JuryService:
         # Fetch registrations + projects
         regs_raw = await db.fetch_supabase(
             "registrations",
-            "select=registration_id,team_name,institution_name,department,category,projects(title,category)"
-        ) or []
+            "select=registration_id,team_name,institutions(name),projects(title,category)"
+        )
+        if regs_raw is None:
+            regs_raw = await db.fetch_supabase(
+                "registrations",
+                "select=registration_id,team_name,projects(title,category)"
+            ) or []
 
         # Fetch evaluations
         evals_raw = await db.fetch_supabase("judge_evaluations", "") or []
@@ -2084,8 +2118,16 @@ class JuryService:
             elif not isinstance(p_data, dict):
                 p_data = {}
 
+            inst_data = r.get("institutions")
+            if isinstance(inst_data, dict):
+                institution = inst_data.get("name") or ""
+            elif isinstance(inst_data, list) and len(inst_data) > 0:
+                institution = inst_data[0].get("name") or ""
+            else:
+                institution = r.get("institution_name") or ""
+
             title = p_data.get("title") or r.get("project_title") or "Project Title"
-            category = p_data.get("category") or r.get("category") or ""
+            category = p_data.get("category") or ""
             resolved_dom_id = await self.resolve_domain_id(category)
 
             if clean_theme_filter and resolved_dom_id != clean_theme_filter:
@@ -2128,7 +2170,7 @@ class JuryService:
                 registration_id=reg_id,
                 project_title=title,
                 team_name=r.get("team_name") or "Team",
-                institution=r.get("institution_name") or "",
+                institution=institution,
                 department=r.get("department") or "",
                 canonical_theme=dom_title,
                 domain_id=resolved_dom_id,

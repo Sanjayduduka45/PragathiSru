@@ -57,9 +57,12 @@ class AssignmentCandidateItem(BaseModel):
     institution: str = ""
     canonical_domain_id: str
     domain_title: str
+    canonical_domain_title: Optional[str] = None
     is_assigned: bool = False
     assigned_to_judge_id: Optional[str] = None
     assigned_to_judge_name: Optional[str] = None
+    assigned_jury_id: Optional[str] = None
+    assigned_jury_name: Optional[str] = None
     available: bool = True
 
 class AssignmentCandidatesResponse(BaseModel):
@@ -68,6 +71,9 @@ class AssignmentCandidatesResponse(BaseModel):
     domain_title: str
     available_count: int = 0
     already_assigned_count: int = 0
+    total_candidates: int = 0
+    available_candidates: int = 0
+    assigned_candidates: int = 0
     candidates: List[AssignmentCandidateItem] = Field(default_factory=list)
 
 class CreateJuryAccountRequest(BaseModel):
