@@ -134,6 +134,10 @@ export const ScheduleAdmin: React.FC = () => {
   const setF = (key: keyof Omit<ScheduleEntry, 'id'>) => (value: string | boolean | number) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const sortedItems = React.useMemo(() => {
+    return [...items].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  }, [items]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -157,7 +161,7 @@ export const ScheduleAdmin: React.FC = () => {
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {sortedItems.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
           <Clock className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-500">No schedule items.</p>
@@ -165,10 +169,10 @@ export const ScheduleAdmin: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-2">
-          {items.map((s) => (
+          {sortedItems.map((s) => (
             <div key={s.id} className={`bg-white rounded-2xl border border-slate-200 p-4 flex items-start gap-4 hover:border-blue-100 transition-all ${!s.active ? 'opacity-50' : ''}`}>
               <div className="w-8 h-8 rounded-xl bg-[#004182]/5 flex items-center justify-center shrink-0 mt-0.5">
-                <Clock className="w-4 h-4 text-[#004182]" />
+                <span className="text-xs font-black text-[#004182]">{s.displayOrder}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -176,17 +180,17 @@ export const ScheduleAdmin: React.FC = () => {
                   <span className="text-xs font-bold text-slate-400">{s.time}</span>
                 </div>
                 <p className="text-sm font-bold text-slate-900 mt-1">{s.event}</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">{s.location}</p>
-                {s.description && <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{s.description}</p>}
+                {s.location && <p className="text-[11px] text-slate-500 mt-0.5">{s.location}</p>}
+                {s.description && <p className="text-[11px] text-slate-400 mt-1 whitespace-pre-line line-clamp-3">{s.description}</p>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => toggleActive(s.id)} className="cursor-pointer">
+                <button onClick={() => toggleActive(s.id)} className="cursor-pointer" title={s.active ? 'Active (click to hide)' : 'Hidden (click to show)'}>
                   {s.active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5 text-slate-300" />}
                 </button>
-                <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#004182] transition-colors cursor-pointer">
+                <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#004182] transition-colors cursor-pointer" title="Edit Item">
                   <Edit3 className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => setDeleteTarget(s)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer">
+                <button onClick={() => setDeleteTarget(s)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer" title="Delete Item">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -207,26 +211,44 @@ export const ScheduleAdmin: React.FC = () => {
         }
       >
         <div className="space-y-4">
-          {[
-            { label: 'Time Slot *', key: 'time', placeholder: 'e.g. 09:30 AM – 10:15 AM' },
-            { label: 'Event Title *', key: 'event', placeholder: 'e.g. Grand Inauguration Ceremony' },
-            { label: 'Location', key: 'location', placeholder: 'e.g. Main University Auditorium' },
-            { label: 'Badge / Label', key: 'badge', placeholder: 'e.g. Inauguration' },
-          ].map(({ label, key, placeholder }) => (
-            <div key={key}>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">{label}</label>
-              <input type="text" value={form[key as keyof typeof form] as string} onChange={(e) => setF(key as keyof Omit<ScheduleEntry, 'id'>)(e.target.value)} placeholder={placeholder} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Time Slot *</label>
+              <input type="text" value={form.time} onChange={(e) => setF('time')(e.target.value)} placeholder="e.g. 08:30 AM – 09:00 AM" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100" />
             </div>
-          ))}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">Description</label>
-            <textarea rows={3} value={form.description} onChange={(e) => setF('description')(e.target.value)} placeholder="Optional description..." className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 resize-y" />
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Display Order</label>
+              <input type="number" value={form.displayOrder} onChange={(e) => setF('displayOrder')(parseInt(e.target.value, 10) || 0)} placeholder="1" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100" />
+            </div>
           </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Program / Event Title *</label>
+            <input type="text" value={form.event} onChange={(e) => setF('event')(e.target.value)} placeholder="e.g. Registration & Reporting of Participating Teams" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Category / Badge</label>
+              <input type="text" value={form.badge} onChange={(e) => setF('badge')(e.target.value)} placeholder="e.g. Registration, Inauguration, VIP Visit" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Venue / Location</label>
+              <input type="text" value={form.location} onChange={(e) => setF('location')(e.target.value)} placeholder="e.g. SR University Campus, Main Auditorium" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Description / Activity Details</label>
+            <textarea rows={4} value={form.description} onChange={(e) => setF('description')(e.target.value)} placeholder="• Activity item 1&#10;• Activity item 2" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 resize-y" />
+          </div>
+
           <div className="flex items-center gap-3">
-            <label className="text-xs font-bold text-slate-700">Active</label>
-            <button type="button" onClick={() => setF('active')(!form.active)}>
+            <label className="text-xs font-bold text-slate-700">Published / Active Status</label>
+            <button type="button" onClick={() => setF('active')(!form.active)} className="cursor-pointer">
               {form.active ? <ToggleRight className="w-6 h-6 text-emerald-500" /> : <ToggleLeft className="w-6 h-6 text-slate-400" />}
             </button>
+            <span className="text-xs text-slate-500">{form.active ? 'Visible on public schedule' : 'Hidden from public schedule'}</span>
           </div>
         </div>
       </Modal>

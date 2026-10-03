@@ -713,10 +713,88 @@ const getSponsorBadgeStyle = (type: string) => {
   return 'bg-blue-50/70 text-[#004182] border-blue-100';
 };
 
+const getScheduleCardStyle = (badge?: string, event?: string) => {
+  const text = `${badge || ''} ${event || ''}`.toLowerCase();
+  if (text.includes('opening') || text.includes('ribbon') || text.includes('inaugur')) {
+    return {
+      card: 'border-amber-200/90 bg-gradient-to-br from-amber-50/50 via-white to-white hover:border-amber-300 shadow-2xs hover:shadow-md',
+      badge: 'bg-amber-100 text-amber-900 border-amber-300',
+      timeBg: 'bg-amber-50 text-amber-900 border-amber-200',
+      bulletDot: 'bg-amber-500',
+      tagText: 'Special Milestone',
+    };
+  }
+  if (text.includes('lunch') || text.includes('refreshment') || text.includes('break')) {
+    return {
+      card: 'border-orange-200/90 bg-gradient-to-br from-orange-50/40 via-white to-white hover:border-orange-300 shadow-2xs hover:shadow-md',
+      badge: 'bg-orange-100 text-orange-900 border-orange-200',
+      timeBg: 'bg-orange-50 text-orange-900 border-orange-200',
+      bulletDot: 'bg-orange-500',
+      tagText: 'Networking & Dining',
+    };
+  }
+  if (text.includes('valedictory') || text.includes('prize') || text.includes('award') || text.includes('closure')) {
+    return {
+      card: 'border-blue-200 bg-gradient-to-br from-blue-50/60 via-amber-50/20 to-white hover:border-blue-300 shadow-2xs hover:shadow-md ring-1 ring-blue-100',
+      badge: 'bg-[#004182] text-white border-transparent font-bold',
+      timeBg: 'bg-blue-50 text-[#004182] border-blue-200 font-bold',
+      bulletDot: 'bg-[#004182]',
+      tagText: 'Grand Ceremony',
+    };
+  }
+  if (text.includes('vip') || text.includes('dignitar') || text.includes('guest')) {
+    return {
+      card: 'border-indigo-100 bg-gradient-to-br from-indigo-50/30 via-white to-white hover:border-indigo-200 shadow-2xs hover:shadow-md',
+      badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      timeBg: 'bg-indigo-50/70 text-indigo-900 border-indigo-100',
+      bulletDot: 'bg-indigo-600',
+      tagText: '',
+    };
+  }
+  return {
+    card: 'border-slate-200/90 bg-white hover:border-blue-200 shadow-2xs hover:shadow-md',
+    badge: 'bg-blue-50 text-[#004182] border-blue-100',
+    timeBg: 'bg-blue-50/70 text-[#004182] border-blue-100',
+    bulletDot: 'bg-[#004182]',
+    tagText: '',
+  };
+};
+
+const renderScheduleDescription = (description?: string, bulletDotClass: string = 'bg-[#004182]') => {
+  if (!description) return null;
+  const lines = description
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length > 1 || lines.some((l) => l.startsWith('•') || l.startsWith('-') || l.startsWith('*'))) {
+    return (
+      <ul className="mt-2.5 space-y-1.5">
+        {lines.map((line, idx) => {
+          const cleanLine = line.replace(/^[•\-*]\s*/, '');
+          return (
+            <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
+              <span className={`w-1.5 h-1.5 rounded-full ${bulletDotClass} mt-2 shrink-0`} />
+              <span className="flex-1">{cleanLine}</span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  return (
+    <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+      {description}
+    </p>
+  );
+};
+
 export const Home: React.FC = () => {
   const {
     eventSettings,
     domains,
+    schedule,
     faqs,
     sponsors,
   } = useContent();
@@ -730,6 +808,12 @@ export const Home: React.FC = () => {
   const activeDomains = domains.filter((d) => d.active);
   const activeFaqs = faqs.filter((f) => f.active);
   const activeSponsors = sponsors.filter((s) => s.active);
+
+  const activeSchedule = useMemo(() => {
+    return (schedule || [])
+      .filter((s) => s.active)
+      .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  }, [schedule]);
 
   const sortedActiveSponsors = useMemo(() => {
     return activeSponsors
@@ -1429,40 +1513,119 @@ export const Home: React.FC = () => {
       {/* SCHEDULE PREVIEW */}
       <section
         id="schedule"
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 scroll-mt-24"
+        className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 scroll-mt-24"
       >
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100 shadow-2xs">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{eventSettings.eventDate} Timetable</span>
+        <div className="text-center max-w-2xl mx-auto space-y-2.5">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#004182] uppercase tracking-wider bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100 shadow-2xs">
+            <Clock className="w-3.5 h-3.5 text-[#004182]" />
+            <span>09 OCTOBER 2026</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#004182] font-display uppercase tracking-tight">
             Expo Day Schedule
           </h2>
 
-          <p className="text-xs sm:text-sm text-slate-500">
-            Agenda for registered participants on {eventSettings.eventDate} at{' '}
-            {eventSettings.institution} campus
+          <p className="text-xs sm:text-sm text-slate-600 font-medium">
+            SR University, Warangal &bull; Official Program Schedule for PRAGATHI 2K26
           </p>
         </div>
 
-        {/* Schedule Coming Soon Placeholder Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-blue-200 hover:-translate-y-1 active:translate-y-0 motion-reduce:hover:translate-y-0 transition-all duration-300 ease-out p-6 sm:p-10 text-center max-w-xl mx-auto w-[94%] sm:w-full space-y-3 cursor-default">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-2xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center">
-            <Calendar className="w-6 h-6 sm:w-7 sm:h-7 text-[#004182]" />
+        {/* Schedule Meta Highlights Bar */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
+          <div className="flex items-center gap-2.5 text-slate-700">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+              <Calendar className="w-4 h-4 text-[#004182]" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Date</p>
+              <p className="font-bold text-slate-900">09 October 2026</p>
+            </div>
           </div>
-
-          <div className="space-y-1">
-            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
-              Schedule Coming Soon
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-              The detailed Expo Day schedule will be announced one week before PRAGATHI 2K26.
-            </p>
+          <div className="flex items-center gap-2.5 text-slate-700">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4 text-[#004182]" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Location</p>
+              <p className="font-bold text-slate-900">SR University, Warangal</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 text-slate-700">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-[#004182]" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Reporting Time</p>
+              <p className="font-bold text-slate-900">08:30 AM IST</p>
+            </div>
           </div>
         </div>
+
+        {activeSchedule.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-8 sm:p-12 text-center max-w-lg mx-auto space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-blue-50 border border-blue-100 text-[#004182] flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-[#004182]" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 font-display">
+              Schedule Updating Soon
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              The Expo Day schedule is currently being finalized by the organizing committee.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3.5 sm:space-y-4">
+            {activeSchedule.map((item, idx) => {
+              const style = getScheduleCardStyle(item.badge, item.event);
+              return (
+                <div
+                  key={item.id || idx}
+                  className={`rounded-2xl border p-4 sm:p-6 transition-all duration-300 ease-out hover:-translate-y-0.5 ${style.card}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2.5 sm:gap-4">
+                    {/* Time Slot Pill & Category / Badge */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-mono font-bold border shadow-2xs ${style.timeBg}`}>
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>{item.time}</span>
+                      </span>
+
+                      {item.badge && (
+                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${style.badge}`}>
+                          {item.badge}
+                        </span>
+                      )}
+
+                      {style.tagText && (
+                        <span className="hidden md:inline-flex text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          &bull; {style.tagText}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Venue / Location */}
+                    {item.location && (
+                      <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 shrink-0">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{item.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Program Title & Details */}
+                  <div className="mt-3">
+                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+                      {item.event}
+                    </h3>
+
+                    {/* Description / Sub-activities */}
+                    {renderScheduleDescription(item.description, style.bulletDot)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* DYNAMIC PREVIOUS EVENT SHOWCASE & TESTIMONIALS */}

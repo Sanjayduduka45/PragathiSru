@@ -14,11 +14,11 @@ class ScheduleService:
                     id=str(row.get("id")),
                     time=row.get("time") or row.get("time_slot", ""),
                     event=row.get("event") or row.get("event_title", ""),
-                    location=row.get("location", ""),
-                    description=row.get("description", ""),
-                    badge=row.get("badge", ""),
-                    active=row.get("is_active", True),
-                    display_order=row.get("display_order", 0)
+                    location=row.get("location") or "",
+                    description=row.get("description") or "",
+                    badge=row.get("badge") or "",
+                    active=bool(row.get("is_active") if row.get("is_active") is not None else True),
+                    display_order=int(row.get("display_order") or 0)
                 )
                 for row in res
             ]
@@ -84,11 +84,11 @@ class ScheduleService:
                 id=str(row.get("id")),
                 time=row.get("time") or row.get("time_slot", ""),
                 event=row.get("event") or row.get("event_title", ""),
-                location=row.get("location", ""),
-                description=row.get("description", ""),
-                badge=row.get("badge", ""),
-                active=row.get("is_active", True),
-                display_order=row.get("display_order", 0)
+                location=row.get("location") or "",
+                description=row.get("description") or "",
+                badge=row.get("badge") or "",
+                active=bool(row.get("is_active") if row.get("is_active") is not None else True),
+                display_order=int(row.get("display_order") or 0)
             )
             # Sync local JSON mirror for local development
             local = db.load_local()

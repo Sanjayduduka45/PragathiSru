@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS public.project_domains (
 
 CREATE TABLE IF NOT EXISTS public.schedule_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  time_slot TEXT NOT NULL,
-  event_title TEXT NOT NULL,
+  time TEXT NOT NULL,
+  event TEXT NOT NULL,
   location TEXT DEFAULT '',
   description TEXT DEFAULT '',
   badge TEXT DEFAULT '',
@@ -193,13 +193,16 @@ INSERT INTO public.project_domains (title, description, icon_name, color, badge_
 ('Open Innovation & Social Tech',       'Cross-disciplinary ideas, assistive tech for accessibility, educational tools, and high-impact social prototypes.',  'Lightbulb',  'from-blue-700 to-sky-600',     'Open Track',          6);
 
 -- Schedule Items
-INSERT INTO public.schedule_items (time_slot, event_title, location, description, badge, display_order) VALUES
-('08:30 AM – 09:30 AM', 'On-site Registration & Stall Setup',       'SR University Expo Pavilion',          'Teams report to check-in counters, receive stall badges, and set up project displays.',                                           'Check-In',    1),
-('09:30 AM – 10:15 AM', 'Grand Inauguration Ceremony',              'Main University Auditorium',           'Inaugural address by SR University Dignitaries, Chief Guests, and Industry Mentors.',                                            'Inauguration',2),
-('10:30 AM – 01:30 PM', 'Jury Evaluation Phase I & Demonstration',  'Expo Halls A, B & C',                  'Expert panel evaluates working prototypes, code bases, and technical poster presentations.',                                      'Evaluation',  3),
-('01:30 PM – 02:30 PM', 'Lunch & Networking Break',                 'University Food Court & Student Center','Networking lunch for participants, judges, faculty mentors, and visiting delegates.',                                           'Networking',  4),
-('02:30 PM – 04:00 PM', 'Public Exhibition & Final Judging',         'Expo Pavilion',                        'Open viewing for students, school delegations, industry representatives, and final round reviews.',                              'Open Expo',   5),
-('04:15 PM – 05:30 PM', 'Valedictory & Award Ceremony',             'Main Auditorium',                      'Announcement of category winners, prize distribution (₹1,50,000 pool), and closing remarks.',                                   'Awards',      6);
+INSERT INTO public.schedule_items (time, event, location, description, badge, display_order) VALUES
+('08:30 AM – 09:00 AM', 'Registration & Reporting of Participating Teams', 'SR University Campus', '• Registration & Reporting of Participating Teams\n• Project Stall Allocation, Poster Display & Prototype Setup', 'Registration', 1),
+('09:00 AM – 09:40 AM', 'Chief Guest & Jury Members Reporting', 'SR University Campus', '• Chief Guest & Jury Members Reporting\n• Interaction with Hon''ble Vice Chancellor, SR University\n• Refreshments to Chief Guest & Jury Members', 'Dignitaries', 2),
+('09:50 AM – 10:00 AM', 'Official Opening of PRAGATHI 2K26 - Ribbon Cutting', 'Main Expo Arena', 'Official Ribbon Cutting ceremony marking the commencement of PRAGATHI 2K26.', 'Official Opening', 3),
+('10:00 AM – 12:00 Noon', 'Chief Guest & Hon''ble Vice Chancellor Visit & Interaction with Project Teams', 'Project Stalls / Expo Arena', 'Chief Guest & Hon''ble Vice Chancellor visit project stalls and interact with student innovator teams.', 'VIP Visit', 4),
+('10:00 AM – 01:00 PM', 'Project Evaluation & Exhibition', 'Expo Halls & Exhibition Arena', '• Theme-wise Project Evaluation by Jury Members\n• Project Exhibition Open for Visitors, Faculty & Students\n• School Students Visit / Visitor Interaction / Photography', 'Evaluation & Expo', 5),
+('01:00 PM – 02:00 PM', 'Lunch Break', 'University Dining Hall', 'Lunch break for participants, jury members, guests, faculty mentors, and coordinators.', 'Lunch Break', 6),
+('02:00 PM – 02:40 PM', 'Project Exhibition Open', 'Expo Halls & Exhibition Arena', '• Project Exhibition Open for Visitors, Faculty & Students\n• School Students Visit / Visitor Interaction / Photography', 'Open Exhibition', 7),
+('02:40 PM – 03:00 PM', 'All Participants Assemble at the Valedictory Venue', 'Main Auditorium', 'All participants, team members, and attendees assemble at the main auditorium for the valedictory ceremony.', 'Assembly', 8),
+('03:00 PM – 04:10 PM', 'Valedictory Ceremony, Prize Distribution & Formal Closure', 'Main Auditorium', 'Valedictory Ceremony, Prize Distribution & Formal Closure of PRAGATHI 2K26.', 'Valedictory', 9);
 
 -- Rules Content
 INSERT INTO public.rules_content (content) VALUES (

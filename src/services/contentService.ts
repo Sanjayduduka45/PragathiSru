@@ -522,8 +522,8 @@ export async function getScheduleItems(): Promise<ScheduleEntry[]> {
       if (data && data.length > 0) {
         return data.map((s: any) => ({
           id: s.id,
-          time: s.time_slot || '',
-          event: s.event_title || '',
+          time: s.time || '',
+          event: s.event || '',
           location: s.location || '',
           description: s.description || '',
           badge: s.badge || '',
@@ -559,86 +559,35 @@ export async function addScheduleItem(s: Omit<ScheduleEntry, 'id'>): Promise<Sch
     display_order: s.displayOrder,
   };
 
-  try {
-    const res = await api.schedule.create(payload);
-    const data = res.data;
-    return {
-      id: data.id,
-      time: data.time || data.time_slot || '',
-      event: data.event || data.event_title || '',
-      location: data.location || '',
-      description: data.description || '',
-      badge: data.badge || '',
-      active: data.active ?? true,
-      displayOrder: data.display_order ?? 0,
-    };
-  } catch (err) {
-    console.warn('[contentService] addScheduleItem FastAPI failed, attempting Supabase direct:', err);
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.from('schedule_items').insert([{
-        time_slot: s.time,
-        event_title: s.event,
-        location: s.location,
-        description: s.description,
-        badge: s.badge,
-        is_active: s.active,
-        display_order: s.displayOrder,
-      }]).select('*');
-      if (!error && data && data[0]) {
-        return {
-          id: data[0].id,
-          time: data[0].time_slot || '',
-          event: data[0].event_title || '',
-          location: data[0].location || '',
-          description: data[0].description || '',
-          badge: data[0].badge || '',
-          active: data[0].is_active ?? true,
-          displayOrder: data[0].display_order ?? 0,
-        };
-      }
-      throw new Error(`Database error: ${error?.message || 'Failed to insert'}`);
-    }
-    throw err;
-  }
+  const res = await api.schedule.create(payload);
+  const data = res.data;
+  return {
+    id: data.id,
+    time: data.time || data.time_slot || '',
+    event: data.event || data.event_title || '',
+    location: data.location || '',
+    description: data.description || '',
+    badge: data.badge || '',
+    active: data.active ?? true,
+    displayOrder: data.display_order ?? 0,
+  };
 }
 
 export async function updateScheduleItem(id: string, s: Partial<Omit<ScheduleEntry, 'id'>>): Promise<void> {
-  const payload: Record<string, any> = {};
-  if (s.time !== undefined) payload.time_slot = s.time;
-  if (s.event !== undefined) payload.event_title = s.event;
-  if (s.location !== undefined) payload.location = s.location;
-  if (s.description !== undefined) payload.description = s.description;
-  if (s.badge !== undefined) payload.badge = s.badge;
-  if (s.active !== undefined) payload.is_active = s.active;
-  if (s.displayOrder !== undefined) payload.display_order = s.displayOrder;
+  const apiPayload: Record<string, any> = {};
+  if (s.time !== undefined) apiPayload.time = s.time;
+  if (s.event !== undefined) apiPayload.event = s.event;
+  if (s.location !== undefined) apiPayload.location = s.location;
+  if (s.description !== undefined) apiPayload.description = s.description;
+  if (s.badge !== undefined) apiPayload.badge = s.badge;
+  if (s.active !== undefined) apiPayload.active = s.active;
+  if (s.displayOrder !== undefined) apiPayload.display_order = s.displayOrder;
 
-  try {
-    await api.schedule.update(id, payload);
-    return;
-  } catch (err) {
-    console.warn('[contentService] updateScheduleItem FastAPI failed, attempting Supabase direct:', err);
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from('schedule_items').update(payload).eq('id', id);
-      if (!error) return;
-      throw new Error(`Database error: ${error.message}`);
-    }
-    throw err;
-  }
+  await api.schedule.update(id, apiPayload);
 }
 
 export async function deleteScheduleItem(id: string): Promise<void> {
-  try {
-    await api.schedule.delete(id);
-    return;
-  } catch (err) {
-    console.warn('[contentService] deleteScheduleItem FastAPI failed, attempting Supabase direct:', err);
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from('schedule_items').delete().eq('id', id);
-      if (!error) return;
-      throw new Error(`Database error: ${error.message}`);
-    }
-    throw err;
-  }
+  await api.schedule.delete(id);
 }
 
 // ─── RULES CONTENT ────────────────────────────────────────────────────────────
