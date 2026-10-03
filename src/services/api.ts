@@ -16,68 +16,137 @@ import {
   JuryBootstrapResponse,
 } from '../types';
 
+import { sessionManager } from './sessionManager';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
 
-// ─── Fast In-Memory Session Token Cache ─────────────────────────────────────────
-let cachedAuthToken: string | null = null;
-let tokenExpiresAt: number = 0;
-
 export function setApiAuthToken(token: string | null, expiresInSeconds: number = 3600) {
-  cachedAuthToken = token;
-  tokenExpiresAt = Date.now() + expiresInSeconds * 1000;
+  if (token) {
+    sessionManager.applySession({
+      access_token: token,
+      expires_in: expiresInSeconds,
+    } as any);
+  } else {
+    sessionManager.clearSession('UNAUTHENTICATED');
+  }
 }
 
-if (supabase) {
-  supabase.auth.onAuthStateChange((_event, session) => {
-    cachedAuthToken = session?.access_token || null;
-    tokenExpiresAt = session?.expires_in ? Date.now() + session.expires_in * 1000 : 0;
-  });
-}
-
-async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function request<T>(endpoint: string, options?: RequestInit, isRetry = false): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const isAdminEndpoint = endpoint.startsWith('/api/admin/');
-  const isJuryEndpoint = endpoint.startsWith('/api/jury');
+  const isProtected = endpoint.startsWith('/api/admin/') || endpoint.startsWith('/api/jury');
   const isFormData = options?.body instanceof FormData;
+  const method = (options?.method || 'GET').toUpperCase();
+  const isSafeGet = method === 'GET';
+  const maxAttempts = isSafeGet ? 3 : 1;
 
-  let authToken: string | null = cachedAuthToken;
-  if ((isAdminEndpoint || isJuryEndpoint) && supabase) {
-    if (!authToken || Date.now() >= tokenExpiresAt) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        authToken = session?.access_token || null;
-        if (authToken && session?.expires_in) {
-          setApiAuthToken(authToken, session.expires_in);
+  let authToken: string | null = null;
+  if (isProtected) {
+    authToken = await sessionManager.getValidToken();
+  }
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const startTime = Date.now();
+    let response: Response;
+
+    try {
+      response = await fetch(url, {
+        headers: {
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+          ...options?.headers,
+        },
+        ...options,
+      });
+    } catch (networkErr: any) {
+      const duration = Date.now() - startTime;
+      const isNetworkFailure =
+        networkErr.name === 'TypeError' ||
+        networkErr.message?.includes('fetch') ||
+        networkErr.message?.includes('network') ||
+        networkErr.message?.includes('Load failed');
+
+      if (isSafeGet && isNetworkFailure && attempt < maxAttempts) {
+        const backoffMs = attempt === 1 ? 300 + Math.random() * 80 : 900 + Math.random() * 100;
+        if (import.meta.env.DEV) {
+          console.warn(`[API] ${method} ${endpoint} network error (${duration}ms) -> transient retry ${attempt}/${maxAttempts} in ${Math.round(backoffMs)}ms`);
         }
-      } catch {
-        // ignore session lookup errors
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
+      }
+
+      if (import.meta.env.DEV) {
+        console.error(`[API] ${method} ${endpoint} network failure (${duration}ms):`, networkErr.message);
+      }
+      throw new Error(
+        networkErr.name === 'TypeError' && (networkErr.message === 'Load failed' || networkErr.message === 'Failed to fetch')
+          ? 'Unable to connect to FastAPI backend server. Please verify VITE_API_URL and backend deployment health.'
+          : (networkErr.message || 'Network request failed')
+      );
+    }
+
+    const duration = Date.now() - startTime;
+
+    // 1. Success Response
+    if (response.ok) {
+      if (import.meta.env.DEV) {
+        console.debug(`[API] ${method} ${endpoint} ${response.status} OK (${duration}ms)`);
+      }
+      return await response.json();
+    }
+
+    // 2. 401 Unauthorized -> Refresh via Single-Flight Mutex & Retry Once
+    if (response.status === 401 && isProtected) {
+      if (isRetry) {
+        // Prevent infinite loops: already refreshed once and still got 401
+        const errBody = await response.json().catch(() => ({ detail: 'Session expired' }));
+        if (import.meta.env.DEV) {
+          console.error(`[API] ${method} ${endpoint} 401 SESSION_UNRECOVERABLE (${duration}ms)`);
+        }
+        throw new Error(errBody.detail || 'Your secure session has expired. Please sign in again.');
+      }
+
+      if (import.meta.env.DEV) {
+        console.warn(`[API] ${method} ${endpoint} 401 SESSION_EXPIRED (${duration}ms) -> acquiring single-flight refresh lock`);
+      }
+
+      const freshToken = await sessionManager.refreshSession();
+      if (freshToken) {
+        return request<T>(endpoint, options, true);
+      } else {
+        throw new Error('Your secure session has expired. Please sign in again.');
       }
     }
-  }
 
-  try {
-    const response = await fetch(url, {
-      headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
-        ...options?.headers,
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(errorBody.detail || errorBody.message || `HTTP error ${response.status}`);
+    // 3. 403 Forbidden -> Hard Permission Failure (Never refresh, never retry)
+    if (response.status === 403) {
+      const errBody = await response.json().catch(() => ({ detail: 'Access Denied' }));
+      if (import.meta.env.DEV) {
+        console.error(`[API] ${method} ${endpoint} 403 FORBIDDEN (${duration}ms)`);
+      }
+      throw new Error(errBody.detail || 'Access Denied: You do not have permission for this resource.');
     }
 
-    return await response.json();
-  } catch (err: any) {
-    console.error(`[API Error] ${options?.method || 'GET'} ${endpoint}:`, err);
-    if (err.name === 'TypeError' && (err.message === 'Load failed' || err.message === 'Failed to fetch')) {
-      throw new Error('Unable to connect to FastAPI backend server. Please verify VITE_API_URL and backend deployment health.');
+    // 4. Transient HTTP Status (408, 429, 502, 503, 504) -> Retry bounded on safe GET
+    const isTransientStatus = [408, 429, 502, 503, 504].includes(response.status);
+    if (isSafeGet && isTransientStatus && attempt < maxAttempts) {
+      const backoffMs = attempt === 1 ? 300 + Math.random() * 80 : 900 + Math.random() * 100;
+      if (import.meta.env.DEV) {
+        console.warn(`[API] ${method} ${endpoint} HTTP ${response.status} TRANSIENT (${duration}ms) -> retry ${attempt}/${maxAttempts} in ${Math.round(backoffMs)}ms`);
+      }
+      await new Promise((r) => setTimeout(r, backoffMs));
+      continue;
     }
-    throw err;
+
+    // 5. Server or Validation Error
+    const errorBody = await response.json().catch(() => ({ detail: response.statusText }));
+    const errMsg = errorBody.detail || errorBody.message || `HTTP error ${response.status}`;
+    if (import.meta.env.DEV) {
+      console.error(`[API Error] ${method} ${endpoint} HTTP ${response.status} (${duration}ms):`, errMsg);
+    }
+    throw new Error(errMsg);
   }
+
+  throw new Error(`Request failed after ${maxAttempts} attempts.`);
 }
 
 export const api = {

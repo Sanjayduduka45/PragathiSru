@@ -24,6 +24,7 @@ import { PROJECT_CATEGORIES } from '../../data/eventData';
 import { Modal } from '../../components/ui/Modal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { sessionManager } from '../../services/sessionManager';
 
 export const ResultsAdmin: React.FC = () => {
   const { toasts, addToast, dismissToast } = useAdminToast();
@@ -31,6 +32,7 @@ export const ResultsAdmin: React.FC = () => {
   const [projects, setProjects] = useState<ProjectResult[]>([]);
   const [themes, setThemes] = useState<ThemeSummaryItem[]>([]);
   const [awards, setAwards] = useState<AwardWinnerItem[]>([]);
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const [stats, setStats] = useState<ResultsStats>({
     totalProjects: 0,
     evaluatedProjects: 0,
@@ -95,6 +97,7 @@ export const ResultsAdmin: React.FC = () => {
           notEvaluated: res.stats.not_evaluated_projects,
           highestScore: res.stats.highest_merit_score,
         });
+        setStatsLoaded(true);
 
         // Map theme summaries
         setThemes(res.themes || []);
@@ -158,13 +161,17 @@ export const ResultsAdmin: React.FC = () => {
       }
     } catch (err: any) {
       console.error('[ResultsAdmin] Failed to load results:', err);
-      const msg = err.message || '';
-      if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
-        setAuthError('Unauthorized: Please log in with an authorized Admin account.');
-      } else if (msg.includes('403') || msg.toLowerCase().includes('forbidden')) {
-        setAuthError('Access Denied: Your account role does not have permission to view confidential event results.');
+      const msg = (err.message || '').toLowerCase();
+      if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('session has expired') || msg.includes('expired')) {
+        setAuthError('Your secure session has expired. Please sign in again.');
+      } else if (msg.includes('403') || msg.includes('forbidden') || msg.includes('permission') || msg.includes('access denied')) {
+        setAuthError('You do not have permission to access Results.');
+      } else if (msg.includes('503') || msg.includes('502') || msg.includes('unavailable') || msg.includes('temporarily')) {
+        setAuthError('Results service temporarily unavailable. Retrying...');
+      } else if (msg.includes('failed to fetch') || msg.includes('load failed') || msg.includes('network') || msg.includes('unable to connect')) {
+        setAuthError('Unable to connect to the Results service. Please check your network or server status.');
       } else {
-        setAuthError('Unable to connect to the Admin Results engine. Verify backend server is running.');
+        setAuthError('An error occurred while loading results. Please click Refresh to try again.');
       }
       addToast('error', 'Results Load Error', err.message || 'Could not load project results.');
     } finally {
@@ -174,7 +181,11 @@ export const ResultsAdmin: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+    const unsub = sessionManager.onRevalidate(() => {
+      loadData();
+    });
+    return unsub;
+  }, [loadData]);
 
   // Filtered & Sorted Projects
   const processedProjects = useMemo(() => {
@@ -291,12 +302,22 @@ export const ResultsAdmin: React.FC = () => {
 
       {/* Security Auth Error State */}
       {authError && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex items-start gap-3 text-rose-800">
-          <ShieldAlert className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="text-sm font-bold text-rose-900">Access Restricted</p>
-            <p className="text-xs leading-relaxed">{authError}</p>
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex items-start justify-between gap-3 text-rose-800 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-rose-900">Access Restricted</p>
+              <p className="text-xs leading-relaxed">{authError}</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={loadData}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold transition-colors cursor-pointer shrink-0 shadow-2xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </button>
         </div>
       )}
 
@@ -304,26 +325,26 @@ export const ResultsAdmin: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-1 shadow-2xs">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Projects</p>
-          <p className="text-2xl font-extrabold text-slate-900">{stats.totalProjects}</p>
+          <p className="text-2xl font-extrabold text-slate-900">{!statsLoaded || authError ? '—' : stats.totalProjects}</p>
           <p className="text-[11px] text-slate-500 font-medium">Registered teams</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-1 shadow-2xs">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">Evaluated Projects</p>
-          <p className="text-2xl font-extrabold text-emerald-700">{stats.evaluatedProjects ?? 0}</p>
-          <p className="text-[11px] text-emerald-600 font-medium">{stats.totalEvaluations ?? 0} jury evaluations recorded</p>
+          <p className="text-2xl font-extrabold text-emerald-700">{!statsLoaded || authError ? '—' : (stats.evaluatedProjects ?? 0)}</p>
+          <p className="text-[11px] text-emerald-600 font-medium">{!statsLoaded || authError ? '—' : `${stats.totalEvaluations ?? 0} jury evaluations recorded`}</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-1 shadow-2xs">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Not Evaluated</p>
-          <p className="text-2xl font-extrabold text-slate-700">{stats.notEvaluatedProjects ?? 0}</p>
+          <p className="text-2xl font-extrabold text-slate-700">{!statsLoaded || authError ? '—' : (stats.notEvaluatedProjects ?? 0)}</p>
           <p className="text-[11px] text-slate-400 font-medium">Awaiting judging</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-1 shadow-2xs">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#004182]">Highest Merit Score</p>
           <p className="text-2xl font-extrabold text-[#004182]">
-            {(stats.highestMeritScore ?? 0) > 0 ? (stats.highestMeritScore ?? 0).toFixed(2) : '--'}
+            {!statsLoaded || authError ? '—' : ((stats.highestMeritScore ?? 0) > 0 ? (stats.highestMeritScore ?? 0).toFixed(2) : '—')}
           </p>
           <p className="text-[11px] text-slate-500 font-medium">70% Norm + 30% Raw</p>
         </div>
