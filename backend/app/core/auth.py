@@ -41,23 +41,33 @@ async def verify_admin_auth(
         "Authorization": f"Bearer {token}",
     }
 
-    try:
-        client = db.get_client()
-        res = await client.get(auth_url, headers=headers)
-        if res.status_code != 200:
+    user_data = None
+    for attempt in range(2):
+        try:
+            client = db.get_client()
+            res = await client.get(auth_url, headers=headers)
+            if res.status_code == 200:
+                user_data = res.json()
+                break
+            elif res.status_code in (429, 502, 503, 504) and attempt == 0:
+                await asyncio.sleep(0.08)
+                continue
+            elif res.status_code != 200:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired Supabase authentication session."
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            if attempt == 0:
+                await asyncio.sleep(0.08)
+                continue
+            print(f"[Admin Auth] Token verification exception: {e}")
             raise HTTPException(
                 status_code=401,
-                detail="Invalid or expired Supabase authentication session."
+                detail="Authentication verification failed."
             )
-        user_data = res.json()
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[Admin Auth] Token verification exception: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication verification failed."
-        )
 
     user_id = user_data.get("id")
     user_email = (user_data.get("email") or "").lower().strip()
@@ -146,23 +156,33 @@ async def verify_jury_auth(
         "Authorization": f"Bearer {token}",
     }
 
-    try:
-        client = db.get_client()
-        res = await client.get(auth_url, headers=headers)
-        if res.status_code != 200:
+    user_data = None
+    for attempt in range(2):
+        try:
+            client = db.get_client()
+            res = await client.get(auth_url, headers=headers)
+            if res.status_code == 200:
+                user_data = res.json()
+                break
+            elif res.status_code in (429, 502, 503, 504) and attempt == 0:
+                await asyncio.sleep(0.08)
+                continue
+            elif res.status_code != 200:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired Supabase authentication session."
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            if attempt == 0:
+                await asyncio.sleep(0.08)
+                continue
+            print(f"[Jury Auth] Token verification exception: {e}")
             raise HTTPException(
                 status_code=401,
-                detail="Invalid or expired Supabase authentication session."
+                detail="Authentication verification failed."
             )
-        user_data = res.json()
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[Jury Auth] Token verification exception: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication verification failed."
-        )
 
     user_id = user_data.get("id")
     user_email = (user_data.get("email") or "").lower().strip()

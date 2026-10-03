@@ -17,7 +17,14 @@ let client: SupabaseClient | null = null;
 
 if (supabaseUrl && supabaseAnonKey) {
   try {
-    client = createClient(supabaseUrl, supabaseAnonKey);
+    client = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      },
+    });
   } catch (err) {
     console.warn('Supabase client initialization failed:', err);
   }

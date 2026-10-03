@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,12 +24,12 @@ from app.api import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialize connection pool and pre-warm domain aliases cache
+    # Startup: initialize connection pool and safely pre-warm domain aliases cache with timeout
     db.get_client()
     try:
-        await jury_service._refresh_aliases_cache()
+        await asyncio.wait_for(jury_service._refresh_aliases_cache(), timeout=2.0)
     except Exception as e:
-        print(f"[Lifespan Startup Notice] Domain aliases pre-warm: {e}")
+        print(f"[Lifespan Startup Notice] Domain aliases pre-warm (non-blocking fallback): {e}")
     yield
     # Shutdown: gracefully close persistent connections
     await db.close()
@@ -88,4 +89,7 @@ async def root():
 @app.get("/health")
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "app": "pragathi-api"
+    }

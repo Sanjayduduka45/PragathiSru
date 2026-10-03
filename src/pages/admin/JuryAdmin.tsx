@@ -42,6 +42,7 @@ import { api } from '../../services/api';
 import { Modal } from '../../components/ui/Modal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { sessionManager } from '../../services/sessionManager';
 
 export const JuryAdmin: React.FC = () => {
   const { toasts, addToast, dismissToast } = useAdminToast();
@@ -219,9 +220,13 @@ export const JuryAdmin: React.FC = () => {
     }
   }, [completionData, addToast]);
 
-  // Initial load: Only load juries
+  // Initial load: Only load juries + auto-revalidate on wake/focus
   useEffect(() => {
     loadJuries();
+    const unsub = sessionManager.onRevalidate(() => {
+      loadJuries(false);
+    });
+    return unsub;
   }, [loadJuries]);
 
   // Trigger lazy loading when tab switches
@@ -650,7 +655,7 @@ export const JuryAdmin: React.FC = () => {
                   : 'bg-slate-100 text-slate-600'
               }`}
             >
-              {juries.length}
+              {loading ? '—' : (juryLoadError && juries.length === 0 ? '—' : juries.length)}
             </span>
           </button>
 
@@ -718,7 +723,7 @@ export const JuryAdmin: React.FC = () => {
                 Total Juries
               </span>
               <span className="text-2xl font-black text-slate-900 mt-1 block">
-                {juryLoadError && juries.length === 0 ? '—' : juries.length}
+                {loading || (juryLoadError && juries.length === 0) ? '—' : juries.length}
               </span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
@@ -726,7 +731,7 @@ export const JuryAdmin: React.FC = () => {
                 Active Juries
               </span>
               <span className="text-2xl font-black text-emerald-700 mt-1 block">
-                {juryLoadError && juries.length === 0 ? '—' : juries.filter((j) => j.is_active).length}
+                {loading || (juryLoadError && juries.length === 0) ? '—' : juries.filter((j) => j.is_active).length}
               </span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
@@ -734,7 +739,7 @@ export const JuryAdmin: React.FC = () => {
                 Inactive Juries
               </span>
               <span className="text-2xl font-black text-slate-500 mt-1 block">
-                {juryLoadError && juries.length === 0 ? '—' : juries.filter((j) => !j.is_active).length}
+                {loading || (juryLoadError && juries.length === 0) ? '—' : juries.filter((j) => !j.is_active).length}
               </span>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
@@ -742,7 +747,7 @@ export const JuryAdmin: React.FC = () => {
                 Total Evaluations Conducted
               </span>
               <span className="text-2xl font-black text-[#004182] mt-1 block">
-                {juryLoadError && juries.length === 0 ? '—' : juries.reduce((sum, j) => sum + (j.evaluations_completed || 0), 0)}
+                {loading || (juryLoadError && juries.length === 0) ? '—' : juries.reduce((sum, j) => sum + (j.evaluations_completed || 0), 0)}
               </span>
             </div>
           </div>

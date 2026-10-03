@@ -20,6 +20,7 @@ import {
   Star,
   MessageSquare,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -73,7 +74,7 @@ interface SidebarContentProps {
 }
 
 const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
-  const { user, signOut } = useAdminAuth();
+  const { user, signOut, isAdmin, isRefreshing } = useAdminAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [contentExpanded, setContentExpanded] = useState(
@@ -324,9 +325,17 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ onClose }) => {
 
       {/* User + Logout */}
       <div className="p-3 border-t border-slate-200 space-y-2">
-        {user && (
+        {user && isAdmin && (
           <div className="px-3 py-2 bg-slate-50 rounded-xl">
-            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Logged in as</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Logged in as</p>
+              {isRefreshing && (
+                <span className="inline-flex items-center gap-1 text-[9px] text-[#004182] font-semibold">
+                  <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                  Syncing
+                </span>
+              )}
+            </div>
             <p className="text-xs font-bold text-slate-700 truncate mt-0.5">{user.email}</p>
           </div>
         )}

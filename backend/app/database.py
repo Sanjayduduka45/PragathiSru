@@ -380,15 +380,36 @@ class Database:
         return headers
 
     async def fetch_supabase(self, table: str, query_params: str = "") -> Optional[List[Dict[str, Any]]]:
+        import asyncio
         url = f"{settings.supabase_url}/rest/v1/{table}?{query_params}" if query_params else f"{settings.supabase_url}/rest/v1/{table}"
-        try:
-            client = self.get_client()
-            res = await client.get(url, headers=self.get_headers())
-            if res.status_code == 200:
-                return res.json()
-            print(f"[Supabase] GET '{table}' returned HTTP {res.status_code}: {res.text[:200]}")
-        except Exception as e:
-            print(f"[Supabase] Query exception on '{table}': {e}")
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            try:
+                client = self.get_client()
+                res = await client.get(url, headers=self.get_headers())
+                if res.status_code == 200:
+                    return res.json()
+
+                # Retry transient service errors
+                if res.status_code in (429, 502, 503, 504) and attempt < max_attempts:
+                    backoff = 0.1 * (2 ** (attempt - 1))
+                    print(f"[SUPABASE] {table} {res.status_code} transient retry {attempt}/{max_attempts - 1} after {backoff:.2f}s")
+                    await asyncio.sleep(backoff)
+                    continue
+
+                print(f"[Supabase] GET '{table}' returned HTTP {res.status_code}: {res.text[:200]}")
+                return None
+            except (httpx.RequestError, httpx.TimeoutException) as exc:
+                if attempt < max_attempts:
+                    backoff = 0.1 * (2 ** (attempt - 1))
+                    print(f"[SUPABASE] {table} network error transient retry {attempt}/{max_attempts - 1} after {backoff:.2f}s: {exc.__class__.__name__}")
+                    await asyncio.sleep(backoff)
+                    continue
+                print(f"[Supabase] Query exception on '{table}': {exc}")
+                return None
+            except Exception as e:
+                print(f"[Supabase] Unexpected exception on '{table}': {e}")
+                return None
         return None
 
     async def delete_supabase(self, table: str, eq_column: str, eq_value: str) -> bool:

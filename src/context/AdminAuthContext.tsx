@@ -2,8 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { JuryService } from '../services/juryService';
+import { sessionManager, type AuthState } from '../services/sessionManager';
 
-interface AdminAuthContextType {
+export interface AdminAuthContextType {
   user: User | null;
   session: Session | null;
   role: string | null;
@@ -11,18 +12,21 @@ interface AdminAuthContextType {
   isJudge: boolean;
   isJury: boolean;
   loading: boolean;
+  authState: AuthState;
+  isRefreshing: boolean;
   isSupabaseReady: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null; role?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; role?: string | null }>;
   signOut: () => Promise<void>;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextType | null>(null);
 
 export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(sessionManager.getCurrentUser());
+  const [session, setSession] = useState<Session | null>(sessionManager.getCurrentSession());
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authState, setAuthState] = useState<AuthState>(sessionManager.getAuthState());
 
   const roleCache = React.useRef(new Map<string, { role: string | null; timestamp: number }>());
 
@@ -73,30 +77,25 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      const currentUser = session?.user ?? null;
+    const unsubscribe = sessionManager.onAuthStateChange(async (newState, newSession) => {
+      setAuthState(newState);
+      setSession(newSession);
+      const currentUser = newSession?.user ?? null;
       setUser(currentUser);
-      const resolvedRole = await resolveUserRole(currentUser);
-      setRole(resolvedRole);
+
+      if (currentUser) {
+        const resolvedRole = await resolveUserRole(currentUser);
+        setRole(resolvedRole);
+      } else {
+        setRole(null);
+      }
+
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      const resolvedRole = await resolveUserRole(currentUser);
-      setRole(resolvedRole);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null; role?: string | null }> => {
@@ -109,6 +108,9 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (error) {
       return { error: error.message };
     }
+    if (data.session) {
+      sessionManager.applySession(data.session);
+    }
     setSession(data.session);
     setUser(data.user);
     const userRole = await resolveUserRole(data.user);
@@ -119,17 +121,17 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const signOut = async () => {
     roleCache.current.clear();
     JuryService.clearBootstrapCache();
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    await sessionManager.signOut();
     setUser(null);
     setSession(null);
     setRole(null);
   };
 
-  const isAdmin = role === 'admin' || role === 'superadmin' || role === 'coordinator';
-  const isJury = role === 'jury' || role === 'judge';
+  const isRoleAdmin = role === 'admin' || role === 'superadmin' || role === 'coordinator';
+  const isAdmin = (authState === 'AUTHENTICATED' || authState === 'REFRESHING') && isRoleAdmin;
+  const isJury = (authState === 'AUTHENTICATED' || authState === 'REFRESHING') && (role === 'jury' || role === 'judge');
   const isJudge = isJury;
+  const isRefreshing = authState === 'REFRESHING';
 
   return (
     <AdminAuthContext.Provider
@@ -141,6 +143,8 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isJudge,
         isJury,
         loading,
+        authState,
+        isRefreshing,
         isSupabaseReady: isSupabaseConfigured,
         signIn,
         signOut,

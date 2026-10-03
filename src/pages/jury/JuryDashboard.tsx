@@ -22,6 +22,7 @@ import { ProjectEvaluationModal } from '../../components/judge/ProjectEvaluation
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
 import { EvaluationHistoryView } from './components/EvaluationHistoryView';
+import { sessionManager } from '../../services/sessionManager';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
 
@@ -288,6 +289,12 @@ export const JuryDashboard: React.FC = () => {
     if (user?.id) {
       loadData();
     }
+    const unsub = sessionManager.onRevalidate(() => {
+      if (user?.id) {
+        loadData();
+      }
+    });
+    return unsub;
   }, [user?.id, loadData]);
 
   // ── Derived sets ─────────────────────────────────────────────────────────────
