@@ -14,7 +14,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
-import { Project, Evaluation, Judge } from '../../types';
+import { Project, Evaluation, Judge, DomainAssignmentItem } from '../../types';
 import { EvaluationService } from '../../services/evaluationService';
 import { JuryService } from '../../services/juryService';
 import { QRScannerModal } from '../../components/judge/QRScannerModal';
@@ -182,6 +182,7 @@ export const JuryDashboard: React.FC = () => {
   // ── Core data state ──────────────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
   const [myEvaluations, setMyEvaluations] = useState<Evaluation[]>([]);
+  const [assignedDomains, setAssignedDomains] = useState<DomainAssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const isFetchingRef = React.useRef(false);
@@ -244,6 +245,9 @@ export const JuryDashboard: React.FC = () => {
         }));
         setProjects(mapped);
         setMyEvaluations(cached.evaluations || []);
+        if (Array.isArray(cached.assignments)) {
+          setAssignedDomains(cached.assignments);
+        }
         setLoading(false);
       }
     }
@@ -274,6 +278,9 @@ export const JuryDashboard: React.FC = () => {
         }));
         setProjects(mapped);
         setMyEvaluations(bootstrapRes.evaluations || []);
+        if (Array.isArray(bootstrapRes.assignments)) {
+          setAssignedDomains(bootstrapRes.assignments);
+        }
       }
     } catch (err: any) {
       console.error('[JuryDashboard] Bootstrap failed:', err);
@@ -308,6 +315,22 @@ export const JuryDashboard: React.FC = () => {
     myEvaluations.forEach((e) => map.set(e.registrationId.toUpperCase(), e));
     return map;
   }, [myEvaluations]);
+
+  // ── Derived assigned domain titles (Authoritative: active jury_domain_assignments -> project_domains.title) ──
+  const assignedDomainTitles = useMemo(() => {
+    const titles: string[] = [];
+    const seen = new Set<string>();
+    assignedDomains.forEach((a) => {
+      if (a.is_active !== false) {
+        const title = (a.domain_title || '').trim();
+        if (title && !seen.has(title)) {
+          seen.add(title);
+          titles.push(title);
+        }
+      }
+    });
+    return titles;
+  }, [assignedDomains]);
 
   // ── Stats ────────────────────────────────────────────────────────────────────
   const totalProjects = projects.length;
@@ -614,16 +637,40 @@ export const JuryDashboard: React.FC = () => {
                       <h2 className="text-base font-extrabold text-slate-900 mt-1">
                         Welcome, {juryName}
                       </h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Evaluate student projects efficiently.
-                      </p>
+
+                      {/* Dynamic Assigned Domain(s) from project_domains.title */}
+                      <div className="mt-3">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                          {assignedDomainTitles.length > 1 ? 'Assigned Domains' : 'Assigned Domain'}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {loading ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 animate-pulse">
+                              Loading domain...
+                            </span>
+                          ) : assignedDomainTitles.length > 0 ? (
+                            assignedDomainTitles.map((title) => (
+                              <span
+                                key={title}
+                                className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold bg-[#004182]/10 text-[#004182] border border-[#004182]/20 shadow-2xs"
+                              >
+                                {title}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">
+                              No domain assigned
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Stats pills: show '—' while loading */}
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-center px-4 py-2 rounded-xl bg-slate-50 border border-slate-200">
                         <p className="text-lg font-black text-slate-800">{loading ? '—' : totalProjects}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Projects</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Assigned Projects</p>
                       </div>
                       <div className="text-center px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
                         <p className="text-lg font-black text-emerald-700">{loading ? '—' : completedCount}</p>

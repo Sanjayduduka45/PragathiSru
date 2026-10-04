@@ -443,15 +443,15 @@ async def run_localhost_e2e_verification():
             edit_items = edit_cands_res.json().get("candidates", [])
 
             own_avail = [c["registration_id"] for c in edit_items if c["available"] and c["assigned_to_judge_id"] == "judge_cse_1"]
-            other_unavail = [c["registration_id"] for c in edit_items if not c["available"] and c["assigned_to_judge_id"] == "judge_cse_2"]
+            other_unavail = [c["registration_id"] for c in edit_items if c["registration_id"] in {"PRAGATHI26-CSE04", "PRAGATHI26-CSE05", "PRAGATHI26-CSE06"}]
 
             assert_check(
                 sorted(own_avail) == ["PRAGATHI26-CSE01", "PRAGATHI26-CSE02", "PRAGATHI26-CSE03"],
                 f"Jury's own currently assigned projects remain selectable/available: {own_avail}"
             )
             assert_check(
-                sorted(other_unavail) == ["PRAGATHI26-CSE04", "PRAGATHI26-CSE05", "PRAGATHI26-CSE06"],
-                f"Projects belonging to OTHER jury remain unavailable: {other_unavail}"
+                sorted(other_unavail) == [],
+                f"Projects belonging to OTHER jury are completely excluded: {other_unavail}"
             )
 
         # ─────────────────────────────────────────────────────────────────

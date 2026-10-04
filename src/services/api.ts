@@ -16,6 +16,7 @@ import {
   JuryBootstrapResponse,
   AssignmentCandidatesResponse,
   MarksExportResponse,
+  ResetJuryPasswordResponse,
 } from '../types';
 
 import { sessionManager } from './sessionManager';
@@ -553,6 +554,11 @@ export const api = {
       request<{ success: boolean; message: string }>(`/api/admin/juries/${judgeUserId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
+      }),
+    resetPassword: (judgeUserId: string, temporaryPassword?: string) =>
+      request<ResetJuryPasswordResponse>(`/api/admin/juries/${judgeUserId}/reset-password`, {
+        method: 'POST',
+        body: JSON.stringify(temporaryPassword ? { temporary_password: temporaryPassword } : {}),
       }),
     getAssignments: (judgeUserId: string) =>
       request<DomainAssignmentItem[]>(`/api/admin/juries/${judgeUserId}/assignments`),

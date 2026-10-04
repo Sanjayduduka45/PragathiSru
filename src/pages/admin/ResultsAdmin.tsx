@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { ProjectResult, AwardWinnerItem, ThemeSummaryItem, ResultsStats, MarksExportItem } from '../../types';
 import { api } from '../../services/api';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { PROJECT_CATEGORIES } from '../../data/eventData';
 import { Modal } from '../../components/ui/Modal';
 import { ToastContainer } from '../../components/ui/Toast';
@@ -85,12 +86,16 @@ export const ResultsAdmin: React.FC = () => {
   const [selectedProjectIdsForExport, setSelectedProjectIdsForExport] = useState<string[]>([]);
   const [exportProjectSearch, setExportProjectSearch] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [availableDomains, setAvailableDomains] = useState<{ id: string; title: string; active?: boolean }[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setAuthError(null);
     try {
-      const res = await api.results.get();
+      const [res, domainRes] = await Promise.all([
+        api.results.get(),
+        api.domains.get().catch(() => null),
+      ]);
 
       if (res && res.success) {
         if (res.notice) setNotice(res.notice);
@@ -113,6 +118,41 @@ export const ResultsAdmin: React.FC = () => {
 
         // Map theme summaries
         setThemes(res.themes || []);
+
+        // Load dynamic domains from public.project_domains
+        let domainsList: { id: string; title: string; active?: boolean }[] = [];
+        if (domainRes && domainRes.success && Array.isArray(domainRes.data) && domainRes.data.length > 0) {
+          domainsList = domainRes.data.map((d: any) => ({
+            id: String(d.id),
+            title: String(d.title || d.id),
+            active: d.active !== false && d.is_active !== false,
+          }));
+        } else if (isSupabaseConfigured && supabase) {
+          try {
+            const { data: supaDomains } = await supabase
+              .from('project_domains')
+              .select('id, title, is_active, display_order')
+              .order('display_order', { ascending: true });
+            if (supaDomains && supaDomains.length > 0) {
+              domainsList = supaDomains.map((d: any) => ({
+                id: String(d.id),
+                title: String(d.title || d.id),
+                active: d.is_active !== false,
+              }));
+            }
+          } catch (e) {
+            console.warn('[ResultsAdmin] Supabase domain query error:', e);
+          }
+        }
+
+        if (domainsList.length === 0 && res.themes && res.themes.length > 0) {
+          domainsList = res.themes.map((t: any) => ({
+            id: t.category,
+            title: t.category,
+            active: true,
+          }));
+        }
+        setAvailableDomains(domainsList);
 
         // Map awards
         setAwards(res.awards || []);
@@ -262,133 +302,333 @@ export const ResultsAdmin: React.FC = () => {
     }
   };
 
-  const sanitizeSheetName = (name: string): string => {
-    const clean = name.replace(/[*?\/\\\[\]:]/g, ' ').trim();
-    return clean.slice(0, 31) || 'Theme';
+  const getCanonicalThemeTitle = useCallback((category: string): string => {
+    if (!category) return 'General';
+    const clean = category.trim().toLowerCase();
+
+    // 1. Direct match in dynamic domains
+    const matched = availableDomains.find(
+      (d) => d.title.trim().toLowerCase() === clean || d.id.trim().toLowerCase() === clean
+    );
+    if (matched) return matched.title;
+
+    // 2. Canonical aliases mapping (handling known legacy variants)
+    const ALIAS_MAP: Record<string, string> = {
+      'multidisciplinary innovation & smart solution': 'Multidisciplinary Innovation & Smart Solutions',
+      'multidisciplinary innovation & smart solutions': 'Multidisciplinary Innovation & Smart Solutions',
+      'school innovation & young innovators (for 8th–12th standard students)': 'School Innovation & Young Innovators',
+      'school innovation & young innovators (for 8th-12th standard students)': 'School Innovation & Young Innovators',
+      'school innovation & young innovators': 'School Innovation & Young Innovators',
+      'civil engineering & smart infrastructure': 'Civil Engineering & Smart Infrastructure',
+      'computer science & artificial intelligence': 'Computer Science & Artificial Intelligence',
+      'mechanical engineering & automation': 'Mechanical Engineering & Automation',
+      'electronics & communication technologies': 'Electronics & Communication Technologies',
+      'electrical engineering & energy systems': 'Electrical Engineering & Energy Systems',
+      'business management & entrepreneurship': 'Business Management & Entrepreneurship',
+      'agriculture & agri-innovation': 'Agriculture & Agri-Innovation',
+      'healthcare & biomedical innovations': 'Healthcare & Biomedical Innovations',
+      'ai-software': 'Civil Engineering & Smart Infrastructure',
+      'smart-automation': 'Computer Science & Artificial Intelligence',
+      'green-sustainability': 'Mechanical Engineering & Automation',
+      'health-biotech': 'Electronics & Communication Technologies',
+      'hardware-iot': 'Electrical Engineering & Energy Systems',
+      'open-innovation': 'Business Management & Entrepreneurship',
+      'domain-7c89c586': 'Agriculture & Agri-Innovation',
+      'domain-315daeb9': 'Healthcare & Biomedical Innovations',
+      'domain-c0677a05': 'Multidisciplinary Innovation & Smart Solutions',
+      'domain-9f52a525': 'School Innovation & Young Innovators',
+    };
+
+    if (ALIAS_MAP[clean]) {
+      const aliasTarget = ALIAS_MAP[clean];
+      const foundInDomains = availableDomains.find(
+        (d) => d.title.trim().toLowerCase() === aliasTarget.toLowerCase()
+      );
+      return foundInDomains ? foundInDomains.title : aliasTarget;
+    }
+
+    return category;
+  }, [availableDomains]);
+
+  const sanitizeSheetName = (name: string, usedNames: Set<string>): string => {
+    let clean = name.replace(/[*?\/\\\[\]:]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!clean) clean = 'Sheet';
+    const base = clean.slice(0, 31);
+    let finalName = base;
+    let counter = 2;
+    while (usedNames.has(finalName.toLowerCase())) {
+      const suffix = ` (${counter})`;
+      const maxBase = 31 - suffix.length;
+      finalName = `${base.slice(0, maxBase)}${suffix}`;
+      counter++;
+    }
+    usedNames.add(finalName.toLowerCase());
+    return finalName;
   };
 
   const EXPORT_COLUMNS = [
     'Registration ID',
-    'Project Title',
     'Team Name',
-    'Institution / Department',
+    'Project Title',
     'Canonical Theme / Domain',
-    'Assigned Jury Name',
+    'Institution / College',
     'Evaluation Status',
-    'Innovation & Originality /20',
-    'Technical / Conceptual Strength /20',
-    'Working Model / Prototype /20',
-    'Practical Applicability & Impact /20',
-    'Presentation & Response /20',
-    'Raw Total /100',
-    'Evaluated At',
+    'Evaluations Count',
+    'Jury / Evaluator',
+    'Individual Evaluation Scores',
+    'Working Model / Prototype (/20)',
+    'Innovation & Originality (/20)',
+    'Technical / Conceptual Strength (/20)',
+    'Practical Applicability & Impact (/20)',
+    'Presentation & Response (/20)',
+    'Raw Total',
+    'Average Jury Score (/100)',
+    'Theme Min',
+    'Theme Max',
+    'Normalized Score (/100)',
+    'Merit Score (/100)',
+    'Overall Rank',
+    'Theme Rank',
+    'Award / Standing',
   ];
 
-  const mapProjectToRow = (p: MarksExportItem) => {
-    const isEval = p.evaluation_status === 'Evaluated';
+  const EXPORT_COL_WIDTHS = [
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 32 },
+    { wch: 32 },
+    { wch: 24 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 24 },
+    { wch: 28 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 24 },
+  ];
+
+  const mapProjectToExportRow = (p: ProjectResult, canonicalThemeTitle: string) => {
+    const isEvaluated = p.status !== 'Not Evaluated' && p.evaluationsCount > 0;
+
+    const juryNames = isEvaluated && p.evaluations && p.evaluations.length > 0
+      ? p.evaluations.map((e) => e.judgeName || (e.judgeEmail ? e.judgeEmail.split('@')[0] : 'Jury')).join(', ')
+      : '';
+
+    const individualScores = isEvaluated && p.evaluations && p.evaluations.length > 0
+      ? p.evaluations.map((e) => `${e.judgeName || 'Jury'}: ${e.totalScore}`).join(' | ')
+      : '';
+
+    const rawTotal = isEvaluated && p.evaluations && p.evaluations.length > 0
+      ? Number(p.evaluations.reduce((sum, e) => sum + (e.totalScore || 0), 0).toFixed(2))
+      : '';
+
+    const crit = p.criteriaAverages || {};
+
     return [
-      p.registration_id,
-      p.project_title,
-      p.team_name || '',
-      p.institution_name || '',
-      p.canonical_theme,
-      p.assigned_jury_name || 'Unassigned',
-      p.evaluation_status,
-      isEval ? (p.innovation_score ?? '') : '',
-      isEval ? (p.technical_score ?? '') : '',
-      isEval ? (p.working_model_score ?? '') : '',
-      isEval ? (p.applicability_score ?? '') : '',
-      isEval ? (p.presentation_score ?? '') : '',
-      isEval ? (p.raw_total ?? '') : '',
-      isEval ? (p.evaluated_at || '') : '',
+      p.registrationId,
+      p.teamName || '',
+      p.projectTitle || '',
+      canonicalThemeTitle || p.category,
+      p.institutionName || '',
+      p.status,
+      p.evaluationsCount || 0,
+      juryNames,
+      individualScores,
+      isEvaluated && crit.implementation !== undefined ? crit.implementation : '',
+      isEvaluated && crit.innovation !== undefined ? crit.innovation : '',
+      isEvaluated && crit.technical !== undefined ? crit.technical : '',
+      isEvaluated && crit.impact !== undefined ? crit.impact : '',
+      isEvaluated && crit.presentation !== undefined ? crit.presentation : '',
+      rawTotal,
+      isEvaluated && p.rawAverage !== undefined ? Number(p.rawAverage.toFixed(2)) : '',
+      isEvaluated && p.themeMin !== null && p.themeMin !== undefined ? Number(p.themeMin.toFixed(2)) : '',
+      isEvaluated && p.themeMax !== null && p.themeMax !== undefined ? Number(p.themeMax.toFixed(2)) : '',
+      isEvaluated && p.normalizedScore !== null && p.normalizedScore !== undefined ? Number(p.normalizedScore.toFixed(2)) : '',
+      isEvaluated && p.meritScore !== null && p.meritScore !== undefined ? Number(p.meritScore.toFixed(2)) : '',
+      isEvaluated && p.overallRank ? p.overallRank : '',
+      isEvaluated && p.themeRank ? p.themeRank : '',
+      p.award || '',
     ];
   };
 
   const handleExecuteExport = async () => {
     setExporting(true);
     try {
-      let dataRes: { projects: MarksExportItem[] };
-
-      if (exportMode === 'selected_projects') {
-        if (selectedProjectIdsForExport.length === 0) {
-          addToast('error', 'No Projects Selected', 'Please select at least one project to export.');
-          setExporting(false);
-          return;
+      let currentProjects = projects;
+      if (!currentProjects || currentProjects.length === 0) {
+        const res = await api.results.get();
+        if (res && res.projects) {
+          currentProjects = (res.projects || []).map((p: any) => ({
+            registrationId: p.registration_id,
+            teamName: p.team_name,
+            projectTitle: p.project_title,
+            category: p.category,
+            institutionName: p.institution_name,
+            leaderName: p.leader_name,
+            members: p.members || [],
+            problemStatement: p.problem_statement,
+            proposedSolution: p.proposed_solution,
+            innovation: p.innovation,
+            evaluationsCount: p.evaluations_count,
+            rawAverage: p.raw_average,
+            criteriaAverages: p.criteria_averages || {},
+            themeMin: p.theme_min,
+            themeMax: p.theme_max,
+            normalizedScore: p.normalized_score,
+            meritScore: p.merit_score,
+            overallRank: p.overall_rank,
+            themeRank: p.theme_rank,
+            award: p.award,
+            awardType: p.award_type,
+            status: p.status,
+            isEligible: p.is_eligible,
+            tieStatus: p.tie_status,
+            evaluations: (p.evaluations || []).map((ev: any) => ({
+              id: ev.id,
+              judgeId: ev.judge_id,
+              judgeName: ev.judge_name,
+              judgeEmail: ev.judge_email,
+              totalScore: ev.total_score,
+              scores: ev.scores || {},
+              comments: ev.comments,
+              submittedAt: ev.submitted_at,
+            })),
+            completedJudges: p.evaluations_count,
+            averageScore: p.raw_average,
+            expectedJudges: p.evaluations_count,
+          }));
         }
-        dataRes = await api.results.getMarksExport(undefined, selectedProjectIdsForExport);
-      } else {
-        dataRes = await api.results.getMarksExport();
       }
 
-      const allItems = dataRes.projects || [];
-      if (allItems.length === 0) {
-        addToast('error', 'No Data', 'No marks data found for export.');
+      if (!currentProjects || currentProjects.length === 0) {
+        addToast('error', 'No projects available', 'There are no projects available to export.');
         setExporting(false);
         return;
       }
 
       const XLSX = await import('xlsx');
       const wb = XLSX.utils.book_new();
-      const dateStr = new Date().toISOString().slice(0, 10);
 
       if (exportMode === 'theme_wise') {
-        const byTheme = new Map<string, MarksExportItem[]>();
-        allItems.forEach((item) => {
-          const t = item.canonical_theme || 'Uncategorized';
-          if (!byTheme.has(t)) byTheme.set(t, []);
-          byTheme.get(t)!.push(item);
+        const byTheme = new Map<string, ProjectResult[]>();
+
+        // Initialize empty lists for all active canonical themes from public.project_domains
+        availableDomains
+          .filter((d) => d.active !== false)
+          .forEach((d) => {
+            byTheme.set(d.title, []);
+          });
+
+        // Distribute projects into their canonical themes
+        currentProjects.forEach((p) => {
+          const canonicalTitle = getCanonicalThemeTitle(p.category);
+          if (!byTheme.has(canonicalTitle)) {
+            byTheme.set(canonicalTitle, []);
+          }
+          byTheme.get(canonicalTitle)!.push(p);
         });
 
-        byTheme.forEach((items, themeName) => {
-          const rows = [EXPORT_COLUMNS, ...items.map(mapProjectToRow)];
+        const usedSheetNames = new Set<string>();
+        byTheme.forEach((items, themeTitle) => {
+          const sheetName = sanitizeSheetName(themeTitle, usedSheetNames);
+          const rows = [
+            EXPORT_COLUMNS,
+            ...items.map((p) => mapProjectToExportRow(p, themeTitle)),
+          ];
           const ws = XLSX.utils.aoa_to_sheet(rows);
-          XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(themeName));
+          ws['!cols'] = EXPORT_COL_WIDTHS;
+          XLSX.utils.book_append_sheet(wb, ws, sheetName);
         });
 
-        XLSX.writeFile(wb, `PRAGATHI26_Theme_Wise_Marks_${dateStr}.xlsx`);
+        XLSX.writeFile(wb, 'Pragathi_Theme_Wise_Marks.xlsx');
       } else if (exportMode === 'all_projects') {
-        const rows = [EXPORT_COLUMNS, ...allItems.map(mapProjectToRow)];
+        const rows = [
+          EXPORT_COLUMNS,
+          ...currentProjects.map((p) =>
+            mapProjectToExportRow(p, getCanonicalThemeTitle(p.category))
+          ),
+        ];
         const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = EXPORT_COL_WIDTHS;
         XLSX.utils.book_append_sheet(wb, ws, 'All Project Marks');
-        XLSX.writeFile(wb, `PRAGATHI26_All_Project_Marks_${dateStr}.xlsx`);
+        XLSX.writeFile(wb, 'Pragathi_All_Project_Marks.xlsx');
       } else if (exportMode === 'selected_themes') {
         if (selectedThemesForExport.length === 0) {
-          addToast('error', 'No Themes Selected', 'Please select at least one theme to export.');
+          addToast('error', 'No themes selected', 'Please select at least one theme to export.');
           setExporting(false);
           return;
         }
 
-        const selectedSet = new Set(selectedThemesForExport);
-        const filtered = allItems.filter((p) => selectedSet.has(p.canonical_theme));
+        const selectedSet = new Set(selectedThemesForExport.map((t) => t.trim().toLowerCase()));
+        const filtered = currentProjects.filter((p) => {
+          const canonicalTitle = getCanonicalThemeTitle(p.category);
+          return selectedSet.has(canonicalTitle.toLowerCase()) || selectedSet.has(p.category.trim().toLowerCase());
+        });
 
         if (filtered.length === 0) {
-          addToast('error', 'No Data', 'No projects found in selected themes.');
+          addToast('warning', 'No projects available', 'No projects found in the selected themes.');
           setExporting(false);
           return;
         }
 
-        const byTheme = new Map<string, MarksExportItem[]>();
-        filtered.forEach((item) => {
-          const t = item.canonical_theme || 'Uncategorized';
-          if (!byTheme.has(t)) byTheme.set(t, []);
-          byTheme.get(t)!.push(item);
-        });
-
-        byTheme.forEach((items, themeName) => {
-          const rows = [EXPORT_COLUMNS, ...items.map(mapProjectToRow)];
+        const usedSheetNames = new Set<string>();
+        selectedThemesForExport.forEach((themeTitle) => {
+          const themeProjects = filtered.filter(
+            (p) => getCanonicalThemeTitle(p.category).toLowerCase() === themeTitle.trim().toLowerCase()
+          );
+          const sheetName = sanitizeSheetName(themeTitle, usedSheetNames);
+          const rows = [
+            EXPORT_COLUMNS,
+            ...themeProjects.map((p) => mapProjectToExportRow(p, themeTitle)),
+          ];
           const ws = XLSX.utils.aoa_to_sheet(rows);
-          XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(themeName));
+          ws['!cols'] = EXPORT_COL_WIDTHS;
+          XLSX.utils.book_append_sheet(wb, ws, sheetName);
         });
 
-        XLSX.writeFile(wb, `PRAGATHI26_Selected_Themes_Marks_${dateStr}.xlsx`);
+        XLSX.writeFile(wb, 'Pragathi_Selected_Themes_Marks.xlsx');
       } else if (exportMode === 'selected_projects') {
-        const rows = [EXPORT_COLUMNS, ...allItems.map(mapProjectToRow)];
+        if (selectedProjectIdsForExport.length === 0) {
+          addToast('error', 'No projects selected', 'Please select at least one project to export.');
+          setExporting(false);
+          return;
+        }
+
+        const selectedIdSet = new Set(selectedProjectIdsForExport.map((id) => id.trim().toUpperCase()));
+        const chosenProjects = currentProjects.filter((p) =>
+          selectedIdSet.has(p.registrationId.trim().toUpperCase())
+        );
+
+        if (chosenProjects.length === 0) {
+          addToast('error', 'No projects available', 'None of the selected projects were found.');
+          setExporting(false);
+          return;
+        }
+
+        const rows = [
+          EXPORT_COLUMNS,
+          ...chosenProjects.map((p) =>
+            mapProjectToExportRow(p, getCanonicalThemeTitle(p.category))
+          ),
+        ];
         const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = EXPORT_COL_WIDTHS;
         XLSX.utils.book_append_sheet(wb, ws, 'Selected Projects');
-        XLSX.writeFile(wb, `PRAGATHI26_Selected_Projects_Marks_${dateStr}.xlsx`);
+        XLSX.writeFile(wb, 'Pragathi_Selected_Project_Marks.xlsx');
       }
 
-      addToast('success', 'Export Complete', 'Marks export workbook generated successfully.');
+      addToast('success', 'Export successful', 'Marks export workbook generated successfully.');
       setExportModalOpen(false);
     } catch (err: any) {
       console.error('[ResultsAdmin] Export marks error:', err);
@@ -1453,47 +1693,72 @@ export const ResultsAdmin: React.FC = () => {
             </div>
           </div>
 
-          {/* If Selected Themes Mode: Multi-select Theme checkboxes */}
+          {/* If Selected Themes Mode: Multi-select Theme checkboxes dynamically from public.project_domains */}
           {exportMode === 'selected_themes' && (
             <div className="space-y-2 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700">
-                  Select Themes ({selectedThemesForExport.length} selected)
+                  Select Themes ({selectedThemesForExport.length} of {availableDomains.length} selected)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const allThemeTitles = themes.map((t) => t.theme_title);
-                    setSelectedThemesForExport(allThemeTitles);
-                  }}
-                  className="text-[11px] font-bold text-emerald-700 hover:underline"
-                >
-                  Select All
-                </button>
-              </div>
-              <div className="max-h-40 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2">
-                {themes.map((t) => {
-                  const isChecked = selectedThemesForExport.includes(t.theme_title);
-                  return (
-                    <div
-                      key={t.theme_id}
-                      onClick={() => {
-                        const next = isChecked
-                          ? selectedThemesForExport.filter((x) => x !== t.theme_title)
-                          : [...selectedThemesForExport, t.theme_title];
-                        setSelectedThemesForExport(next);
-                      }}
-                      className="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded-lg cursor-pointer text-xs"
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allTitles = availableDomains.map((d) => d.title);
+                      setSelectedThemesForExport(allTitles);
+                    }}
+                    className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                  {selectedThemesForExport.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedThemesForExport([])}
+                      className="text-[11px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
-                      {isChecked ? (
-                        <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-300 shrink-0" />
-                      )}
-                      <span className="font-bold text-slate-800">{t.theme_title}</span>
-                    </div>
-                  );
-                })}
+                      Clear All
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="max-h-52 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2">
+                {availableDomains.length === 0 ? (
+                  <div className="p-4 text-center text-xs font-medium text-slate-400">
+                    No domains available
+                  </div>
+                ) : (
+                  availableDomains.map((d) => {
+                    const isChecked = selectedThemesForExport.includes(d.title);
+                    const themeProjCount = projects.filter(
+                      (p) => getCanonicalThemeTitle(p.category).toLowerCase() === d.title.toLowerCase()
+                    ).length;
+                    return (
+                      <div
+                        key={d.id}
+                        onClick={() => {
+                          const next = isChecked
+                            ? selectedThemesForExport.filter((x) => x !== d.title)
+                            : [...selectedThemesForExport, d.title];
+                          setSelectedThemesForExport(next);
+                        }}
+                        className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {isChecked ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                          )}
+                          <span className="font-bold text-slate-800">{d.title}</span>
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                          {themeProjCount} {themeProjCount === 1 ? 'project' : 'projects'}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
@@ -1501,83 +1766,106 @@ export const ResultsAdmin: React.FC = () => {
           {/* If Selected Projects Mode: Project selector with search */}
           {exportMode === 'selected_projects' && (
             <div className="space-y-2 pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700">
-                  Select Projects ({selectedProjectIdsForExport.length} selected)
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allPids = projects.map((p) => p.registrationId);
-                      setSelectedProjectIdsForExport(allPids);
-                    }}
-                    className="text-[11px] font-bold text-emerald-700 hover:underline"
-                  >
-                    Select All ({projects.length})
-                  </button>
-                  {selectedProjectIdsForExport.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedProjectIdsForExport([])}
-                      className="text-[11px] font-bold text-slate-400 hover:text-slate-600"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
+              {(() => {
+                const q = exportProjectSearch.toLowerCase().trim();
+                const visibleProjects = projects.filter((p) => {
+                  if (!q) return true;
+                  const canonical = getCanonicalThemeTitle(p.category).toLowerCase();
+                  return (
+                    p.registrationId.toLowerCase().includes(q) ||
+                    p.projectTitle.toLowerCase().includes(q) ||
+                    p.teamName.toLowerCase().includes(q) ||
+                    canonical.includes(q)
+                  );
+                });
 
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search project by ID, title, or team..."
-                  value={exportProjectSearch}
-                  onChange={(e) => setExportProjectSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600"
-                />
-              </div>
-
-              <div className="max-h-44 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2">
-                {projects
-                  .filter((p) => {
-                    const q = exportProjectSearch.toLowerCase().trim();
-                    if (!q) return true;
-                    return (
-                      p.registrationId.toLowerCase().includes(q) ||
-                      p.projectTitle.toLowerCase().includes(q) ||
-                      p.teamName.toLowerCase().includes(q)
-                    );
-                  })
-                  .map((p) => {
-                    const isChecked = selectedProjectIdsForExport.includes(p.registrationId);
-                    return (
-                      <div
-                        key={p.registrationId}
-                        onClick={() => {
-                          const next = isChecked
-                            ? selectedProjectIdsForExport.filter((id) => id !== p.registrationId)
-                            : [...selectedProjectIdsForExport, p.registrationId];
-                          setSelectedProjectIdsForExport(next);
-                        }}
-                        className="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded-lg cursor-pointer text-xs"
-                      >
-                        {isChecked ? (
-                          <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
-                        ) : (
-                          <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700">
+                        Select Projects ({selectedProjectIdsForExport.length} selected)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const visibleIds = visibleProjects.map((p) => p.registrationId);
+                            const combined = Array.from(new Set([...selectedProjectIdsForExport, ...visibleIds]));
+                            setSelectedProjectIdsForExport(combined);
+                          }}
+                          className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                        >
+                          Select All Visible ({visibleProjects.length})
+                        </button>
+                        {selectedProjectIdsForExport.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProjectIdsForExport([])}
+                            className="text-[11px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            Clear Selection
+                          </button>
                         )}
-                        <div className="truncate">
-                          <span className="font-bold text-slate-900 block truncate">{p.projectTitle}</span>
-                          <span className="font-mono text-[10px] text-slate-400">
-                            {p.registrationId} • {p.teamName}
-                          </span>
-                        </div>
                       </div>
-                    );
-                  })}
-              </div>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search by registration ID, title, team, or domain..."
+                        value={exportProjectSearch}
+                        onChange={(e) => setExportProjectSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                      />
+                    </div>
+
+                    <div className="max-h-52 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2">
+                      {visibleProjects.length === 0 ? (
+                        <div className="p-6 text-center text-xs font-medium text-slate-400">
+                          No projects available
+                        </div>
+                      ) : (
+                        visibleProjects.map((p) => {
+                          const isChecked = selectedProjectIdsForExport.includes(p.registrationId);
+                          const canonicalTheme = getCanonicalThemeTitle(p.category);
+                          return (
+                            <div
+                              key={p.registrationId}
+                              onClick={() => {
+                                const next = isChecked
+                                  ? selectedProjectIdsForExport.filter((id) => id !== p.registrationId)
+                                  : [...selectedProjectIdsForExport, p.registrationId];
+                                setSelectedProjectIdsForExport(next);
+                              }}
+                              className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs transition-colors"
+                            >
+                              {isChecked ? (
+                                <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                              ) : (
+                                <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-bold text-slate-900 truncate block">{p.projectTitle}</span>
+                                  <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
+                                    {canonicalTheme}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                                  <span className="font-bold text-[#004182]">{p.registrationId}</span>
+                                  <span>•</span>
+                                  <span className="font-sans text-slate-600 truncate">{p.teamName}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -1598,10 +1886,10 @@ export const ResultsAdmin: React.FC = () => {
                 (exportMode === 'selected_themes' && selectedThemesForExport.length === 0) ||
                 (exportMode === 'selected_projects' && selectedProjectIdsForExport.length === 0)
               }
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50 shadow-2xs"
             >
               {exporting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
-              {exporting ? 'Generating Excel…' : 'Download .xlsx'}
+              {exporting ? 'Exporting...' : 'Download .xlsx'}
             </button>
           </div>
         </div>

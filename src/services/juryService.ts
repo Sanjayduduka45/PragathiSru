@@ -20,6 +20,7 @@ import {
   JuryProjectProgressResponse,
   JuryBootstrapResponse,
   AssignmentCandidatesResponse,
+  ResetJuryPasswordResponse,
 } from '../types';
 
 export interface CreateJuryPayload {
@@ -81,6 +82,17 @@ export class JuryService {
     data: { name?: string; department?: string; is_active?: boolean }
   ): Promise<{ success: boolean; message: string }> {
     return api.juries.updateProfile(judgeUserId, data);
+  }
+
+  /**
+   * Reset a jury account's password securely (Admin)
+   * Never stores plaintext password. Returns temporary password once.
+   */
+  public static async resetPassword(
+    judgeUserId: string,
+    temporaryPassword?: string
+  ): Promise<ResetJuryPasswordResponse> {
+    return api.juries.resetPassword(judgeUserId, temporaryPassword);
   }
 
   /**

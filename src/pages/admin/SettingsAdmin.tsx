@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Settings,
   User,
@@ -28,6 +28,10 @@ import {
   ShieldCheck,
   AlertTriangle,
   Info,
+  Search,
+  Copy,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
@@ -47,8 +51,10 @@ import {
   type AuditLogItem,
   DEFAULT_FULL_SETTINGS,
 } from '../../services/settingsService';
+import { JuryService } from '../../services/juryService';
+import { JuryProfile } from '../../types';
 
-type TabKey = 'account' | 'event' | 'notifications' | 'roles' | 'system' | 'audit';
+type TabKey = 'account' | 'juries' | 'event' | 'notifications' | 'roles' | 'system' | 'audit';
 
 export const SettingsAdmin: React.FC = () => {
   const { user } = useAdminAuth();
@@ -107,6 +113,169 @@ export const SettingsAdmin: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
 
+  // ─── Jury Accounts State & Handlers ──────────────────────────────────────────
+  const [juries, setJuries] = useState<JuryProfile[]>([]);
+  const [loadingJuries, setLoadingJuries] = useState(false);
+  const [jurySearchQuery, setJurySearchQuery] = useState('');
+  const [juryStatusFilter, setJuryStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [copiedLoginId, setCopiedLoginId] = useState<string | null>(null);
+  const [copiedTempPass, setCopiedTempPass] = useState(false);
+
+  // Reset Password Modal State
+  const [resetPassModalOpen, setResetPassModalOpen] = useState(false);
+  const [selectedJuryForReset, setSelectedJuryForReset] = useState<JuryProfile | null>(null);
+  const [resetPassMode, setResetPassMode] = useState<'auto' | 'custom'>('auto');
+  const [customTempPassword, setCustomTempPassword] = useState('');
+  const [showCustomPassword, setShowCustomPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+
+  // Reset Password Result Modal State (Temporary Password shown ONCE)
+  const [resetResultModalOpen, setResetResultModalOpen] = useState(false);
+  const [resetResultData, setResetResultData] = useState<{
+    loginId: string;
+    temporaryPassword: string;
+    juryName: string;
+  } | null>(null);
+
+  const loadJuryAccounts = async () => {
+    setLoadingJuries(true);
+    try {
+      const list = await JuryService.listJuries();
+      setJuries(list);
+    } catch (err: unknown) {
+      console.error('Failed to load jury accounts:', err);
+      const msg = err instanceof Error ? err.message : 'Could not load jury accounts.';
+      addToast('error', 'Load Failed', msg);
+    } finally {
+      setLoadingJuries(false);
+    }
+  };
+
+  const handleCopy = (text: string, type: 'login' | 'password', id?: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    if (type === 'login') {
+      setCopiedLoginId(id || text);
+      setTimeout(() => setCopiedLoginId(null), 2000);
+      addToast('info', 'Copied to Clipboard', `Login ID "${text}" copied.`);
+    } else {
+      setCopiedTempPass(true);
+      setTimeout(() => setCopiedTempPass(false), 2000);
+      addToast('info', 'Copied to Clipboard', 'Temporary password copied to clipboard.');
+    }
+  };
+
+  const handleOpenResetModal = (jury: JuryProfile) => {
+    setSelectedJuryForReset(jury);
+    setResetPassMode('auto');
+    setCustomTempPassword('');
+    setShowCustomPassword(false);
+    setResetPassModalOpen(true);
+  };
+
+  const handlePerformPasswordReset = async () => {
+    if (!selectedJuryForReset) return;
+
+    if (resetPassMode === 'custom') {
+      if (customTempPassword.length < 8) {
+        addToast('error', 'Validation Error', 'Temporary password must be at least 8 characters long.');
+        return;
+      }
+      if (customTempPassword.length > 72) {
+        addToast('error', 'Validation Error', 'Temporary password must not exceed 72 characters.');
+        return;
+      }
+    }
+
+    setResettingPassword(true);
+    try {
+      const res = await JuryService.resetPassword(
+        selectedJuryForReset.user_id,
+        resetPassMode === 'custom' ? customTempPassword : undefined
+      );
+
+      // Close the configuration modal
+      setResetPassModalOpen(false);
+
+      // Open the result modal with the temporary password displayed ONCE
+      setResetResultData({
+        loginId: res.login_id || selectedJuryForReset.email,
+        temporaryPassword: res.temporary_password,
+        juryName: selectedJuryForReset.name,
+      });
+      setResetResultModalOpen(true);
+      setCustomTempPassword('');
+
+      addToast('success', 'Password Reset Successful', `New temporary password generated for ${selectedJuryForReset.name}.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Password reset failed';
+      addToast('error', 'Reset Failed', msg);
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
+  const handleCloseResetResultModal = () => {
+    setResetResultModalOpen(false);
+    // CRITICAL SECURITY: Immediately wipe temporary password from memory
+    setResetResultData(null);
+    setSelectedJuryForReset(null);
+    setCopiedTempPass(false);
+  };
+
+  const handleToggleJuryStatus = async (jury: JuryProfile) => {
+    const nextStatus = !jury.is_active;
+    try {
+      await JuryService.updateJuryProfile(jury.user_id, { is_active: nextStatus });
+      setJuries((prev) =>
+        prev.map((j) => (j.user_id === jury.user_id ? { ...j, is_active: nextStatus } : j))
+      );
+      addToast(
+        'success',
+        nextStatus ? 'Account Activated' : 'Account Deactivated',
+        `Jury "${jury.name}" is now ${nextStatus ? 'active' : 'inactive'}.`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Status update failed';
+      addToast('error', 'Update Failed', msg);
+    }
+  };
+
+  const formatDateTime = (iso?: string | null) => {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return iso;
+    }
+  };
+
+  const filteredJuries = useMemo(() => {
+    return juries.filter((jury) => {
+      if (juryStatusFilter === 'active' && !jury.is_active) return false;
+      if (juryStatusFilter === 'inactive' && jury.is_active) return false;
+
+      if (!jurySearchQuery.trim()) return true;
+      const q = jurySearchQuery.trim().toLowerCase();
+
+      const nameMatch = (jury.name || '').toLowerCase().includes(q);
+      const emailMatch = (jury.email || '').toLowerCase().includes(q);
+      const deptMatch = (jury.department || '').toLowerCase().includes(q);
+      const domainMatch = (jury.assigned_domain_titles || []).some((title) =>
+        title.toLowerCase().includes(q)
+      );
+
+      return nameMatch || emailMatch || deptMatch || domainMatch;
+    });
+  }, [juries, juryStatusFilter, jurySearchQuery]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -153,6 +322,8 @@ export const SettingsAdmin: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'audit') {
       loadLogs();
+    } else if (activeTab === 'juries') {
+      loadJuryAccounts();
     }
   }, [activeTab]);
 
@@ -392,6 +563,7 @@ export const SettingsAdmin: React.FC = () => {
       <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-1 scrollbar-none">
         {[
           { key: 'account', label: 'Admin Account', icon: <User className="w-4 h-4" /> },
+          { key: 'juries', label: 'Jury Accounts', icon: <Key className="w-4 h-4" /> },
           { key: 'event', label: 'Event Configuration', icon: <Calendar className="w-4 h-4" /> },
           { key: 'notifications', label: 'Email & Alerts', icon: <Bell className="w-4 h-4" /> },
           { key: 'roles', label: 'Roles & Permissions', icon: <Shield className="w-4 h-4" /> },
@@ -512,6 +684,250 @@ export const SettingsAdmin: React.FC = () => {
                   </div>
                 </form>
               </div>
+            </div>
+          )}
+
+          {/* ─── TAB: JURY ACCOUNTS (JURY LOGIN MANAGEMENT) ─────────────────── */}
+          {activeTab === 'juries' && (
+            <div className="space-y-6">
+              {/* Header card with Search and Controls */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center">
+                      <Key className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
+                        Jury Accounts & Login Management
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Authoritative directory of registered jury login accounts, assigned canonical domains, and secure password management.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={loadJuryAccounts}
+                    disabled={loadingJuries}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer self-start sm:self-auto"
+                    title="Refresh Jury Accounts"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingJuries ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+
+                {/* Search Bar & Filters */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  {/* Search input */}
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={jurySearchQuery}
+                      onChange={(e) => setJurySearchQuery(e.target.value)}
+                      placeholder="Search by jury name, login email, or assigned domain..."
+                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#004182]/20 focus:border-[#004182]"
+                    />
+                    {jurySearchQuery && (
+                      <button
+                        onClick={() => setJurySearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Status Filters */}
+                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl shrink-0 self-start sm:self-auto">
+                    {(['all', 'active', 'inactive'] as const).map((filter) => {
+                      const count =
+                        filter === 'all'
+                          ? juries.length
+                          : filter === 'active'
+                          ? juries.filter((j) => j.is_active).length
+                          : juries.filter((j) => !j.is_active).length;
+                      return (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => setJuryStatusFilter(filter)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                            juryStatusFilter === filter
+                              ? 'bg-white text-slate-900 shadow-2xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {filter} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Jury Accounts List / Cards */}
+              {loadingJuries && juries.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-400 font-medium">
+                  Loading jury login accounts...
+                </div>
+              ) : filteredJuries.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-500 font-medium">
+                  {jurySearchQuery
+                    ? `No jury accounts matching "${jurySearchQuery}".`
+                    : 'No jury accounts registered in the system.'}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {filteredJuries.map((jury) => {
+                    const isCopied = copiedLoginId === jury.email;
+                    const domains = jury.assigned_domain_titles || [];
+
+                    return (
+                      <div
+                        key={jury.user_id}
+                        className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:border-slate-300 transition-all space-y-4"
+                      >
+                        {/* Top row: Name, Department, Status Badge */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs text-slate-700">
+                              {(jury.name || 'J')[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-extrabold text-slate-900 leading-tight">
+                                {jury.name}
+                              </h4>
+                              {jury.department && (
+                                <p className="text-[11px] text-slate-500 font-medium">
+                                  Dept: {jury.department}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                                jury.is_active
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  jury.is_active ? 'bg-emerald-500' : 'bg-rose-500'
+                                }`}
+                              />
+                              {jury.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          {/* Login ID Column */}
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                              Login ID / Email
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-slate-800 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 break-all select-all">
+                                {jury.email || jury.user_id}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(jury.email || jury.user_id, 'login', jury.email)}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                                  isCopied
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                }`}
+                                title="Copy Login ID"
+                              >
+                                {isCopied ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Assigned Domain(s) Column */}
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                              {domains.length > 1 ? 'Assigned Domains' : 'Assigned Domain'}
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 pt-0.5">
+                              {domains.length > 0 ? (
+                                domains.map((domainTitle) => (
+                                  <span
+                                    key={domainTitle}
+                                    className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-[#004182]/10 text-[#004182] border border-[#004182]/20 shadow-2xs"
+                                  >
+                                    {domainTitle}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs text-slate-400 italic">
+                                  No domain assigned
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Metadata & Actions row */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+                          <div className="flex items-center gap-3">
+                            {jury.created_at && (
+                              <span>Created: <strong className="text-slate-600 font-semibold">{formatDateTime(jury.created_at)}</strong></span>
+                            )}
+                            {jury.updated_at && (
+                              <span>· Updated: <strong className="text-slate-600 font-semibold">{formatDateTime(jury.updated_at)}</strong></span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Optional status toggle */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleJuryStatus(jury)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                                jury.is_active
+                                  ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                                  : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                              }`}
+                            >
+                              {jury.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+
+                            {/* Reset Password Action */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenResetModal(jury)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
+                            >
+                              <Key className="w-3.5 h-3.5" />
+                              Reset Password
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1397,6 +1813,236 @@ export const SettingsAdmin: React.FC = () => {
                   <RotateCcw className="w-4 h-4" />
                 )}
                 Confirm Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: RESET JURY PASSWORD (REQUEST) ──────────────────────────── */}
+      {resetPassModalOpen && selectedJuryForReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Reset Jury Password
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Issue a new temporary password for this jury member.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResetPassModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Target Jury Info */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+              <p className="text-slate-500">
+                Jury Member:{' '}
+                <strong className="text-slate-900 font-extrabold">
+                  {selectedJuryForReset.name}
+                </strong>
+              </p>
+              <p className="text-slate-500">
+                Login ID:{' '}
+                <strong className="font-mono text-slate-900">
+                  {selectedJuryForReset.email || selectedJuryForReset.user_id}
+                </strong>
+              </p>
+            </div>
+
+            {/* Mode Selection */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-700">
+                Temporary Password Option
+              </label>
+
+              <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer bg-white transition-all">
+                <input
+                  type="radio"
+                  name="resetPassMode"
+                  checked={resetPassMode === 'auto'}
+                  onChange={() => setResetPassMode('auto')}
+                  className="mt-0.5 text-[#004182] focus:ring-[#004182]"
+                />
+                <div className="text-xs">
+                  <p className="font-bold text-slate-900">Generate Secure Temporary Password (Recommended)</p>
+                  <p className="text-slate-500 text-[11px]">
+                    System will generate a cryptographically strong 12-character alphanumeric password.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer bg-white transition-all">
+                <input
+                  type="radio"
+                  name="resetPassMode"
+                  checked={resetPassMode === 'custom'}
+                  onChange={() => setResetPassMode('custom')}
+                  className="mt-0.5 text-[#004182] focus:ring-[#004182]"
+                />
+                <div className="text-xs flex-1">
+                  <p className="font-bold text-slate-900">Enter Custom Temporary Password</p>
+                  <p className="text-slate-500 text-[11px]">
+                    Specify a temporary password (minimum 8 characters).
+                  </p>
+                </div>
+              </label>
+
+              {resetPassMode === 'custom' && (
+                <div className="relative pt-1">
+                  <input
+                    type={showCustomPassword ? 'text' : 'password'}
+                    value={customTempPassword}
+                    onChange={(e) => setCustomTempPassword(e.target.value)}
+                    placeholder="Enter new temporary password (min 8 characters)..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#004182]/20 focus:border-[#004182] pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomPassword(!showCustomPassword)}
+                    className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showCustomPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Security Notice */}
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-2 text-[11px] text-amber-800">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <p>
+                Resetting will immediately invalidate the jury member's current credentials. The new temporary password will only be displayed <strong>once</strong>.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setResetPassModalOpen(false)}
+                disabled={resettingPassword}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePerformPasswordReset}
+                disabled={resettingPassword}
+                className="flex items-center gap-2 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-2xs cursor-pointer disabled:opacity-60"
+              >
+                {resettingPassword ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Key className="w-3.5 h-3.5" />
+                )}
+                Reset Password
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: PASSWORD RESET SUCCESS (TEMPORARY PASSWORD SHOWN ONCE) ──── */}
+      {resetResultModalOpen && resetResultData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Password Reset Successful
+              </h3>
+              <p className="text-xs text-slate-500">
+                Temporary credentials generated for <strong className="text-slate-800">{resetResultData.juryName}</strong>.
+              </p>
+            </div>
+
+            {/* Display Credentials */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              {/* Login ID */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Login ID
+                </span>
+                <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                  <span className="font-mono text-xs font-bold text-slate-800 break-all select-all">
+                    {resetResultData.loginId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(resetResultData.loginId, 'login')}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#004182] hover:text-[#003366] shrink-0 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Temporary Password */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Temporary Password
+                </span>
+                <div className="flex items-center justify-between gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                  <span className="font-mono text-sm font-extrabold text-amber-900 break-all select-all">
+                    {resetResultData.temporaryPassword}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(resetResultData.temporaryPassword, 'password')}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 hover:text-amber-900 bg-amber-100/80 px-2 py-1 rounded-md shrink-0 cursor-pointer"
+                  >
+                    {copiedTempPass ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* MANDATORY WARNING BANNER */}
+            <div className="p-3.5 bg-rose-50 rounded-xl border border-rose-200 flex items-start gap-2.5 text-xs text-rose-800">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Copy this password now.</p>
+                <p className="text-[11px] text-rose-700 mt-0.5">
+                  For security, it will not be shown again. Once you close this window, the temporary password cannot be retrieved.
+                </p>
+              </div>
+            </div>
+
+            {/* Close action */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={handleCloseResetResultModal}
+                className="w-full py-2.5 px-4 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-2xs"
+              >
+                Done & Close Window
               </button>
             </div>
           </div>

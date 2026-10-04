@@ -18,6 +18,8 @@ from app.schemas.jury import (
     JuryBootstrapResponse,
     AssignmentCandidatesResponse,
     CreateJuryAccountRequest,
+    ResetJuryPasswordRequest,
+    ResetJuryPasswordResponse,
 )
 
 router = APIRouter(tags=["Jury Management"])
@@ -79,6 +81,22 @@ async def update_jury_profile(
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.post("/api/admin/juries/{judge_user_id}/reset-password", response_model=ResetJuryPasswordResponse)
+async def reset_jury_password(
+    judge_user_id: str,
+    payload: Optional[ResetJuryPasswordRequest] = None,
+    auth_data: dict = Depends(verify_admin_auth)
+):
+    """
+    Authoritative Admin endpoint to securely reset a jury member's password.
+    Returns the newly generated/set temporary password ONCE.
+    Never stores plaintext password in DB.
+    Never exposes Supabase Auth password hash.
+    Requires Admin privileges (403 for non-admin).
+    """
+    temp_pass = payload.temporary_password if payload else None
+    return await jury_service.reset_jury_password(judge_user_id, temporary_password=temp_pass)
 
 @router.get("/api/admin/juries/{judge_user_id}/assignments", response_model=List[DomainAssignmentItem])
 async def get_jury_assignments(

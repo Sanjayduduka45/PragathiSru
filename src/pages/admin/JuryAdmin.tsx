@@ -402,7 +402,7 @@ export const JuryAdmin: React.FC = () => {
       setDomainCandidates(res.candidates || []);
       setCandidatesStats({
         available: res.available_candidates ?? res.available_count ?? (res.candidates?.filter(c => c.available !== false).length || 0),
-        assigned: res.assigned_candidates ?? res.already_assigned_count ?? (res.candidates?.filter(c => c.is_assigned).length || 0),
+        assigned: res.assigned_candidates ?? res.already_assigned_count ?? 0,
       });
     } catch (err: any) {
       console.error('[JuryAdmin] Candidate fetch error:', err);

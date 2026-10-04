@@ -12,7 +12,9 @@ class JuryProfile(BaseModel):
     is_active: bool = True
     evaluations_completed: int = 0
     assigned_domains_count: int = 0
+    assigned_domain_titles: List[str] = Field(default_factory=list)
     created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 class UpdateJuryProfileRequest(BaseModel):
     name: Optional[str] = None
@@ -88,6 +90,7 @@ class MarksExportItem(BaseModel):
     project_title: str
     team_name: str = ""
     institution: str = ""
+    institution_name: str = ""
     department: str = ""
     canonical_theme: str
     domain_id: str
@@ -107,6 +110,7 @@ class MarksExportResponse(BaseModel):
     evaluated_count: int = 0
     pending_count: int = 0
     records: List[MarksExportItem] = Field(default_factory=list)
+    projects: List[MarksExportItem] = Field(default_factory=list)
 
 class JuryAssignmentsResponse(BaseModel):
     success: bool = True
@@ -215,3 +219,14 @@ class JuryProjectProgressResponse(BaseModel):
     evaluated_projects: int = 0
     remaining_projects: int = 0
     projects: List[JuryProjectProgressItem] = Field(default_factory=list)
+
+# ─── Jury Password Reset Schemas ──────────────────────────────────────────────
+
+class ResetJuryPasswordRequest(BaseModel):
+    temporary_password: Optional[str] = Field(None, min_length=8, max_length=72, description="Optional custom temporary password (8-72 characters)")
+
+class ResetJuryPasswordResponse(BaseModel):
+    success: bool = True
+    login_id: str
+    temporary_password: str
+    message: str = "Password reset successfully. Copy this password now. For security, it will not be shown again."

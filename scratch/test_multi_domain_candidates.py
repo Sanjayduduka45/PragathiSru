@@ -206,24 +206,20 @@ async def run_multi_domain_tests():
         assert_check(cands_fresh.available_count == 1, "After 2 assigned, available_count is exactly 1")
         assert_check(cands_fresh.already_assigned_count == 2, "After 2 assigned, already_assigned_count is exactly 2")
 
-        avail_fresh = [c.registration_id for c in cands_fresh.candidates if c.available]
-        unavail_fresh = [c.registration_id for c in cands_fresh.candidates if not c.available]
-        assert_check(avail_fresh == [cse_pids[2]], f"Only unassigned project is available: {avail_fresh}")
-        assert_check(sorted(unavail_fresh) == sorted([cse_pids[0], cse_pids[1]]), f"Owned projects are unavailable: {unavail_fresh}")
+        cands_fresh_ids = [c.registration_id for c in cands_fresh.candidates]
+        assert_check(cands_fresh_ids == [cse_pids[2]], f"Only unassigned project is in candidates: {cands_fresh_ids}")
+        assert_check(cse_pids[0] not in cands_fresh_ids and cse_pids[1] not in cands_fresh_ids, "Owned projects are completely excluded from response")
 
         print("\n--- TEST 4: Editing existing Jury A (own projects remain available) ---")
         cands_edit_a = await jury_service.get_assignment_candidates("smart-automation", for_judge_user_id="judge_1_uid")
-        avail_edit_a = [c.registration_id for c in cands_edit_a.candidates if c.available]
-        unavail_edit_a = [c.registration_id for c in cands_edit_a.candidates if not c.available]
-        assert_check(sorted(avail_edit_a) == sorted(cse_pids), f"Editing Jury A sees own 2 projects + 1 unassigned as available: {avail_edit_a}")
-        assert_check(len(unavail_edit_a) == 0, "No projects unavailable to Jury A")
+        cands_edit_a_ids = [c.registration_id for c in cands_edit_a.candidates]
+        assert_check(sorted(cands_edit_a_ids) == sorted(cse_pids), f"Editing Jury A sees own 2 projects + 1 unassigned: {cands_edit_a_ids}")
 
         print("\n--- TEST 5: Editing Jury B when Jury A owns projects ---")
         cands_edit_b = await jury_service.get_assignment_candidates("smart-automation", for_judge_user_id="judge_2_uid")
-        avail_edit_b = [c.registration_id for c in cands_edit_b.candidates if c.available]
-        unavail_edit_b = [c.registration_id for c in cands_edit_b.candidates if not c.available]
-        assert_check(avail_edit_b == [cse_pids[2]], f"Jury B can only see unassigned project as available: {avail_edit_b}")
-        assert_check(sorted(unavail_edit_b) == sorted([cse_pids[0], cse_pids[1]]), f"Jury A's projects remain unavailable to Jury B: {unavail_edit_b}")
+        cands_edit_b_ids = [c.registration_id for c in cands_edit_b.candidates]
+        assert_check(cands_edit_b_ids == [cse_pids[2]], f"Jury B can only see unassigned project: {cands_edit_b_ids}")
+        assert_check(cse_pids[0] not in cands_edit_b_ids and cse_pids[1] not in cands_edit_b_ids, "Jury A's projects are completely excluded for Jury B")
 
         print("\n--- TEST 6: Dynamic Future Project Growth ---")
         # Add dynamic new project in Mechanical Engineering & Automation

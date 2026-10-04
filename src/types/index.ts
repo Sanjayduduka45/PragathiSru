@@ -275,7 +275,16 @@ export interface JuryProfile {
   is_active: boolean;
   evaluations_completed: number;
   assigned_domains_count: number;
+  assigned_domain_titles?: string[];
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface ResetJuryPasswordResponse {
+  success: boolean;
+  login_id: string;
+  temporary_password: string;
+  message: string;
 }
 
 export interface DomainAssignmentItem {
@@ -455,4 +464,5 @@ export interface MarksExportResponse {
   evaluated_count: number;
   pending_count: number;
   projects: MarksExportItem[];
+  records?: MarksExportItem[];
 }
