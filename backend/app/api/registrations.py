@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, File, UploadFile, Form
-from typing import Optional
+from typing import Optional, Dict, Any
 from app.schemas.registration import (
     RegistrationListResponse,
     RegistrationResponse,
@@ -14,6 +14,7 @@ from app.schemas.registration import (
     PaymentActionResponse
 )
 from app.services.registration_service import registration_service
+from app.services.settings_service import settings_service
 
 router = APIRouter()
 
@@ -146,3 +147,34 @@ async def reject_payment(reg_id: str, body: Optional[PaymentRejectRequest] = Non
         data=updated
     )
 
+# ── Public Registration Endpoints Enforcement ──────────────────────────────────
+
+@router.post("/api/registrations")
+@router.post("/api/register")
+async def create_registration(payload: Optional[Dict[str, Any]] = None):
+    data = payload or {}
+    reg_type = data.get("registration_type") or data.get("registrationType")
+    members = data.get("members") or []
+    leader_email = data.get("leader_email") or (members[0].get("email") if members and isinstance(members[0], dict) else "")
+    is_sru = (reg_type == "SRU_STUDENT") or (leader_email and str(leader_email).strip().lower().endswith("@sru.edu.in"))
+
+    settings = await settings_service.get_settings()
+
+    if is_sru:
+        if not settings.event.sru_registration_open:
+            raise HTTPException(
+                status_code=403,
+                detail="Registration for SR University students using an @sru.edu.in email address is currently closed."
+            )
+    else:
+        if not settings.event.external_registration_open:
+            raise HTTPException(
+                status_code=403,
+                detail="Registration for external participants is currently closed."
+            )
+
+    return {
+        "success": True,
+        "message": "Registration accepted for processing.",
+        "data": data
+    }

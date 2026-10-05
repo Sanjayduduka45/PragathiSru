@@ -974,22 +974,78 @@ export const SettingsAdmin: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        Registration Status
-                      </label>
+                  {/* Two Independent Registration Switches */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 p-5 rounded-2xl bg-slate-50/80 border border-slate-200 shadow-2xs">
+                    {/* 1. SRU Student Registration */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                          SRU Student Registration
+                        </label>
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                          eventForm.sruRegistrationOpen
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-rose-50 text-rose-800 border-rose-200'
+                        }`}>
+                          {eventForm.sruRegistrationOpen ? '🟢 OPEN' : '🔴 CLOSED'}
+                        </span>
+                      </div>
                       <select
-                        value={eventForm.registrationStatus}
-                        onChange={(e) => setEventForm((f) => ({ ...f, registrationStatus: e.target.value as 'open' | 'closed' | 'paused' }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
+                        value={eventForm.sruRegistrationOpen ? 'open' : 'closed'}
+                        onChange={(e) => {
+                          const isOpen = e.target.value === 'open';
+                          setEventForm((f) => ({
+                            ...f,
+                            sruRegistrationOpen: isOpen,
+                            registrationStatus: isOpen || f.externalRegistrationOpen ? 'open' : 'closed',
+                          }));
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
                       >
-                        <option value="open">🟢 Open (Accepting Teams)</option>
-                        <option value="paused">🟡 Paused (Temporarily Halted)</option>
-                        <option value="closed">🔴 Closed (Registrations Concluded)</option>
+                        <option value="closed">🔴 Closed (SRU Student Registrations Concluded)</option>
+                        <option value="open">🟢 Open (Accepting SRU Student Registrations)</option>
                       </select>
+                      <p className="text-[11px] text-slate-500">
+                        Allow or block registrations for SR University students using @sru.edu.in email addresses.
+                      </p>
                     </div>
 
+                    {/* 2. External Participant Registration */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                          External Participant Registration
+                        </label>
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                          eventForm.externalRegistrationOpen
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-rose-50 text-rose-800 border-rose-200'
+                        }`}>
+                          {eventForm.externalRegistrationOpen ? '🟢 OPEN' : '🔴 CLOSED'}
+                        </span>
+                      </div>
+                      <select
+                        value={eventForm.externalRegistrationOpen ? 'open' : 'closed'}
+                        onChange={(e) => {
+                          const isOpen = e.target.value === 'open';
+                          setEventForm((f) => ({
+                            ...f,
+                            externalRegistrationOpen: isOpen,
+                            registrationStatus: f.sruRegistrationOpen || isOpen ? 'open' : 'closed',
+                          }));
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
+                      >
+                        <option value="closed">🔴 Closed (External Registrations Concluded)</option>
+                        <option value="open">🟢 Open (Accepting External Participant Registrations)</option>
+                      </select>
+                      <p className="text-[11px] text-slate-500">
+                        Allow or block non-SRU participants and teams from registering and initiating payment.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Website Visibility

@@ -75,6 +75,7 @@ export const SRUPaymentCheckout: React.FC<SRUPaymentCheckoutProps> = ({
         amountINR: calculatedAmount,
         institutionName: registrationRecord.institutionName,
         memberCount: registrationRecord.members.length,
+        registrationType: registrationRecord.registrationType,
       };
 
       // Call payment service abstraction (Edge function -> SR University Payment API)

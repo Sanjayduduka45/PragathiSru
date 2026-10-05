@@ -27,6 +27,7 @@ import { PROJECT_CATEGORIES } from '../data/eventData';
 import { SRUPaymentService } from '../services/paymentService';
 import { RegistrationService, TeamMember } from '../services/registrationService';
 import { RegistrationReviewConfirmation } from '../components/RegistrationReviewConfirmation';
+import { getRegistrationSettings } from '../services/settingsService';
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -42,9 +43,47 @@ export const Register: React.FC = () => {
 
   // Email state for initial entry
   const [primaryEmail, setPrimaryEmail] = useState<string>('');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState<boolean>(false);
+
+  // Registration Settings loaded from authoritative persistent source
+  const [regSettings, setRegSettings] = useState<{
+    sruRegistrationOpen: boolean;
+    externalRegistrationOpen: boolean;
+    loaded: boolean;
+  }>({
+    sruRegistrationOpen: false,
+    externalRegistrationOpen: false,
+    loaded: false,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    getRegistrationSettings().then((settings) => {
+      if (isMounted) {
+        setRegSettings({
+          sruRegistrationOpen: settings.sruRegistrationOpen,
+          externalRegistrationOpen: settings.externalRegistrationOpen,
+          loaded: true,
+        });
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Internal classification derived from email ending (@sru.edu.in vs external)
-  const isSRUEmail = primaryEmail.trim().toLowerCase().endsWith('@sru.edu.in');
+  const trimmedEmail = primaryEmail.trim().toLowerCase();
+  const isSRUEmail = trimmedEmail.endsWith('@sru.edu.in');
+  const isSRUClosed = isSRUEmail && !regSettings.sruRegistrationOpen;
+
+  const isExternalInput = trimmedEmail.length > 0 && !isSRUEmail && (
+    (trimmedEmail.includes('@') && !trimmedEmail.includes('@sru')) ||
+    (trimmedEmail.includes('@') && trimmedEmail.includes('.') && !isSRUEmail) ||
+    hasAttemptedSubmit
+  );
+  const isExternalClosed = isExternalInput && !regSettings.externalRegistrationOpen;
+
   const regMode: 'SRU_STUDENT' | 'EXTERNAL' = isSRUEmail ? 'SRU_STUDENT' : 'EXTERNAL';
 
   // Form Fields
@@ -73,6 +112,17 @@ export const Register: React.FC = () => {
       }
     }
   }, [isSRUEmail]);
+
+  // If current registration type is closed, do not permit progression past step 1
+  useEffect(() => {
+    if (currentStep > 1) {
+      if (isSRUEmail && !regSettings.sruRegistrationOpen) {
+        setCurrentStep(1);
+      } else if (!isSRUEmail && !regSettings.externalRegistrationOpen) {
+        setCurrentStep(1);
+      }
+    }
+  }, [currentStep, isSRUEmail, regSettings]);
 
   // Member Management Functions
   const handleAddMember = () => {
@@ -109,6 +159,7 @@ export const Register: React.FC = () => {
   // Step 1 Validation -> Step 2
   const handleProceedStep1 = (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     setFormError('');
 
     const emailTrimmed = primaryEmail.trim();
@@ -123,8 +174,15 @@ export const Register: React.FC = () => {
       return;
     }
 
-    if (emailTrimmed.toLowerCase().endsWith('@sru.edu.in')) {
+    const isSRU = emailTrimmed.toLowerCase().endsWith('@sru.edu.in');
+
+    if (isSRU && !regSettings.sruRegistrationOpen) {
       setFormError('Registration for SR University students is currently closed.');
+      return;
+    }
+
+    if (!isSRU && !regSettings.externalRegistrationOpen) {
+      setFormError('Registration for external participants is currently closed.');
       return;
     }
 
@@ -133,7 +191,7 @@ export const Register: React.FC = () => {
     updatedMembers[0].email = emailTrimmed;
     setMembers(updatedMembers);
 
-    if (emailTrimmed.toLowerCase().endsWith('@sru.edu.in') && !institutionName) {
+    if (isSRU && !institutionName) {
       setInstitutionName('SR University, Warangal');
     }
 
@@ -177,8 +235,12 @@ export const Register: React.FC = () => {
       const mEmail = member.email.trim().toLowerCase();
       const mPhone = member.phone.trim();
 
-      if (mEmail.endsWith('@sru.edu.in')) {
+      if (mEmail.endsWith('@sru.edu.in') && !regSettings.sruRegistrationOpen) {
         setFormError('Registration for SR University students is currently closed.');
+        return;
+      }
+      if (!mEmail.endsWith('@sru.edu.in') && !regSettings.externalRegistrationOpen) {
+        setFormError('Registration for external participants is currently closed.');
         return;
       }
 
@@ -463,7 +525,7 @@ export const Register: React.FC = () => {
                     </p>
                   </div>
 
-                  {isSRUEmail ? (
+                  {isSRUClosed ? (
                     <div className="bg-amber-50/90 border-2 border-amber-200/90 rounded-2xl p-5 sm:p-6 space-y-3 text-left shadow-xs animate-in fade-in duration-300">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
@@ -485,6 +547,31 @@ export const Register: React.FC = () => {
                         </p>
                         <p className="font-medium text-amber-900">
                           Thank you for your interest in PRAGATHI 2.0.
+                        </p>
+                      </div>
+                    </div>
+                  ) : isExternalClosed ? (
+                    <div className="bg-amber-50/90 border-2 border-amber-200/90 rounded-2xl p-5 sm:p-6 space-y-3 text-left shadow-xs animate-in fade-in duration-300">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                          <Users className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm sm:text-base font-extrabold text-amber-950 font-display">
+                            External Participant Registration Currently Closed
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed pt-2 border-t border-amber-200/80">
+                        <p className="font-semibold text-slate-900">
+                          Registration for external participants is currently closed.
+                        </p>
+                        <p>
+                          Further information regarding external participant registration will be announced by the organizing committee at a later date. Please check the official PRAGATHI 2K26 website and follow our social media channels for the latest updates.
+                        </p>
+                        <p className="font-medium text-amber-900">
+                          Thank you for your interest in PRAGATHI 2K26.
                         </p>
                       </div>
                     </div>
@@ -811,6 +898,22 @@ export const Register: React.FC = () => {
                   onEditProject={() => setCurrentStep(3)}
                   onEditPayment={() => setCurrentStep(2)}
                   onSubmitRegistration={async (paymentDetails) => {
+                    if (regMode === 'SRU_STUDENT' && !regSettings.sruRegistrationOpen) {
+                      return {
+                        success: false,
+                        registrationId: '',
+                        message: 'Registration for SR University students using an @sru.edu.in email address is currently closed.',
+                      };
+                    }
+
+                    if (regMode === 'EXTERNAL' && !regSettings.externalRegistrationOpen) {
+                      return {
+                        success: false,
+                        registrationId: '',
+                        message: 'Registration for external participants is currently closed.',
+                      };
+                    }
+
                     let transactionRef = '';
 
                     if (regMode === 'EXTERNAL') {

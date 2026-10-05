@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { SRUPaymentService } from './paymentService';
+import { getRegistrationSettings, type RegistrationSettings } from './settingsService';
 
 export interface TeamMember {
   id: string;
@@ -269,12 +270,12 @@ export class RegistrationService {
   }
 
   /**
-   * Validates registration payload according to event rules:
-   * - Team size must be 1 to 5 members
-   * - SRU student email must end with @sru.edu.in
-   * - Project title & category required
+   * Validates registration payload according to event rules and dynamic registration window settings
    */
-  public static validateRegistration(payload: RegistrationPayload): { valid: boolean; message: string } {
+  public static validateRegistration(
+    payload: RegistrationPayload,
+    settings?: Partial<RegistrationSettings>
+  ): { valid: boolean; message: string } {
     if (!payload.members || payload.members.length < 1 || payload.members.length > 5) {
       return {
         valid: false,
@@ -303,8 +304,9 @@ export class RegistrationService {
       };
     }
 
-    // Temporary restriction: SR University student registration is currently closed
-    if (payload.registrationType === 'SRU_STUDENT') {
+    // Dynamic restriction: SR University student registration
+    const isSRUClosed = settings ? !settings.sruRegistrationOpen : true;
+    if (payload.registrationType === 'SRU_STUDENT' && isSRUClosed) {
       return {
         valid: false,
         message: 'Registration for SR University students using an @sru.edu.in email address is currently closed.',
@@ -313,10 +315,29 @@ export class RegistrationService {
 
     for (let i = 0; i < (payload.members || []).length; i++) {
       const mEmail = (payload.members[i]?.email || '').trim().toLowerCase();
-      if (mEmail.endsWith('@sru.edu.in')) {
+      if (mEmail.endsWith('@sru.edu.in') && isSRUClosed) {
         return {
           valid: false,
           message: 'Registration for SR University students using an @sru.edu.in email address is currently closed.',
+        };
+      }
+    }
+
+    // Dynamic restriction: External participant registration
+    const isExternalClosed = settings ? !settings.externalRegistrationOpen : true;
+    if (payload.registrationType === 'EXTERNAL' && isExternalClosed) {
+      return {
+        valid: false,
+        message: 'Registration for external participants is currently closed.',
+      };
+    }
+
+    for (let i = 0; i < (payload.members || []).length; i++) {
+      const mEmail = (payload.members[i]?.email || '').trim().toLowerCase();
+      if (!mEmail.endsWith('@sru.edu.in') && isExternalClosed) {
+        return {
+          valid: false,
+          message: 'Registration for external participants is currently closed.',
         };
       }
     }
@@ -344,8 +365,11 @@ export class RegistrationService {
   public static async submitRegistration(
     payload: RegistrationPayload
   ): Promise<{ success: boolean; registrationId: string; message: string; record?: RegistrationRecord }> {
-    // 1. Perform validation
-    const validation = this.validateRegistration(payload);
+    // 0. Load dynamic authoritative settings
+    const settings = await getRegistrationSettings();
+
+    // 1. Perform validation with current settings
+    const validation = this.validateRegistration(payload, settings);
     if (!validation.valid) {
       return {
         success: false,

@@ -6,6 +6,8 @@ export interface EventConfig {
   eventDate: string;
   targetDateIso: string;
   registrationStatus: 'open' | 'closed' | 'paused';
+  sruRegistrationOpen: boolean;
+  externalRegistrationOpen: boolean;
   registrationOpenDate: string;
   registrationCloseDate: string;
   websiteVisibility: 'published' | 'maintenance';
@@ -70,7 +72,9 @@ export const DEFAULT_FULL_SETTINGS: FullSettings = {
     eventName: 'PRAGATHI 2K26',
     eventDate: '09 October 2026',
     targetDateIso: '2026-10-09T09:00:00+05:30',
-    registrationStatus: 'open',
+    registrationStatus: 'closed',
+    sruRegistrationOpen: false,
+    externalRegistrationOpen: false,
     registrationOpenDate: '2026-08-01T00:00:00+05:30',
     registrationCloseDate: '2026-10-01T23:59:59+05:30',
     websiteVisibility: 'published',
@@ -146,6 +150,8 @@ function transformFromBackend(data: any): FullSettings {
       eventDate: ev.event_date ?? DEFAULT_FULL_SETTINGS.event.eventDate,
       targetDateIso: ev.target_date_iso ?? DEFAULT_FULL_SETTINGS.event.targetDateIso,
       registrationStatus: ev.registration_status ?? DEFAULT_FULL_SETTINGS.event.registrationStatus,
+      sruRegistrationOpen: Boolean(ev.sru_registration_open ?? false),
+      externalRegistrationOpen: Boolean(ev.external_registration_open ?? false),
       registrationOpenDate: ev.registration_open_date ?? DEFAULT_FULL_SETTINGS.event.registrationOpenDate,
       registrationCloseDate: ev.registration_close_date ?? DEFAULT_FULL_SETTINGS.event.registrationCloseDate,
       websiteVisibility: ev.website_visibility ?? DEFAULT_FULL_SETTINGS.event.websiteVisibility,
@@ -184,6 +190,8 @@ function transformToBackend(settings: Partial<FullSettings>): Record<string, any
       event_date: settings.event.eventDate,
       target_date_iso: settings.event.targetDateIso,
       registration_status: settings.event.registrationStatus,
+      sru_registration_open: settings.event.sruRegistrationOpen,
+      external_registration_open: settings.event.externalRegistrationOpen,
       registration_open_date: settings.event.registrationOpenDate,
       registration_close_date: settings.event.registrationCloseDate,
       website_visibility: settings.event.websiteVisibility,
@@ -483,4 +491,56 @@ export async function getAuditLogs(limit: number = 30): Promise<AuditLogItem[]> 
   }
 
   return [];
+}
+
+// ─── CENTRALIZED REGISTRATION SETTINGS LOOKUP ─────────────────────────────────
+
+export interface RegistrationSettings {
+  sruRegistrationOpen: boolean;
+  externalRegistrationOpen: boolean;
+}
+
+export async function getRegistrationSettings(): Promise<RegistrationSettings> {
+  // 1. Try public FastAPI endpoint
+  try {
+    const res = await fetch('/api/settings/public').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (res && typeof res.sru_registration_open === 'boolean') {
+      return {
+        sruRegistrationOpen: Boolean(res.sru_registration_open),
+        externalRegistrationOpen: Boolean(res.external_registration_open),
+      };
+    }
+  } catch {}
+
+  // 2. Direct Supabase system_settings query (public policy allows reading is_public = true)
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'event_config')
+        .single();
+      if (!error && data?.value) {
+        return {
+          sruRegistrationOpen: Boolean(data.value.sru_registration_open ?? false),
+          externalRegistrationOpen: Boolean(data.value.external_registration_open ?? false),
+        };
+      }
+    } catch {}
+  }
+
+  // 3. Fallback to getAdminSettings
+  try {
+    const full = await getAdminSettings();
+    return {
+      sruRegistrationOpen: Boolean(full.event.sruRegistrationOpen),
+      externalRegistrationOpen: Boolean(full.event.externalRegistrationOpen),
+    };
+  } catch {}
+
+  // Default: both closed
+  return {
+    sruRegistrationOpen: false,
+    externalRegistrationOpen: false,
+  };
 }

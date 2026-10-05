@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { api } from './api';
+import { getRegistrationSettings } from './settingsService';
 
 export type PaymentState = 'idle' | 'creating' | 'redirecting' | 'processing' | 'success' | 'failed';
 
@@ -12,6 +13,7 @@ export interface PaymentInitiateRequest {
   amountINR: number;
   institutionName: string;
   memberCount: number;
+  registrationType?: 'SRU_STUDENT' | 'EXTERNAL';
 }
 
 export interface PaymentInitiateResponse {
@@ -119,6 +121,36 @@ export class SRUPaymentService {
   public static async createPaymentSession(
     request: PaymentInitiateRequest
   ): Promise<PaymentInitiateResponse> {
+    const settings = await getRegistrationSettings();
+
+    const isSRU =
+      request.registrationType === 'SRU_STUDENT' ||
+      (Boolean(request.leaderEmail) && request.leaderEmail.trim().toLowerCase().endsWith('@sru.edu.in'));
+
+    if (isSRU) {
+      if (!settings.sruRegistrationOpen) {
+        return {
+          success: false,
+          paymentId: '',
+          transactionRef: '',
+          message: 'Registration for SR University students using an @sru.edu.in email address is currently closed.',
+          isDevelopmentMode: false,
+          status: 'FAILED',
+        };
+      }
+    } else {
+      if (!settings.externalRegistrationOpen) {
+        return {
+          success: false,
+          paymentId: '',
+          transactionRef: '',
+          message: 'Registration for external participants is currently closed. Payment cannot be initiated.',
+          isDevelopmentMode: false,
+          status: 'FAILED',
+        };
+      }
+    }
+
     const transactionRef = `SRU-PRG26-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
@@ -127,19 +159,50 @@ export class SRUPaymentService {
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your-supabase-project')) {
-        const edgeFunctionUrl = `${supabaseUrl}/functions/v1/sru-payment-gateway`;
-        const res = await fetch(edgeFunctionUrl, {
+        const edgeFunctionUrl = `${supabaseUrl}/functions/v1/payment-initiate`;
+        const postData = {
+          action: 'CREATE_SESSION',
+          payload: request,
+          transactionRef,
+          registrationType: isSRU ? 'SRU_STUDENT' : 'EXTERNAL',
+          leaderEmail: request.leaderEmail,
+          amountINR: request.amountINR,
+        };
+
+        let res = await fetch(edgeFunctionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${supabaseAnonKey}`,
           },
-          body: JSON.stringify({
-            action: 'CREATE_SESSION',
-            payload: request,
-            transactionRef,
-          }),
+          body: JSON.stringify(postData),
         });
+
+        if (res.status === 404) {
+          // Fallback to legacy endpoint alias if needed
+          res = await fetch(`${supabaseUrl}/functions/v1/sru-payment-gateway`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseAnonKey}`,
+            },
+            body: JSON.stringify(postData),
+          });
+        }
+
+        if (res.status === 403) {
+          const errData = await res.json().catch(() => ({}));
+          return {
+            success: false,
+            paymentId: '',
+            transactionRef,
+            message: errData.error || errData.message || (isSRU
+              ? 'Registration for SR University students using an @sru.edu.in email address is currently closed.'
+              : 'Registration for external participants is currently closed. Payment cannot be initiated.'),
+            isDevelopmentMode: false,
+            status: 'FAILED',
+          };
+        }
 
         if (res.ok) {
           const data = await res.json();
@@ -170,7 +233,6 @@ export class SRUPaymentService {
       status: 'INITIATED',
     };
   }
-
   /**
    * Verifies status of transaction ref
    */

@@ -15,6 +15,22 @@ router = APIRouter()
 
 # ─── SYSTEM SETTINGS ENDPOINTS ──────────────────────────────────────────────────
 
+@router.get("/api/settings/public")
+@router.get("/api/public-settings")
+async def get_public_settings():
+    settings = await settings_service.get_settings()
+    return {
+        "event_name": settings.event.event_name,
+        "event_date": settings.event.event_date,
+        "registration_status": settings.event.registration_status,
+        "sru_registration_open": settings.event.sru_registration_open,
+        "external_registration_open": settings.event.external_registration_open,
+        "registration_open_date": settings.event.registration_open_date,
+        "registration_close_date": settings.event.registration_close_date,
+        "website_visibility": settings.event.website_visibility,
+        "event_status": settings.event.event_status
+    }
+
 @router.get("/api/admin/settings", response_model=SettingsResponse)
 async def get_system_settings():
     settings = await settings_service.get_settings()

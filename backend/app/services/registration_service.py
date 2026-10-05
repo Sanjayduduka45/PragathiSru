@@ -395,7 +395,12 @@ class RegistrationService:
             target_uuid = check_rows[0].get("id")
             public_reg_code = check_rows[0].get("registration_id") or clean_reg_id
         else:
-            # If not in DB yet, only allow temp/REG- codes during registration flow
+            settings = await settings_service.get_settings()
+            if not settings.event.external_registration_open:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Registration for external participants is currently closed. No new payment verification process can be initiated."
+                )
             if not clean_reg_id.startswith("REG-") and not clean_reg_id.startswith("TEMP-") and not clean_reg_id.startswith("PRAGATHI"):
                 raise HTTPException(status_code=404, detail=f"Registration record '{clean_reg_id}' not found in database.")
 
