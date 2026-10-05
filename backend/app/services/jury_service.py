@@ -1866,16 +1866,10 @@ class JuryService:
                     is_assigned = True
                     assigned_judge_id, assigned_judge_name = selected_assignment_map[reg_id]
 
-                if clean_target_judge_id:
-                    available = (not is_assigned) or (assigned_judge_id == clean_target_judge_id)
-                else:
-                    available = not is_assigned
-
-                # Authoritative Filter:
-                # If project has NO active owner: include in available list
-                # Else if project owner == jury currently being edited: include it because it is that jury's existing assignment
-                # Else: EXCLUDE IT COMPLETELY FROM RESPONSE/LIST
-                if available:
+                # Authoritative Classification:
+                # CASE 1: Project has NO active owner
+                # - Display in list, selectable, count under Available Projects
+                if not is_assigned:
                     available_count += 1
                     candidates.append(AssignmentCandidateItem(
                         registration_id=reg_id,
@@ -1885,15 +1879,43 @@ class JuryService:
                         canonical_domain_id=resolved_dom_id,
                         domain_title=dom_title,
                         canonical_domain_title=dom_title,
-                        is_assigned=is_assigned,
+                        is_assigned=False,
+                        assigned_to_judge_id=None,
+                        assigned_to_judge_name=None,
+                        assigned_jury_id=None,
+                        assigned_jury_name=None,
+                        available=True,
+                        already_assigned_to_current_jury=False,
+                    ))
+
+                # CASE 2: Project is already owned by CURRENT jury being edited
+                # - Display in list, label "Already Assigned", disabled/non-selectable, count under Already Assigned
+                elif clean_target_judge_id and assigned_judge_id == clean_target_judge_id:
+                    already_assigned_count += 1
+                    candidates.append(AssignmentCandidateItem(
+                        registration_id=reg_id,
+                        project_title=title,
+                        team_name=r.get("team_name") or "Team",
+                        institution=institution,
+                        canonical_domain_id=resolved_dom_id,
+                        domain_title=dom_title,
+                        canonical_domain_title=dom_title,
+                        is_assigned=True,
                         assigned_to_judge_id=assigned_judge_id,
                         assigned_to_judge_name=assigned_judge_name,
                         assigned_jury_id=assigned_judge_id,
                         assigned_jury_name=assigned_judge_name,
-                        available=True,
+                        available=False,
+                        already_assigned_to_current_jury=True,
                     ))
+
+                # CASE 3: Project is owned by ANOTHER active jury
+                # - Preserve zero-overlap behavior
+                # - Exclude completely from candidate list
+                # - If clean_target_judge_id is not provided (new assignment mode), track already_assigned_count for domain overview
                 else:
-                    already_assigned_count += 1
+                    if not clean_target_judge_id:
+                        already_assigned_count += 1
                 break  # Process one project per registration
 
         # Sort: alphabetical by registration_id
@@ -1904,10 +1926,10 @@ class JuryService:
             success=True,
             domain_id=clean_dom_id,
             domain_title=dom_title,
-            available_count=len(candidates),
+            available_count=available_count,
             already_assigned_count=already_assigned_count,
-            total_candidates=len(candidates),
-            available_candidates=len(candidates),
+            total_candidates=total_count,
+            available_candidates=available_count,
             assigned_candidates=already_assigned_count,
             candidates=candidates,
         )

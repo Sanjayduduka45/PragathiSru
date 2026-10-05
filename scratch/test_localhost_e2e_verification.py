@@ -442,12 +442,12 @@ async def run_localhost_e2e_verification():
             assert_check(edit_cands_res.status_code == 200, "Personalized candidate query returns 200 OK")
             edit_items = edit_cands_res.json().get("candidates", [])
 
-            own_avail = [c["registration_id"] for c in edit_items if c["available"] and c["assigned_to_judge_id"] == "judge_cse_1"]
+            own_assigned = [c["registration_id"] for c in edit_items if not c.get("available") and c.get("assigned_to_judge_id") == "judge_cse_1"]
             other_unavail = [c["registration_id"] for c in edit_items if c["registration_id"] in {"PRAGATHI26-CSE04", "PRAGATHI26-CSE05", "PRAGATHI26-CSE06"}]
 
             assert_check(
-                sorted(own_avail) == ["PRAGATHI26-CSE01", "PRAGATHI26-CSE02", "PRAGATHI26-CSE03"],
-                f"Jury's own currently assigned projects remain selectable/available: {own_avail}"
+                sorted(own_assigned) == ["PRAGATHI26-CSE01", "PRAGATHI26-CSE02", "PRAGATHI26-CSE03"],
+                f"Jury's own currently assigned projects are visible as already assigned (non-selectable/disabled): {own_assigned}"
             )
             assert_check(
                 sorted(other_unavail) == [],

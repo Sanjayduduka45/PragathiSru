@@ -427,6 +427,7 @@ export interface AssignmentCandidateItem {
   assigned_jury_name?: string | null;
   assigned_jury_id?: string | null;
   available?: boolean;
+  already_assigned_to_current_jury?: boolean;
 }
 
 export interface AssignmentCandidatesResponse {

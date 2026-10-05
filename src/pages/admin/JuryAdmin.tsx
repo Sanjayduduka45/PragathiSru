@@ -400,9 +400,11 @@ export const JuryAdmin: React.FC = () => {
     try {
       const res = await JuryService.getAssignmentCandidates(domainId, selectedJuryId || undefined);
       setDomainCandidates(res.candidates || []);
+      const availCount = res.available_candidates ?? res.available_count ?? (res.candidates?.filter(c => c.available !== false && !c.is_assigned).length || 0);
+      const assignedCount = res.assigned_candidates ?? res.already_assigned_count ?? (res.candidates?.filter(c => c.already_assigned_to_current_jury || (c.is_assigned && c.available === false)).length || 0);
       setCandidatesStats({
-        available: res.available_candidates ?? res.available_count ?? (res.candidates?.filter(c => c.available !== false).length || 0),
-        assigned: res.assigned_candidates ?? res.already_assigned_count ?? 0,
+        available: availCount,
+        assigned: assignedCount,
       });
     } catch (err: any) {
       console.error('[JuryAdmin] Candidate fetch error:', err);
@@ -475,13 +477,17 @@ export const JuryAdmin: React.FC = () => {
         assignment_mode: assignDomainForm.assignment_mode,
       });
 
-      // If SELECTED mode and projects were checked, add them
+      // If SELECTED mode and projects were checked, add only newly selected unassigned projects
+      const unassignedRegIdsToSend = assignDomainForm.selected_reg_ids.filter(
+        (id) => !domainCandidates.some((c) => c.registration_id === id && (c.already_assigned_to_current_jury || (c.is_assigned && c.available === false)))
+      );
+
       if (
         assignDomainForm.assignment_mode === 'SELECTED' &&
-        assignDomainForm.selected_reg_ids.length > 0 &&
+        unassignedRegIdsToSend.length > 0 &&
         res?.assignment?.id
       ) {
-        await JuryService.addSelectedProjects(res.assignment.id, assignDomainForm.selected_reg_ids);
+        await JuryService.addSelectedProjects(res.assignment.id, unassignedRegIdsToSend);
       }
 
       addToast('success', 'Domain Assigned', 'Domain assignment configured successfully.');
@@ -565,7 +571,7 @@ export const JuryAdmin: React.FC = () => {
       ]);
       setSelectedAssignmentProjects(res || []);
       if (candRes?.candidates) {
-        setActiveDomainCandidates(candRes.candidates.filter((c) => c.available !== false));
+        setActiveDomainCandidates(candRes.candidates.filter((c) => c.available !== false && !c.is_assigned));
       } else {
         setActiveDomainCandidates([]);
       }
@@ -660,20 +666,26 @@ export const JuryAdmin: React.FC = () => {
     return domains.find((d) => d.id === assignDomainForm.domain_id)?.title || 'domain';
   }, [domains, assignDomainForm.domain_id]);
 
-  // Projects available for selected domain in Assign Modal (Server Canonical Candidates)
+  // Projects available for selected domain in Assign Modal (strictly unassigned)
   const availableCandidates = useMemo(() => {
-    return domainCandidates.filter((c) => c.available !== false);
+    return domainCandidates.filter((c) => c.available !== false && !c.is_assigned);
   }, [domainCandidates]);
 
+  // Candidates matching search filter (both available and current jury's already-assigned projects)
   const filteredCandidates = useMemo(() => {
     const q = candidateSearch.toLowerCase().trim();
-    if (!q) return availableCandidates;
-    return availableCandidates.filter(
+    if (!q) return domainCandidates;
+    return domainCandidates.filter(
       (c) =>
         c.registration_id.toLowerCase().includes(q) ||
         c.project_title.toLowerCase().includes(q)
     );
-  }, [availableCandidates, candidateSearch]);
+  }, [domainCandidates, candidateSearch]);
+
+  // Selectable candidates matching current search (excludes already-assigned projects)
+  const selectableFilteredCandidates = useMemo(() => {
+    return filteredCandidates.filter((c) => c.available !== false && !c.is_assigned);
+  }, [filteredCandidates]);
 
   // Available projects to add in Manage Projects Modal (Server Canonical Candidates)
   const availableProjectsForActiveAssignment = useMemo(() => {
@@ -1986,7 +1998,7 @@ export const JuryAdmin: React.FC = () => {
               )}
 
               {/* Search projects */}
-              {availableCandidates.length > 0 && (
+              {domainCandidates.length > 0 && (
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -2001,25 +2013,28 @@ export const JuryAdmin: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700">
-                  Available Projects ({assignDomainForm.selected_reg_ids.length} selected)
+                  Projects ({assignDomainForm.selected_reg_ids.length} selected)
                 </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      const allIds = filteredCandidates.map((p) => p.registration_id);
-                      setAssignDomainForm({ ...assignDomainForm, selected_reg_ids: Array.from(new Set([...assignDomainForm.selected_reg_ids, ...allIds])) });
+                      const allSelectableIds = selectableFilteredCandidates.map((p) => p.registration_id);
+                      setAssignDomainForm({
+                        ...assignDomainForm,
+                        selected_reg_ids: Array.from(new Set([...assignDomainForm.selected_reg_ids, ...allSelectableIds])),
+                      });
                     }}
-                    disabled={filteredCandidates.length === 0}
-                    className="text-[11px] font-bold text-[#004182] hover:underline disabled:opacity-40"
+                    disabled={selectableFilteredCandidates.length === 0}
+                    className="text-[11px] font-bold text-[#004182] hover:underline disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                   >
-                    Select All ({filteredCandidates.length})
+                    Select All ({selectableFilteredCandidates.length})
                   </button>
                   {assignDomainForm.selected_reg_ids.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setAssignDomainForm({ ...assignDomainForm, selected_reg_ids: [] })}
-                      className="text-[11px] font-bold text-slate-400 hover:text-slate-600"
+                      className="text-[11px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       Clear
                     </button>
@@ -2036,14 +2051,49 @@ export const JuryAdmin: React.FC = () => {
                 <p className="text-xs text-slate-400 py-3 text-center italic bg-slate-50 rounded-xl">
                   Please select a domain above to view projects.
                 </p>
-              ) : availableCandidates.length === 0 ? (
+              ) : domainCandidates.length === 0 ? (
                 <p className="text-xs text-slate-500 py-3 text-center font-medium bg-slate-50 rounded-xl border border-slate-200/80">
-                  No unassigned projects are available in this domain.
+                  No projects are available in this domain.
+                </p>
+              ) : filteredCandidates.length === 0 ? (
+                <p className="text-xs text-slate-500 py-3 text-center font-medium bg-slate-50 rounded-xl border border-slate-200/80">
+                  No matching projects found.
                 </p>
               ) : (
                 <div className="max-h-48 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-2">
                   {filteredCandidates.map((p) => {
+                    const isAlreadyAssigned = Boolean(
+                      p.already_assigned_to_current_jury ||
+                      (p.is_assigned && p.available === false)
+                    );
                     const isChecked = assignDomainForm.selected_reg_ids.includes(p.registration_id);
+
+                    if (isAlreadyAssigned) {
+                      return (
+                        <div
+                          key={p.registration_id}
+                          className="flex items-center justify-between gap-2 p-2 bg-slate-50/80 border border-slate-200/70 rounded-lg text-xs opacity-75 cursor-not-allowed select-none"
+                          title="Already assigned to this jury member"
+                          aria-disabled="true"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Square className="w-4 h-4 text-slate-300 shrink-0 opacity-60" />
+                            <div className="truncate">
+                              <span className="font-bold text-slate-600 block truncate">
+                                {p.project_title}
+                              </span>
+                              <span className="font-mono text-[10px] text-slate-400">
+                                {p.registration_id}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200/80 text-slate-600 shrink-0">
+                            Already Assigned
+                          </span>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={p.registration_id}
@@ -2121,8 +2171,7 @@ export const JuryAdmin: React.FC = () => {
               disabled={
                 assigningDomain ||
                 !assignDomainForm.domain_id ||
-                (assignDomainForm.assignment_mode === 'SELECTED' &&
-                  (availableCandidates.length === 0 || assignDomainForm.selected_reg_ids.length === 0))
+                (assignDomainForm.assignment_mode === 'SELECTED' && assignDomainForm.selected_reg_ids.length === 0)
               }
               className="inline-flex items-center gap-2 bg-[#004182] hover:bg-[#003366] text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer disabled:opacity-50"
             >

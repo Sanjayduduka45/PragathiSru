@@ -66,6 +66,7 @@ class AssignmentCandidateItem(BaseModel):
     assigned_jury_id: Optional[str] = None
     assigned_jury_name: Optional[str] = None
     available: bool = True
+    already_assigned_to_current_jury: bool = False
 
 class AssignmentCandidatesResponse(BaseModel):
     success: bool = True

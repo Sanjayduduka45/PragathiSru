@@ -92,6 +92,9 @@ class MockDatabaseForOneProjectOneJury:
             return list(self.registrations)
         elif table == "jury_domain_assignments":
             rows = list(self.jdas)
+            if query_params.startswith("id=eq.") or "&id=eq." in query_params:
+                part = query_params.split("id=eq.")[-1].split("&")[0]
+                rows = [r for r in rows if r.get("id") == part]
             if "judge_user_id=eq." in query_params:
                 part = query_params.split("judge_user_id=eq.")[1].split("&")[0]
                 rows = [r for r in rows if r.get("judge_user_id") == part]
@@ -220,7 +223,11 @@ async def run_one_project_one_jury_suite():
                 f"Jury B candidate list DOES NOT contain {forbidden}"
             )
         assert_check(cand_b_res.available_count == 6, f"available_count is 6: got {cand_b_res.available_count}")
-        assert_check(cand_b_res.already_assigned_count == 4, f"already_assigned_count is 4: got {cand_b_res.already_assigned_count}")
+        assert_check(cand_b_res.already_assigned_count == 0, f"already_assigned_count for Jury B is 0 (does not count Jury A's projects): got {cand_b_res.already_assigned_count}")
+
+        # Domain overview without jury filter counts all domain assigned projects
+        cand_overview = await jury_service.get_assignment_candidates(domain_id="domain-x")
+        assert_check(cand_overview.already_assigned_count == 4, f"Domain overview already_assigned_count is 4: got {cand_overview.already_assigned_count}")
 
         # STEP 3: Assign Jury B (P05, P06, P07)
         print("\n--- Step 3: Assign Jury B (P05, P06, P07) ---")
@@ -259,7 +266,11 @@ async def run_one_project_one_jury_suite():
                 f"Jury C candidate list DOES NOT contain {forbidden}"
             )
         assert_check(cand_c_res.available_count == 3, f"available_count is 3: got {cand_c_res.available_count}")
-        assert_check(cand_c_res.already_assigned_count == 7, f"already_assigned_count is 7: got {cand_c_res.already_assigned_count}")
+        assert_check(cand_c_res.already_assigned_count == 0, f"already_assigned_count for Jury C is 0 (does not count other juries' projects): got {cand_c_res.already_assigned_count}")
+
+        # Domain overview without jury filter counts all domain assigned projects (7)
+        cand_c_overview = await jury_service.get_assignment_candidates(domain_id="domain-x")
+        assert_check(cand_c_overview.already_assigned_count == 7, f"Domain overview already_assigned_count is 7: got {cand_c_overview.already_assigned_count}")
 
         # STEP 5: Assign Jury C (P08, P09, P10)
         print("\n--- Step 5: Assign Jury C (P08, P09, P10) ---")
@@ -350,11 +361,84 @@ async def run_one_project_one_jury_suite():
             cand_a_ids == ["P01", "P02", "P03", "P04"],
             f"Jury A candidate list contains its own projects only (since P05..P10 belong to B and C): got {cand_a_ids}"
         )
+        assert_check(cand_a_res.already_assigned_count == 4, f"Jury A editing already_assigned_count is 4: got {cand_a_res.already_assigned_count}")
+        assert_check(cand_a_res.available_count == 0, f"Jury A editing available_count is 0: got {cand_a_res.available_count}")
+        for c in cand_a_res.candidates:
+            assert_check(c.available is False, f"Project {c.registration_id} is marked disabled/non-selectable (available=False)")
+            assert_check(c.is_assigned is True, f"Project {c.registration_id} is marked is_assigned=True")
+            assert_check(c.already_assigned_to_current_jury is True, f"Project {c.registration_id} is marked already_assigned_to_current_jury=True")
         for other_jury_project in ["P05", "P06", "P07", "P08", "P09", "P10"]:
             assert_check(
                 other_jury_project not in cand_a_ids,
                 f"Jury A candidate list DOES NOT contain {other_jury_project} owned by B or C"
             )
+
+        # STEP 10: REQUIRED EXACT TEST FROM SPECIFICATION
+        print("\n--- Step 10: Required Exact Test from Specification (P01..P04 on Domain Y) ---")
+        # Setup clean test domain-y with 4 projects:
+        # P01 -> Jury A
+        # P02 -> unassigned
+        # P03 -> unassigned
+        # P04 -> Jury B
+        dom_y_id = "domain-y"
+        mock_db.domains.append({"id": dom_y_id, "title": "Domain Y"})
+        mock_db.aliases.append({"domain_id": dom_y_id, "alias_text": "Domain Y", "is_active": True})
+        for pid in ["P01_Y", "P02_Y", "P03_Y", "P04_Y"]:
+            mock_db.registrations.append({
+                "registration_id": pid,
+                "team_name": f"Team {pid}",
+                "projects": [{"title": f"Project {pid}", "category": "Domain Y"}]
+            })
+
+        # Jury A assignment on domain-y: owns P01_Y
+        jda_y_a = await jury_service.assign_domain(judge_user_id="jury_a_uid", domain_id=dom_y_id, assignment_mode="SELECTED")
+        await jury_service.add_selected_projects(assignment_id=jda_y_a["id"], registration_ids=["P01_Y"])
+
+        # Jury B assignment on domain-y: owns P04_Y
+        jda_y_b = await jury_service.assign_domain(judge_user_id="jury_b_uid", domain_id=dom_y_id, assignment_mode="SELECTED")
+        await jury_service.add_selected_projects(assignment_id=jda_y_b["id"], registration_ids=["P04_Y"])
+
+        # Open Edit Jury A + Domain Y
+        cand_y_a = await jury_service.get_assignment_candidates(domain_id=dom_y_id, for_judge_user_id="jury_a_uid")
+
+        # Verify counts: Available projects: 2, Already assigned: 1
+        assert_check(cand_y_a.available_count == 2, f"Header Available projects is 2: got {cand_y_a.available_count}")
+        assert_check(cand_y_a.already_assigned_count == 1, f"Header Already assigned is 1: got {cand_y_a.already_assigned_count}")
+
+        # Verify candidate items:
+        cand_y_a_map = {c.registration_id: c for c in cand_y_a.candidates}
+        assert_check("P01_Y" in cand_y_a_map, "P01_Y is visible in candidate list for Jury A")
+        assert_check("P02_Y" in cand_y_a_map, "P02_Y is visible in candidate list for Jury A")
+        assert_check("P03_Y" in cand_y_a_map, "P03_Y is visible in candidate list for Jury A")
+        assert_check("P04_Y" not in cand_y_a_map, "P04_Y (owned by Jury B) is excluded / not assignable to Jury A")
+
+        # P01_Y -> visible, Already Assigned, disabled
+        p01_item = cand_y_a_map["P01_Y"]
+        assert_check(p01_item.available is False, "P01_Y has available=False (disabled/non-selectable)")
+        assert_check(p01_item.already_assigned_to_current_jury is True, "P01_Y has already_assigned_to_current_jury=True")
+        assert_check(p01_item.is_assigned is True, "P01_Y has is_assigned=True")
+
+        # P02_Y, P03_Y -> visible, selectable
+        for selectable_pid in ["P02_Y", "P03_Y"]:
+            item = cand_y_a_map[selectable_pid]
+            assert_check(item.available is True, f"{selectable_pid} has available=True (selectable)")
+            assert_check(item.already_assigned_to_current_jury is False, f"{selectable_pid} has already_assigned_to_current_jury=False")
+
+        # Select All (2): selects exactly P02_Y and P03_Y (never P01_Y)
+        select_all_ids = [c.registration_id for c in cand_y_a.candidates if c.available is True and not c.is_assigned]
+        assert_check(select_all_ids == ["P02_Y", "P03_Y"], f"Select All selects exactly P02_Y, P03_Y: got {select_all_ids}")
+
+        # Confirm Assignment: must send only P02_Y and P03_Y
+        await jury_service.add_selected_projects(assignment_id=jda_y_a["id"], registration_ids=select_all_ids)
+
+        # After assignment: Jury A owns P01_Y, P02_Y, P03_Y. Jury B still owns P04_Y. ZERO overlap.
+        jury_a_dash = await jury_service.get_jury_bootstrap("jury_a_uid")
+        jury_b_dash = await jury_service.get_jury_bootstrap("jury_b_uid")
+        a_y_ids = {p.registration_id for p in jury_a_dash.projects if p.registration_id.endswith("_Y")}
+        b_y_ids = {p.registration_id for p in jury_b_dash.projects if p.registration_id.endswith("_Y")}
+        assert_check(a_y_ids == {"P01_Y", "P02_Y", "P03_Y"}, f"Jury A owns P01_Y, P02_Y, P03_Y: got {a_y_ids}")
+        assert_check(b_y_ids == {"P04_Y"}, f"Jury B still owns P04_Y: got {b_y_ids}")
+        assert_check(len(a_y_ids.intersection(b_y_ids)) == 0, "ZERO overlap between Jury A and Jury B")
 
         print("\n" + "=" * 60)
         print(f"RESULT: ALL {passed} TESTS PASSED SUCCESSFULLY!")
