@@ -497,14 +497,7 @@ const EventPassCard: React.FC<{
   profile: ParticipantProfile;
   onOpenPassModal: () => void;
 }> = ({ profile, onOpenPassModal }) => {
-  const isApproved =
-    profile.registrationStatus?.toLowerCase() === 'approved' ||
-    profile.paymentStatus?.toLowerCase() === 'paid' ||
-    profile.paymentStatus?.toLowerCase() === 'completed' ||
-    profile.paymentStatus?.toLowerCase() === 'not_required' ||
-    profile.paymentStatus?.toLowerCase() === 'free_sru' ||
-    profile.paymentStatus?.toLowerCase() === 'free';
-
+  const isApproved = profile.registrationStatus?.toLowerCase() === 'approved';
   const isRejected = profile.registrationStatus?.toLowerCase() === 'rejected';
 
   if (!isApproved) {
@@ -533,7 +526,7 @@ const EventPassCard: React.FC<{
           <p className="text-[11px] text-slate-500 max-w-xs leading-relaxed">
             {isRejected
               ? 'Your registration was not approved, so an event pass is not available.'
-              : 'Your official digital event pass will be available immediately after your registration and payment are approved by the organizers.'}
+              : 'Your official digital event pass will be available immediately after your registration is approved by the organizers.'}
           </p>
         </div>
       </div>
@@ -967,7 +960,7 @@ export const ParticipantDashboard: React.FC = () => {
         )}
 
         {/* Event Pass Modal */}
-        {profile && (
+        {profile && profile.registrationStatus?.toLowerCase() === 'approved' && (
           <EventPassModal
             isOpen={isPassModalOpen}
             onClose={() => setIsPassModalOpen(false)}

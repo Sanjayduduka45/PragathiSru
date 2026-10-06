@@ -259,6 +259,19 @@ export const api = {
         body: formData,
       }),
   },
+  publicSettings: {
+    get: () => request<{
+      event_name: string;
+      event_date: string;
+      registration_status: string;
+      sru_registration_open: boolean;
+      external_registration_open: boolean;
+      registration_open_date: string;
+      registration_close_date: string;
+      website_visibility: string;
+      event_status: string;
+    }>('/api/settings/public'),
+  },
   contact: {
     getSettings: () => request<{ success: boolean; data: any }>('/api/contact'),
     updateSettings: (data: any) =>

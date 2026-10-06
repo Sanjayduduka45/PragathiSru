@@ -494,23 +494,33 @@ class RegistrationService:
 
         target_uuid = reg_row.get("id")
         reg_code = reg_row.get("registration_id")
+        current_pay_status = str(reg_row.get("payment_status") or "").strip().lower()
+        participant_type = str(reg_row.get("participant_type") or "").strip().lower()
+        is_sru = (current_pay_status == "not_required") or (participant_type != "external_student")
 
-        if reg_row.get("payment_status") == "paid" and reg_row.get("registration_status") == "approved":
+        if is_sru and reg_row.get("registration_status") == "approved":
+            print(f"[RegistrationService] Approval skipped for SRU '{reg_code}' — already approved.")
+            return await RegistrationService.get_registration(target_uuid)
+        elif not is_sru and reg_row.get("payment_status") == "paid" and reg_row.get("registration_status") == "approved":
             print(f"[RegistrationService] Approval skipped for '{reg_code}' — already paid/approved.")
             return await RegistrationService.get_registration(target_uuid)
 
-        await db.update_supabase("payments", "registration_id", target_uuid, {
-            "status": "paid"
-        })
-
-        await db.update_supabase("registrations", "id", target_uuid, {
-            "payment_status": "paid",
-            "registration_status": "approved"
-        })
+        if is_sru:
+            await db.update_supabase("registrations", "id", target_uuid, {
+                "registration_status": "approved"
+            })
+        else:
+            await db.update_supabase("payments", "registration_id", target_uuid, {
+                "status": "paid"
+            })
+            await db.update_supabase("registrations", "id", target_uuid, {
+                "payment_status": "paid",
+                "registration_status": "approved"
+            })
 
         if reg_code:
             try:
-                print(f"[RegistrationService] Payment approved for '{reg_code}' — triggering confirmation email.")
+                print(f"[RegistrationService] Registration approved for '{reg_code}' — triggering confirmation email.")
                 await RegistrationService.resend_confirmation_email(reg_code)
             except Exception as e:
                 print(f"[RegistrationService] Email trigger error during approval: {e}")
@@ -549,15 +559,22 @@ class RegistrationService:
 
         target_uuid = reg_row.get("id")
         reg_code = reg_row.get("registration_id")
+        current_pay_status = str(reg_row.get("payment_status") or "").strip().lower()
+        participant_type = str(reg_row.get("participant_type") or "").strip().lower()
+        is_sru = (current_pay_status == "not_required") or (participant_type != "external_student")
 
-        await db.update_supabase("payments", "registration_id", target_uuid, {
-            "status": "failed"
-        })
-
-        await db.update_supabase("registrations", "id", target_uuid, {
-            "payment_status": "failed",
-            "registration_status": "rejected"
-        })
+        if is_sru:
+            await db.update_supabase("registrations", "id", target_uuid, {
+                "registration_status": "rejected"
+            })
+        else:
+            await db.update_supabase("payments", "registration_id", target_uuid, {
+                "status": "failed"
+            })
+            await db.update_supabase("registrations", "id", target_uuid, {
+                "payment_status": "failed",
+                "registration_status": "rejected"
+            })
 
         return await RegistrationService.get_registration(target_uuid)
 

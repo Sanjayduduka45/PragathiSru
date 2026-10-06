@@ -29,6 +29,42 @@ INITIAL_DATA: Dict[str, Any] = {
         "facebook_url": "https://www.facebook.com/share/19D3TK5Yae/",
         "instagram_url": "https://www.instagram.com/sru.pragathi2.0?igsh=dng0ZXR2Y2g2enU1"
     },
+    "system_settings": {
+        "event_config": {
+            "event_name": "PRAGATHI 2K26",
+            "event_date": "09 October 2026",
+            "target_date_iso": "2026-10-09T09:00:00+05:30",
+            "registration_status": "open",
+            "sru_registration_open": True,
+            "external_registration_open": False,
+            "registration_open_date": "2026-08-01T00:00:00+05:30",
+            "registration_close_date": "2026-10-01T23:59:59+05:30",
+            "website_visibility": "published",
+            "event_status": "active"
+        },
+        "notification_config": {
+            "announcement_emails_enabled": True,
+            "registration_confirmation_emails_enabled": True,
+            "event_reminder_alerts_enabled": True,
+            "email_sender_name": "PRAGATHI 2K26 Secretariat",
+            "provider_status": "ready"
+        },
+        "system_config": {
+            "maintenance_mode": False,
+            "max_registrations": 500,
+            "announcement_banner_enabled": False,
+            "announcement_banner_text": "Welcome to PRAGATHI 2K26 Expo Registration Portal!",
+            "debug_logging": False
+        },
+        "admin_profile": {
+            "display_name": "Lead Administrator",
+            "email": "admin@sru.edu.in",
+            "role": "admin",
+            "account_status": "verified",
+            "last_sign_in": None,
+            "auth_provider": "email"
+        }
+    },
     "about_content": {
         "title": "About PRAGATHI 2K26",
         "description": "PRAGATHI 2K26 is SR University's flagship National Level Project Expo, designed to ignite youth innovation, foster interdisciplinary engineering solutions, and provide a stage for high-impact prototypes. Over 500 student teams from across India showcase hardware models, software applications, renewable energy solutions, and biotech inventions evaluated by senior academicians, scientists, and incubation mentors from the SRiX (SR Innovation Exchange) ecosystem.",

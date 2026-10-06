@@ -6,7 +6,7 @@ class EventConfig(BaseModel):
     event_date: str = "09 October 2026"
     target_date_iso: str = "2026-10-09T09:00:00+05:30"
     registration_status: str = "open"  # 'open' | 'closed' | 'paused'
-    sru_registration_open: bool = False
+    sru_registration_open: bool = True
     external_registration_open: bool = False
     registration_open_date: str = "2026-08-01T00:00:00+05:30"
     registration_close_date: str = "2026-10-01T23:59:59+05:30"

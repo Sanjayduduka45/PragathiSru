@@ -324,10 +324,15 @@ export const RegistrationsAdmin: React.FC = () => {
   };
 
   const isPendingPayment = (reg: JoinedRegistrationRecord | null) => {
-    if (!reg || !isExternalRegistration(reg)) return false;
-    const pStatus = (reg.payment_status || '').trim().toLowerCase();
+    if (!reg) return false;
     const rStatus = (reg.registration_status || '').trim().toLowerCase();
-    return pStatus === 'pending' || pStatus === 'unpaid' || rStatus === 'submitted' || rStatus === 'under_review';
+    const pStatus = (reg.payment_status || '').trim().toLowerCase();
+    if (rStatus === 'approved' || rStatus === 'rejected') return false;
+    if (isExternalRegistration(reg)) {
+      return pStatus === 'pending' || pStatus === 'unpaid' || rStatus === 'submitted' || rStatus === 'under_review';
+    }
+    // SRU students: pending review as long as status is submitted or under_review
+    return rStatus === 'submitted' || rStatus === 'under_review' || !rStatus;
   };
 
   const handleViewProof = async (reg: JoinedRegistrationRecord) => {
@@ -366,15 +371,20 @@ export const RegistrationsAdmin: React.FC = () => {
 
   const handleApprovePayment = async (reg: JoinedRegistrationRecord) => {
     setActionLoading(true);
+    const isExternal = isExternalRegistration(reg);
     try {
       const res = await api.registrations.approvePayment(reg.id);
       if (res && res.success) {
-        addToast('success', 'Payment Approved', `Payment for team ${reg.team_name} approved! Confirmation email dispatched.`);
+        addToast(
+          'success',
+          isExternal ? 'Payment Approved' : 'Registration Approved',
+          `Registration for team ${reg.team_name} approved! Confirmation email dispatched.`
+        );
         await fetchRegistrations();
         if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
           setSelectedReg({
             ...selectedReg,
-            payment_status: 'paid',
+            payment_status: isExternal ? 'paid' : (selectedReg.payment_status || 'not_required'),
             registration_status: 'approved',
           });
         }
@@ -382,23 +392,31 @@ export const RegistrationsAdmin: React.FC = () => {
     } catch (err: any) {
       if (isSupabaseConfigured && supabase) {
         try {
-          await supabase.from('payments').update({ status: 'paid' }).eq('registration_id', reg.id);
-          await supabase.from('registrations').update({ payment_status: 'paid', registration_status: 'approved' }).eq('id', reg.id);
-          addToast('success', 'Payment Approved', `Payment for team ${reg.team_name} approved directly in database.`);
+          if (isExternal) {
+            await supabase.from('payments').update({ status: 'paid' }).eq('registration_id', reg.id);
+            await supabase.from('registrations').update({ payment_status: 'paid', registration_status: 'approved' }).eq('id', reg.id);
+          } else {
+            await supabase.from('registrations').update({ registration_status: 'approved' }).eq('id', reg.id);
+          }
+          addToast(
+            'success',
+            isExternal ? 'Payment Approved' : 'Registration Approved',
+            `Registration for team ${reg.team_name} approved directly in database.`
+          );
           await RegistrationService.resendConfirmationEmail(reg.registration_id);
           await fetchRegistrations();
           if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
             setSelectedReg({
               ...selectedReg,
-              payment_status: 'paid',
+              payment_status: isExternal ? 'paid' : (selectedReg.payment_status || 'not_required'),
               registration_status: 'approved',
             });
           }
         } catch (sErr: any) {
-          addToast('error', 'Approval Error', sErr?.message || 'Failed to approve payment.');
+          addToast('error', 'Approval Error', sErr?.message || 'Failed to approve registration.');
         }
       } else {
-        addToast('error', 'Approval Error', err?.message || 'Failed to approve payment.');
+        addToast('error', 'Approval Error', err?.message || 'Failed to approve registration.');
       }
     } finally {
       setActionLoading(false);
@@ -406,17 +424,22 @@ export const RegistrationsAdmin: React.FC = () => {
   };
 
   const handleRejectPayment = async (reg: JoinedRegistrationRecord) => {
+    const isExternal = isExternalRegistration(reg);
     const reason = window.prompt(`Enter rejection reason for team ${reg.team_name} (optional):`);
     setActionLoading(true);
     try {
       const res = await api.registrations.rejectPayment(reg.id, reason || undefined);
       if (res && res.success) {
-        addToast('info', 'Payment Rejected', `Payment for team ${reg.team_name} rejected.`);
+        addToast(
+          'info',
+          isExternal ? 'Payment Rejected' : 'Registration Rejected',
+          `Registration for team ${reg.team_name} rejected.`
+        );
         await fetchRegistrations();
         if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
           setSelectedReg({
             ...selectedReg,
-            payment_status: 'failed',
+            payment_status: isExternal ? 'failed' : (selectedReg.payment_status || 'not_required'),
             registration_status: 'rejected',
           });
         }
@@ -424,22 +447,30 @@ export const RegistrationsAdmin: React.FC = () => {
     } catch (err: any) {
       if (isSupabaseConfigured && supabase) {
         try {
-          await supabase.from('payments').update({ status: 'failed' }).eq('registration_id', reg.id);
-          await supabase.from('registrations').update({ payment_status: 'failed', registration_status: 'rejected' }).eq('id', reg.id);
-          addToast('info', 'Payment Rejected', `Payment for team ${reg.team_name} rejected.`);
+          if (isExternal) {
+            await supabase.from('payments').update({ status: 'failed' }).eq('registration_id', reg.id);
+            await supabase.from('registrations').update({ payment_status: 'failed', registration_status: 'rejected' }).eq('id', reg.id);
+          } else {
+            await supabase.from('registrations').update({ registration_status: 'rejected' }).eq('id', reg.id);
+          }
+          addToast(
+            'info',
+            isExternal ? 'Payment Rejected' : 'Registration Rejected',
+            `Registration for team ${reg.team_name} rejected.`
+          );
           await fetchRegistrations();
           if (selectedReg && (selectedReg.id === reg.id || selectedReg.registration_id === reg.registration_id)) {
             setSelectedReg({
               ...selectedReg,
-              payment_status: 'failed',
+              payment_status: isExternal ? 'failed' : (selectedReg.payment_status || 'not_required'),
               registration_status: 'rejected',
             });
           }
         } catch (sErr: any) {
-          addToast('error', 'Rejection Error', sErr?.message || 'Failed to reject payment.');
+          addToast('error', 'Rejection Error', sErr?.message || 'Failed to reject registration.');
         }
       } else {
-        addToast('error', 'Rejection Error', err?.message || 'Failed to reject payment.');
+        addToast('error', 'Rejection Error', err?.message || 'Failed to reject registration.');
       }
     } finally {
       setActionLoading(false);
@@ -986,7 +1017,7 @@ export const RegistrationsAdmin: React.FC = () => {
                               onClick={() => handleApprovePayment(r)}
                               disabled={actionLoading}
                               className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                              title="Approve Payment"
+                              title={isExternalRegistration(r) ? 'Approve Payment' : 'Approve Registration'}
                             >
                               <CheckCircle2 className="w-3 h-3" />
                               <span>Approve</span>
@@ -995,7 +1026,7 @@ export const RegistrationsAdmin: React.FC = () => {
                               onClick={() => handleRejectPayment(r)}
                               disabled={actionLoading}
                               className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                              title="Reject Payment"
+                              title={isExternalRegistration(r) ? 'Reject Payment' : 'Reject Registration'}
                             >
                               <X className="w-3 h-3" />
                               <span>Reject</span>
@@ -1270,12 +1301,16 @@ export const RegistrationsAdmin: React.FC = () => {
                 </div>
               )}
 
-              {/* Admin Action Bar for Pending External Payments */}
+              {/* Admin Action Bar for Pending Registrations / Payments */}
               {isPendingPayment(selectedReg) && (
                 <div className="mt-3 pt-2.5 border-t border-slate-100 bg-amber-50/60 p-3 rounded-lg flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs text-amber-900">
                     <span className="font-extrabold block">Admin Verification Action Required</span>
-                    <span className="text-[10px] text-amber-700">Review proof before approving. Approving will trigger the confirmation email.</span>
+                    <span className="text-[10px] text-amber-700">
+                      {isExternalRegistration(selectedReg)
+                        ? 'Review proof before approving. Approving will trigger the confirmation email.'
+                        : 'Review SRU registration before approving. Approving will trigger the confirmation email.'}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1284,6 +1319,7 @@ export const RegistrationsAdmin: React.FC = () => {
                       onClick={() => handleRejectPayment(selectedReg)}
                       disabled={actionLoading}
                       className="inline-flex items-center gap-1 bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                      title={isExternalRegistration(selectedReg) ? 'Reject Payment' : 'Reject Registration'}
                     >
                       <X className="w-3.5 h-3.5" />
                       <span>Reject</span>
@@ -1293,9 +1329,10 @@ export const RegistrationsAdmin: React.FC = () => {
                       onClick={() => handleApprovePayment(selectedReg)}
                       disabled={actionLoading}
                       className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                      title={isExternalRegistration(selectedReg) ? 'Approve Payment' : 'Approve Registration'}
                     >
                       {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                      <span>Approve Payment</span>
+                      <span>{isExternalRegistration(selectedReg) ? 'Approve Payment' : 'Approve Registration'}</span>
                     </button>
                   </div>
                 </div>

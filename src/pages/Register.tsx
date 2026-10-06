@@ -20,6 +20,7 @@ import {
   School,
   Info,
   Printer,
+  Clock,
 } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
 import { useHomePath } from '../context/HomePathContext';
@@ -51,7 +52,7 @@ export const Register: React.FC = () => {
     externalRegistrationOpen: boolean;
     loaded: boolean;
   }>({
-    sruRegistrationOpen: false,
+    sruRegistrationOpen: true,
     externalRegistrationOpen: false,
     loaded: false,
   });
@@ -75,14 +76,14 @@ export const Register: React.FC = () => {
   // Internal classification derived from email ending (@sru.edu.in vs external)
   const trimmedEmail = primaryEmail.trim().toLowerCase();
   const isSRUEmail = trimmedEmail.endsWith('@sru.edu.in');
-  const isSRUClosed = isSRUEmail && !regSettings.sruRegistrationOpen;
+  const isSRUClosed = regSettings.loaded && isSRUEmail && !regSettings.sruRegistrationOpen;
 
   const isExternalInput = trimmedEmail.length > 0 && !isSRUEmail && (
     (trimmedEmail.includes('@') && !trimmedEmail.includes('@sru')) ||
     (trimmedEmail.includes('@') && trimmedEmail.includes('.') && !isSRUEmail) ||
     hasAttemptedSubmit
   );
-  const isExternalClosed = isExternalInput && !regSettings.externalRegistrationOpen;
+  const isExternalClosed = regSettings.loaded && isExternalInput && !regSettings.externalRegistrationOpen;
 
   const regMode: 'SRU_STUDENT' | 'EXTERNAL' = isSRUEmail ? 'SRU_STUDENT' : 'EXTERNAL';
 
@@ -310,7 +311,7 @@ export const Register: React.FC = () => {
       {confirmedRecord ? (
         <div
           id="registration-confirmation-print-area"
-          className="registration-confirmation-print-area bg-white rounded-3xl border border-emerald-200 shadow-xl p-6 sm:p-10 space-y-6 text-center animate-in fade-in duration-300"
+          className="registration-confirmation-print-area bg-white rounded-3xl border border-amber-200 shadow-xl p-6 sm:p-10 space-y-6 text-center animate-in fade-in duration-300"
         >
           {/* Print-only Event Header Branding */}
           <div className="hidden print:block text-center space-y-1 pb-4 border-b border-slate-200 mb-2">
@@ -325,19 +326,19 @@ export const Register: React.FC = () => {
             </p>
           </div>
 
-          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100 shadow-xs">
-            <CheckCircle2 className="w-10 h-10" />
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto border border-amber-200 shadow-xs">
+            <Clock className="w-10 h-10" />
           </div>
 
           <div className="space-y-2">
-            <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              Registration Confirmed
+            <span className="text-xs font-extrabold text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 uppercase tracking-wider">
+              VERIFICATION PENDING
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold font-display text-slate-900">
-              Registration Confirmed!
+              Registration Successful — Verification Pending
             </h2>
             <p className="text-sm text-slate-600 max-w-lg mx-auto">
-              Your team is registered for <strong>{eventSettings.eventName}</strong> at {eventSettings.institution}, {eventSettings.location}.
+              Your team registration has been submitted for <strong>{eventSettings.eventName}</strong> at {eventSettings.institution}, {eventSettings.location}.
             </p>
           </div>
 
@@ -348,10 +349,10 @@ export const Register: React.FC = () => {
             </div>
             <div className="text-xs sm:text-sm text-slate-700 space-y-1">
               <div className="font-extrabold text-amber-900 uppercase tracking-wider text-[10px] sm:text-[11px]">
-                Important — Save Your ID
+                VERIFICATION IN PROGRESS
               </div>
               <p className="leading-relaxed">
-                Keep your Registration ID safe. You’ll need it along with your registered email to sign in and access your Participant Profile.
+                Your registration is currently pending verification by the organizing committee. Once your registration is approved, you will receive a confirmation email with your registration details and instructions for accessing your Participant Profile and Event Pass.
               </p>
             </div>
           </div>
@@ -395,8 +396,8 @@ export const Register: React.FC = () => {
 
             <div className="pt-2 border-t border-slate-200 text-slate-500 text-[11px] flex items-center justify-between">
               <span>Venue: {eventSettings.venue}</span>
-              <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Status: Active
+              <span className="text-amber-800 font-bold bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200">
+                Status: Verification Pending
               </span>
             </div>
           </div>
@@ -951,7 +952,7 @@ export const Register: React.FC = () => {
 
                     // 2. For external participants, upload payment proof associated with the created registration ID
                     if (regMode === 'EXTERNAL' && paymentDetails?.proofFile) {
-                      const regCode = submissionRes.record.registrationId || submissionRes.record.id;
+                      const regCode = submissionRes.record.registrationId || (submissionRes.record as any)?.id;
                       try {
                         const uploadRes = await SRUPaymentService.uploadPaymentProof(
                           regCode,

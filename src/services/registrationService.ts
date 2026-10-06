@@ -589,32 +589,9 @@ export class RegistrationService {
         // Save local copy ONLY AFTER successful database insert of all records
         this.saveToLocalStorage(record);
 
-        // 3. Trigger registration confirmation email process ONLY for SRU Students (Free)
-        // External participants receive confirmation email ONLY AFTER admin approval.
-        if (payload.registrationType === 'SRU_STUDENT') {
-          try {
-            console.log(`[EMAIL] Registration confirmed for SRU Student: ${finalRegId}`);
-            console.log('[EMAIL] Invoking send-registration-confirmation');
-            supabase.functions
-              .invoke('send-registration-confirmation', {
-                body: { registrationId: finalRegId },
-              })
-              .then(({ data, error }) => {
-                if (error) {
-                  console.error('[EMAIL] Function invocation failed:', error.message || error);
-                } else {
-                  console.log('[EMAIL] Function response received:', data);
-                }
-              })
-              .catch((emailErr) => {
-                console.error('[EMAIL] Function invocation failed:', emailErr?.message || emailErr);
-              });
-          } catch (emailTriggerErr: any) {
-            console.error('[EMAIL] Function invocation failed:', emailTriggerErr?.message || emailTriggerErr);
-          }
-        } else {
-          console.log(`[EMAIL] External registration ${finalRegId} submitted. Confirmation email deferred until Admin approval.`);
-        }
+        // 3. Confirmation email is deferred until Admin approval for both SRU and External participants.
+        console.log(`[EMAIL] Registration ${finalRegId} (${payload.registrationType}) submitted with status 'submitted'. Confirmation email deferred until Admin approval.`);
+
 
         return {
           success: true,

@@ -82,6 +82,7 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofFileError, setProofFileError] = useState<string>('');
   const [isPendingVerification, setIsPendingVerification] = useState<boolean>(false);
+  const [isPendingSruApproval, setIsPendingSruApproval] = useState<boolean>(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setProofFileError('');
@@ -132,6 +133,8 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
         setConfirmedId(res.registrationId);
         if (data.participantType === 'EXTERNAL') {
           setIsPendingVerification(true);
+        } else {
+          setIsPendingSruApproval(true);
         }
       } else {
         setSubmitError(res.message || 'Registration submission failed. Please try again.');
@@ -142,6 +145,134 @@ export const RegistrationReviewConfirmation: React.FC<RegistrationReviewConfirma
       setIsSubmitting(false);
     }
   };
+
+  // PENDING ADMIN APPROVAL VIEW (FOR SRU STUDENTS)
+  if (confirmedId && (isPendingSruApproval || data.participantType === 'SRU_STUDENT')) {
+    return (
+      <div
+        id="registration-confirmation-print-area"
+        className="registration-confirmation-print-area bg-white rounded-3xl border border-blue-200 shadow-xl p-6 sm:p-10 space-y-6 sm:space-y-8 text-center max-w-2xl mx-auto relative overflow-hidden animate-in fade-in duration-300"
+      >
+        {/* Animated Warning / Pending Badge */}
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+          className="w-20 h-20 bg-[#004182] text-white rounded-full flex items-center justify-center mx-auto shadow-lg shadow-blue-900/20 relative z-10"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 250 }}
+          >
+            <Clock className="w-12 h-12 text-amber-300" />
+          </motion.div>
+        </motion.div>
+
+        {/* Headline */}
+        <div className="space-y-2 relative z-10">
+          <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>VERIFICATION PENDING</span>
+          </span>
+
+          <h2 className="text-2xl sm:text-3xl font-extrabold font-display text-slate-900 tracking-tight">
+            Registration Successful — Verification Pending
+          </h2>
+
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed font-medium">
+            Your team registration has been submitted for PRAGATHI 2K26 at SR University, Warangal.
+          </p>
+        </div>
+
+        {/* Verification in Progress Box */}
+        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 text-left max-w-lg mx-auto shadow-xs flex items-start gap-3 relative z-10">
+          <div className="p-1.5 bg-amber-100 text-amber-800 rounded-lg shrink-0 mt-0.5">
+            <Info className="w-4 h-4 text-amber-700" />
+          </div>
+          <div className="text-xs sm:text-sm text-slate-700 space-y-1">
+            <div className="font-extrabold text-amber-900 uppercase tracking-wider text-[10px] sm:text-[11px]">
+              VERIFICATION IN PROGRESS
+            </div>
+            <p className="leading-relaxed">
+              Your registration is currently pending verification by the organizing committee. Once your registration is approved, you will receive a confirmation email with your registration details and instructions for accessing your Participant Profile and Event Pass.
+            </p>
+          </div>
+        </div>
+
+        {/* Info Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-left space-y-4 max-w-lg mx-auto text-xs sm:text-sm shadow-xs relative z-10">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold tracking-wider block">
+                Registration ID
+              </span>
+              <span className="text-lg font-mono font-extrabold text-[#004182]">
+                {confirmedId}
+              </span>
+            </div>
+
+            <div className="text-right">
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold tracking-wider block">
+                Status
+              </span>
+              <span className="inline-block font-extrabold px-2.5 py-0.5 rounded text-xs bg-amber-100 text-amber-800 border border-amber-300">
+                Verification Pending
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-slate-800">
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Team Name</span>
+              <span className="font-bold text-slate-900 text-base">{data.teamName}</span>
+            </div>
+
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Category</span>
+              <span className="font-semibold text-slate-900">SRU Student (Free Registration)</span>
+            </div>
+
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Project Title</span>
+              <span className="font-semibold text-slate-900">{data.projectTitle}</span>
+            </div>
+
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-extrabold block">Institution</span>
+              <span className="font-semibold text-slate-900">{data.institutionName || 'SR University'}</span>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Expo Date: 09 October 2026</span>
+            <span>SR University, Warangal</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 relative z-10 no-print">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="w-full sm:w-auto bg-white hover:bg-slate-50 text-[#004182] border border-[#004182] font-extrabold px-8 py-3.5 rounded-full text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-[#004182]" />
+            <span>PRINT ACKNOWLEDGEMENT</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onGoHome}
+            className="w-full sm:w-auto bg-[#004182] hover:bg-[#003366] text-white font-extrabold px-8 py-3.5 rounded-full text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Home className="w-4 h-4 text-blue-200" />
+            <span>GO TO HOME</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // PENDING PAYMENT VERIFICATION VIEW (FOR EXTERNAL PARTICIPANTS)
   if (confirmedId && isPendingVerification) {

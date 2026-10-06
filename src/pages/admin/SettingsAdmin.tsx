@@ -350,6 +350,7 @@ export const SettingsAdmin: React.FC = () => {
     try {
       const updated = await updateAdminSettings({ event: eventForm });
       setSettings(updated);
+      setEventForm(updated.event);
       addToast('success', 'Event Configuration Saved', 'Event lifecycle and registration parameters updated.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -365,6 +366,7 @@ export const SettingsAdmin: React.FC = () => {
     try {
       const updated = await updateAdminSettings({ notifications: notifForm });
       setSettings(updated);
+      setNotifForm(updated.notifications);
       addToast('success', 'Notification Settings Saved', 'Email notification switches updated.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -380,6 +382,7 @@ export const SettingsAdmin: React.FC = () => {
     try {
       const updated = await updateAdminSettings({ system: systemForm });
       setSettings(updated);
+      setSystemForm(updated.system);
       addToast('success', 'System Settings Saved', 'Security, banner, and maintenance settings updated.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';

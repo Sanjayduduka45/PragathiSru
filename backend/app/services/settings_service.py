@@ -19,8 +19,8 @@ DEFAULT_EVENT_CONFIG = {
     "event_name": "PRAGATHI 2K26",
     "event_date": "09 October 2026",
     "target_date_iso": "2026-10-09T09:00:00+05:30",
-    "registration_status": "closed",
-    "sru_registration_open": False,
+    "registration_status": "open",
+    "sru_registration_open": True,
     "external_registration_open": False,
     "registration_open_date": "2026-08-01T00:00:00+05:30",
     "registration_close_date": "2026-10-01T23:59:59+05:30",
@@ -414,7 +414,7 @@ class SettingsService:
 
     async def log_audit_action(self, action: str, performed_by: str, target: str = "", details: str = ""):
         log_entry = {
-            "id": f"audit-{uuid.uuid4().hex[:8]}",
+            "id": str(uuid.uuid4()),
             "action": action,
             "performed_by": performed_by,
             "target": target,

@@ -72,8 +72,8 @@ export const DEFAULT_FULL_SETTINGS: FullSettings = {
     eventName: 'PRAGATHI 2K26',
     eventDate: '09 October 2026',
     targetDateIso: '2026-10-09T09:00:00+05:30',
-    registrationStatus: 'closed',
-    sruRegistrationOpen: false,
+    registrationStatus: 'open',
+    sruRegistrationOpen: true,
     externalRegistrationOpen: false,
     registrationOpenDate: '2026-08-01T00:00:00+05:30',
     registrationCloseDate: '2026-10-01T23:59:59+05:30',
@@ -272,6 +272,7 @@ export async function updateAdminSettings(updates: Partial<FullSettings>): Promi
         await supabase.from('system_settings').upsert({
           key: 'event_config',
           value: payload.event,
+          is_public: true,
           updated_by: 'admin',
         }, { onConflict: 'key' });
       }
@@ -279,6 +280,7 @@ export async function updateAdminSettings(updates: Partial<FullSettings>): Promi
         await supabase.from('system_settings').upsert({
           key: 'notification_config',
           value: payload.notifications,
+          is_public: false,
           updated_by: 'admin',
         }, { onConflict: 'key' });
       }
@@ -286,6 +288,7 @@ export async function updateAdminSettings(updates: Partial<FullSettings>): Promi
         await supabase.from('system_settings').upsert({
           key: 'system_config',
           value: payload.system,
+          is_public: true,
           updated_by: 'admin',
         }, { onConflict: 'key' });
       }
@@ -501,7 +504,18 @@ export interface RegistrationSettings {
 }
 
 export async function getRegistrationSettings(): Promise<RegistrationSettings> {
-  // 1. Try public FastAPI endpoint
+  // 1. Try public FastAPI endpoint via centralized API client
+  try {
+    const res = await api.publicSettings.get();
+    if (res && typeof res.sru_registration_open === 'boolean') {
+      return {
+        sruRegistrationOpen: Boolean(res.sru_registration_open),
+        externalRegistrationOpen: Boolean(res.external_registration_open),
+      };
+    }
+  } catch {}
+
+  // 1b. Fallback direct fetch to /api/settings/public
   try {
     const res = await fetch('/api/settings/public').then((r) => (r.ok ? r.json() : null)).catch(() => null);
     if (res && typeof res.sru_registration_open === 'boolean') {
@@ -520,10 +534,10 @@ export async function getRegistrationSettings(): Promise<RegistrationSettings> {
         .select('value')
         .eq('key', 'event_config')
         .single();
-      if (!error && data?.value) {
+      if (!error && data?.value && typeof data.value.sru_registration_open === 'boolean') {
         return {
-          sruRegistrationOpen: Boolean(data.value.sru_registration_open ?? false),
-          externalRegistrationOpen: Boolean(data.value.external_registration_open ?? false),
+          sruRegistrationOpen: Boolean(data.value.sru_registration_open),
+          externalRegistrationOpen: Boolean(data.value.external_registration_open),
         };
       }
     } catch {}
@@ -538,9 +552,9 @@ export async function getRegistrationSettings(): Promise<RegistrationSettings> {
     };
   } catch {}
 
-  // Default: both closed
+  // Default: intended default state
   return {
-    sruRegistrationOpen: false,
-    externalRegistrationOpen: false,
+    sruRegistrationOpen: DEFAULT_FULL_SETTINGS.event.sruRegistrationOpen,
+    externalRegistrationOpen: DEFAULT_FULL_SETTINGS.event.externalRegistrationOpen,
   };
 }
