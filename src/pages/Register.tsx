@@ -75,14 +75,20 @@ export const Register: React.FC = () => {
 
   // Internal classification derived from email ending (@sru.edu.in vs external)
   const trimmedEmail = primaryEmail.trim().toLowerCase();
+
+  // Complete email validation regex (e.g. user@domain.tld with at least 2 char TLD)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+  const isCompleteValidEmail = emailRegex.test(trimmedEmail);
+
+  // Check if user is in progress of typing the SRU institutional domain (@sru.edu.in)
+  const emailDomain = trimmedEmail.includes('@') ? trimmedEmail.split('@')[1] : '';
+  const isTypingSRUDomain = trimmedEmail.includes('@') && 'sru.edu.in'.startsWith(emailDomain);
+
   const isSRUEmail = trimmedEmail.endsWith('@sru.edu.in');
   const isSRUClosed = regSettings.loaded && isSRUEmail && !regSettings.sruRegistrationOpen;
 
-  const isExternalInput = trimmedEmail.length > 0 && !isSRUEmail && (
-    (trimmedEmail.includes('@') && !trimmedEmail.includes('@sru')) ||
-    (trimmedEmail.includes('@') && trimmedEmail.includes('.') && !isSRUEmail) ||
-    hasAttemptedSubmit
-  );
+  // External classification: email must be complete, valid, and not an SRU or in-progress SRU domain
+  const isExternalInput = isCompleteValidEmail && !isSRUEmail && !isTypingSRUDomain;
   const isExternalClosed = regSettings.loaded && isExternalInput && !regSettings.externalRegistrationOpen;
 
   const regMode: 'SRU_STUDENT' | 'EXTERNAL' = isSRUEmail ? 'SRU_STUDENT' : 'EXTERNAL';
@@ -169,13 +175,18 @@ export const Register: React.FC = () => {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(emailTrimmed)) {
       setFormError('Please enter a valid email address format (e.g. name@domain.com).');
       return;
     }
 
     const isSRU = emailTrimmed.toLowerCase().endsWith('@sru.edu.in');
+    const domainPart = emailTrimmed.includes('@') ? emailTrimmed.toLowerCase().split('@')[1] : '';
+    if ('sru.edu.in'.startsWith(domainPart) && !isSRU) {
+      setFormError('SR University student email addresses must end with @sru.edu.in.');
+      return;
+    }
 
     if (isSRU && !regSettings.sruRegistrationOpen) {
       setFormError('Registration for SR University students is currently closed.');
