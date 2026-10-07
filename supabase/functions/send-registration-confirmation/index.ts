@@ -176,11 +176,11 @@ function buildConfirmationEmailHtml(params: {
             <tr>
               <td style="padding: 16px 20px;">
                 <p style="margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; color: #334155;">
-                  You can access your Participant Profile using your registered email address and Registration ID.
+                  Use the following credentials to sign in to your Participant Profile:
                 </p>
                 <div style="background-color: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 13px; margin-bottom: 16px;">
-                  <div style="margin-bottom: 6px;"><strong>Registered Email:</strong> <span style="color: #0f172a;">${participantEmail}</span></div>
-                  <div><strong>Registration ID:</strong> <span style="font-family: monospace; font-weight: 700; color: #004182;">${registrationId}</span></div>
+                  <div style="margin-bottom: 6px;"><strong>Username / Email:</strong> <span style="color: #0f172a;">${participantEmail}</span></div>
+                  <div><strong>Password:</strong> <span style="font-family: monospace; font-weight: 700; color: #004182;">${registrationId}</span></div>
                 </div>
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 8px 0 12px 0;">
                   <tr>
@@ -192,7 +192,7 @@ function buildConfirmationEmailHtml(params: {
                   </tr>
                 </table>
                 <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #64748b;">
-                  <strong>Important:</strong> Keep your Registration ID safe. You will need it along with your registered email address to sign in.
+                  <strong>Important:</strong> Keep your Registration ID safe. Your Registration ID is your password and must be used along with your registered email address to sign in.
                 </p>
               </td>
             </tr>
