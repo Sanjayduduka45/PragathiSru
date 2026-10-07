@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query, File, UploadFile, Form
-from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Query, File, UploadFile, Form, Response, Body
+from typing import Optional, Dict, Any, List
 from app.schemas.registration import (
     RegistrationListResponse,
     RegistrationResponse,
@@ -178,3 +178,15 @@ async def create_registration(payload: Optional[Dict[str, Any]] = None):
         "message": "Registration accepted for processing.",
         "data": data
     }
+
+@router.post("/api/admin/registrations/export-payment-proofs")
+async def export_payment_proofs(body: Optional[Dict[str, Any]] = Body(default=None)):
+    reg_ids = body.get("registration_ids") if body else None
+    zip_bytes = await registration_service.export_payment_proofs_zip(registration_ids=reg_ids)
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=Pragathi_External_Payment_Proofs.zip"
+        }
+    )

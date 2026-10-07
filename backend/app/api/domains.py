@@ -9,6 +9,11 @@ async def get_domains():
     items = await domain_service.get_domains()
     return DomainListResponse(data=items)
 
+@router.get("/api/domain-aliases")
+async def get_domain_aliases():
+    items = await domain_service.get_domain_aliases()
+    return {"success": True, "data": items}
+
 @router.post("/api/admin/domains", response_model=DomainResponse)
 async def create_domain(data: DomainCreate):
     created = await domain_service.create_domain(data)

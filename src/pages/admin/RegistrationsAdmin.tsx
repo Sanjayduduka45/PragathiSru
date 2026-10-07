@@ -26,11 +26,24 @@ import {
   Send,
   Clock,
   Download,
+  FileArchive,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { api } from '../../services/api';
 import { RegistrationService } from '../../services/registrationService';
-import { exportRegistrationsCSV, exportRegistrationsPDF } from '../../utils/exportRegistrations';
+import {
+  exportRegistrationsCSV,
+  exportRegistrationsPDF,
+  exportRegistrationsExcel,
+  getApprovalStatusLabel,
+} from '../../utils/exportRegistrations';
+import { exportPaymentProofsZip } from '../../utils/exportPaymentProofs';
+import {
+  DomainItem,
+  DomainAliasItem,
+  DEFAULT_DOMAIN_ALIASES,
+  resolveRegistrationCanonicalDomain,
+} from '../../utils/domainResolution';
 import { Modal } from '../../components/ui/Modal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
@@ -216,6 +229,12 @@ export const RegistrationsAdmin: React.FC = () => {
   const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
   const [institutionFilter, setInstitutionFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [domainFilter, setDomainFilter] = useState<string>('ALL');
+  const [approvalFilter, setApprovalFilter] = useState<string>('ALL');
+  const [availableDomains, setAvailableDomains] = useState<DomainItem[]>([]);
+  const [domainAliases, setDomainAliases] = useState<DomainAliasItem[]>(DEFAULT_DOMAIN_ALIASES);
+  const [exportingExcel, setExportingExcel] = useState<boolean>(false);
+  const [exportingProofs, setExportingProofs] = useState<boolean>(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -299,24 +318,6 @@ export const RegistrationsAdmin: React.FC = () => {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [exportOpen]);
-
-  const handleExportCSV = () => {
-    setExportOpen(false);
-    exportRegistrationsCSV(registrations);
-  };
-
-  const handleExportPDF = async () => {
-    setExportOpen(false);
-    setExportingPDF(true);
-    try {
-      await exportRegistrationsPDF(registrations);
-    } catch (err: any) {
-      console.error('[Export] PDF generation error:', err);
-      addToast('error', 'PDF Export Failed', err?.message || 'An error occurred while generating the PDF.');
-    } finally {
-      setExportingPDF(false);
-    }
-  };
 
   const isExternalRegistration = (reg: JoinedRegistrationRecord | null) => {
     if (!reg) return false;
@@ -523,9 +524,104 @@ export const RegistrationsAdmin: React.FC = () => {
     setLoading(false);
   }, []);
 
+  // ── Fetch Dynamic Domains and Aliases ──────────────────────────────────────
+  const fetchDomainsAndAliases = useCallback(async () => {
+    let loadedDomains: DomainItem[] = [];
+    let loadedAliases: DomainAliasItem[] = [];
+
+    // 1. Try FastAPI backend
+    try {
+      const res = await api.domains.get();
+      if (res && Array.isArray(res.data) && res.data.length > 0) {
+        loadedDomains = res.data.map((d: any) => ({
+          id: String(d.id),
+          title: String(d.title || d.id),
+          description: d.description,
+          active: d.active !== false && d.is_active !== false,
+          is_active: d.active !== false && d.is_active !== false,
+          display_order: d.display_order ?? 0,
+        }));
+      }
+    } catch (err) {
+      console.warn('[RegistrationsAdmin] FastAPI domains fetch notice:', err);
+    }
+
+    try {
+      const aliasRes = await api.domains.getAliases();
+      if (aliasRes && Array.isArray(aliasRes.data) && aliasRes.data.length > 0) {
+        loadedAliases = aliasRes.data.map((a: any) => ({
+          domain_id: String(a.domain_id),
+          alias_text: String(a.alias_text),
+          is_active: a.is_active !== false,
+        }));
+      }
+    } catch (err) {
+      console.warn('[RegistrationsAdmin] FastAPI aliases fetch notice:', err);
+    }
+
+    // 2. Direct Supabase Fallback for domains
+    if (loadedDomains.length === 0 && isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaDomains } = await supabase
+          .from('project_domains')
+          .select('id, title, description, is_active, display_order')
+          .order('display_order', { ascending: true });
+        if (supaDomains && supaDomains.length > 0) {
+          loadedDomains = supaDomains.map((d: any) => ({
+            id: String(d.id),
+            title: String(d.title || d.id),
+            description: d.description,
+            active: d.is_active !== false,
+            is_active: d.is_active !== false,
+            display_order: d.display_order ?? 0,
+          }));
+        }
+      } catch (sErr) {
+        console.warn('[RegistrationsAdmin] Direct Supabase domains query notice:', sErr);
+      }
+    }
+
+    // 3. Direct Supabase Fallback for aliases
+    if (loadedAliases.length === 0 && isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaAliases } = await supabase
+          .from('domain_aliases')
+          .select('domain_id, alias_text, is_active')
+          .eq('is_active', true);
+        if (supaAliases && supaAliases.length > 0) {
+          loadedAliases = supaAliases.map((a: any) => ({
+            domain_id: String(a.domain_id),
+            alias_text: String(a.alias_text),
+            is_active: a.is_active !== false,
+          }));
+        }
+      } catch (sErr) {
+        console.warn('[RegistrationsAdmin] Direct Supabase aliases query notice:', sErr);
+      }
+    }
+
+    // 4. Default categories fallback if database returns nothing
+    if (loadedDomains.length === 0) {
+      loadedDomains = PROJECT_CATEGORIES.map((c, i) => ({
+        id: c.id,
+        title: c.title,
+        description: c.description,
+        active: true,
+        is_active: true,
+        display_order: i + 1,
+      }));
+    }
+
+    setAvailableDomains(loadedDomains);
+    if (loadedAliases.length > 0) {
+      setDomainAliases(loadedAliases);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRegistrations();
-  }, [fetchRegistrations]);
+    fetchDomainsAndAliases();
+  }, [fetchRegistrations, fetchDomainsAndAliases]);
 
   // ── Fetch Email Logs for Selected Registration ─────────────────────────────
   const fetchEmailLogs = useCallback(async (regCode: string) => {
@@ -594,7 +690,10 @@ export const RegistrationsAdmin: React.FC = () => {
 
   const uniqueInstitutions = useMemo(() => {
     const set = new Set<string>();
-    registrations.forEach((r) => set.add(r.institutions?.name || 'SR University'));
+    registrations.forEach((r) => {
+      const inst = r.institutions?.name || (r as any).institution_name || (r.participant_type === 'sru_student' ? 'SR University' : '');
+      if (inst) set.add(inst);
+    });
     return Array.from(set).sort();
   }, [registrations]);
 
@@ -602,26 +701,169 @@ export const RegistrationsAdmin: React.FC = () => {
 
   const filteredRegistrations = useMemo(() =>
     registrations.filter((r) => {
+      // 1. Search Query (supports ID, Team, Leader, Email, Institution, Project Title)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
+        const regId = r.registration_id?.toLowerCase() || '';
+        const teamName = r.team_name?.toLowerCase() || '';
+        const leaderName = r.leader_name?.toLowerCase() || '';
+        const leaderEmail = r.leader_email?.toLowerCase() || '';
+        const instName = (r.institutions?.name || (r as any).institution_name || (r.participant_type === 'sru_student' ? 'SR University' : '')).toLowerCase();
+        const projTitle = (r.projects?.[0]?.title || '').toLowerCase();
         if (
-          !r.registration_id?.toLowerCase().includes(q) &&
-          !r.team_name?.toLowerCase().includes(q) &&
-          !r.leader_name?.toLowerCase().includes(q) &&
-          !r.leader_email?.toLowerCase().includes(q) &&
-          !r.institutions?.name?.toLowerCase().includes(q)
+          !regId.includes(q) &&
+          !teamName.includes(q) &&
+          !leaderName.includes(q) &&
+          !leaderEmail.includes(q) &&
+          !instName.includes(q) &&
+          !projTitle.includes(q)
         ) return false;
       }
+
+      // 2. Participant Type Filter
+      if (typeFilter !== 'ALL' && r.participant_type !== typeFilter) return false;
+
+      // 3. Payment Filter
       if (paymentFilter !== 'ALL' && r.payment_status !== paymentFilter) return false;
+
+      // 4. Institution Filter
       if (institutionFilter !== 'ALL') {
-        const instName = r.institutions?.name || 'SR University';
+        const instName = r.institutions?.name || (r as any).institution_name || (r.participant_type === 'sru_student' ? 'SR University' : '');
         if (instName !== institutionFilter) return false;
       }
-      if (typeFilter !== 'ALL' && r.participant_type !== typeFilter) return false;
+
+      // 5. Canonical Domain / Theme Filter (dynamic: category -> domain_aliases / project_domains -> canonical domain)
+      if (domainFilter !== 'ALL') {
+        const { domainId } = resolveRegistrationCanonicalDomain(r, availableDomains, domainAliases);
+        if (domainId !== domainFilter) return false;
+      }
+
+      // 6. Registration Approval Status Filter
+      if (approvalFilter !== 'ALL') {
+        const approval = getApprovalStatusLabel(r);
+        if (approvalFilter === 'approved' && approval !== 'Approved') return false;
+        if (approvalFilter === 'pending' && approval !== 'Approval Pending') return false;
+        if (approvalFilter === 'rejected' && approval !== 'Rejected') return false;
+      }
+
       return true;
     }),
-    [registrations, searchQuery, paymentFilter, institutionFilter, typeFilter]
+    [registrations, searchQuery, paymentFilter, institutionFilter, typeFilter, domainFilter, approvalFilter, availableDomains, domainAliases]
   );
+
+  const hasActiveFilters = useMemo(() => (
+    searchQuery.trim() !== '' ||
+    typeFilter !== 'ALL' ||
+    paymentFilter !== 'ALL' ||
+    institutionFilter !== 'ALL' ||
+    domainFilter !== 'ALL' ||
+    approvalFilter !== 'ALL'
+  ), [searchQuery, typeFilter, paymentFilter, institutionFilter, domainFilter, approvalFilter]);
+
+  const resetAllFilters = useCallback(() => {
+    setSearchQuery('');
+    setTypeFilter('ALL');
+    setPaymentFilter('ALL');
+    setInstitutionFilter('ALL');
+    setDomainFilter('ALL');
+    setApprovalFilter('ALL');
+    setCurrentPage(1);
+  }, []);
+
+  // ── Filtered Export Handlers ──────────────────────────────────────────────────
+  const handleExportExcel = async () => {
+    if (filteredRegistrations.length === 0) {
+      addToast('info', 'No Registrations', 'No registrations match the current filters.');
+      return;
+    }
+    setExportingExcel(true);
+    try {
+      await exportRegistrationsExcel(filteredRegistrations, (r) => {
+        const res = resolveRegistrationCanonicalDomain(r, availableDomains, domainAliases);
+        return res.domainTitle;
+      });
+      addToast(
+        'success',
+        'Export Successful',
+        `Exported ${filteredRegistrations.length} registration${filteredRegistrations.length === 1 ? '' : 's'} to Pragathi_Registrations_Export.xlsx`
+      );
+    } catch (err: any) {
+      console.error('[Export] Excel generation error:', err);
+      addToast('error', 'Excel Export Failed', err?.message || 'An error occurred while generating the Excel file.');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleExportPaymentProofs = async () => {
+    setExportOpen(false);
+    const externalCount = filteredRegistrations.filter(
+      (r) => (r.participant_type || '').trim().toLowerCase() === 'external_student'
+    ).length;
+
+    if (externalCount === 0) {
+      addToast(
+        'info',
+        'No External Registrations',
+        'Payment proofs are only applicable to external participant registrations.'
+      );
+      return;
+    }
+
+    setExportingProofs(true);
+    try {
+      const res = await exportPaymentProofsZip(
+        filteredRegistrations,
+        (r) => {
+          const { domainTitle } = resolveRegistrationCanonicalDomain(r, availableDomains, domainAliases);
+          return domainTitle;
+        }
+      );
+
+      if (res.success) {
+        addToast('success', 'Payment Proofs Exported', res.message);
+      } else {
+        if (res.reason === 'no_proofs') {
+          addToast('warning', 'No Proofs Found', res.message);
+        } else if (res.reason === 'no_external') {
+          addToast('info', 'No External Registrations', res.message);
+        } else {
+          addToast('error', 'Export Failed', res.message);
+        }
+      }
+    } catch (err: any) {
+      console.error('[Export Proofs Error]:', err);
+      addToast('error', 'Export Error', err?.message || 'Failed to export payment proofs.');
+    } finally {
+      setExportingProofs(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    setExportOpen(false);
+    if (filteredRegistrations.length === 0) {
+      addToast('info', 'No Registrations', 'No registrations match the current filters.');
+      return;
+    }
+    exportRegistrationsCSV(filteredRegistrations);
+  };
+
+  const handleExportPDF = async () => {
+    setExportOpen(false);
+    if (filteredRegistrations.length === 0) {
+      addToast('info', 'No Registrations', 'No registrations match the current filters.');
+      return;
+    }
+    setExportingPDF(true);
+    try {
+      await exportRegistrationsPDF(filteredRegistrations);
+    } catch (err: any) {
+      console.error('[Export] PDF generation error:', err);
+      addToast('error', 'PDF Export Failed', err?.message || 'An error occurred while generating the PDF.');
+    } finally {
+      setExportingPDF(false);
+    }
+  };
 
   const totalRecords = filteredRegistrations.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
@@ -822,15 +1064,33 @@ export const RegistrationsAdmin: React.FC = () => {
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Export Registrations</span>
                 </div>
                 <button
+                  onClick={() => { setExportOpen(false); handleExportExcel(); }}
+                  disabled={exportingExcel || filteredRegistrations.length === 0}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <span className="text-base">📑</span>
+                  Export Excel (.xlsx)
+                </button>
+                <button
+                  onClick={handleExportPaymentProofs}
+                  disabled={exportingProofs || filteredRegistrations.length === 0}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <span className="text-base">📦</span>
+                  Export Payment Proofs (.zip)
+                </button>
+                <button
                   onClick={handleExportCSV}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  disabled={filteredRegistrations.length === 0}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <span className="text-base">📊</span>
                   Export CSV
                 </button>
                 <button
                   onClick={handleExportPDF}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  disabled={exportingPDF || filteredRegistrations.length === 0}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <span className="text-base">📄</span>
                   Export PDF
@@ -871,8 +1131,9 @@ export const RegistrationsAdmin: React.FC = () => {
       </div>
 
       {/* ── Filter Bar ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          {/* Search */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <Search className="w-4 h-4" />
@@ -885,15 +1146,19 @@ export const RegistrationsAdmin: React.FC = () => {
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-slate-50/50"
             />
           </div>
+
+          {/* Participant Type */}
           <select
             value={typeFilter}
             onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
             className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
           >
             <option value="ALL">All Participant Types</option>
-            <option value="sru_student">SR University Student</option>
-            <option value="external_student">External Participant</option>
+            <option value="sru_student">SR University Students</option>
+            <option value="external_student">External Participants</option>
           </select>
+
+          {/* Payment Status */}
           <select
             value={paymentFilter}
             onChange={(e) => { setPaymentFilter(e.target.value); setCurrentPage(1); }}
@@ -904,6 +1169,8 @@ export const RegistrationsAdmin: React.FC = () => {
             <option value="paid">Paid</option>
             <option value="pending">Payment Pending</option>
           </select>
+
+          {/* Institution */}
           <select
             value={institutionFilter}
             onChange={(e) => { setInstitutionFilter(e.target.value); setCurrentPage(1); }}
@@ -914,6 +1181,82 @@ export const RegistrationsAdmin: React.FC = () => {
               <option key={inst} value={inst}>{inst}</option>
             ))}
           </select>
+
+          {/* Domain / Theme */}
+          <select
+            value={domainFilter}
+            onChange={(e) => { setDomainFilter(e.target.value); setCurrentPage(1); }}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
+          >
+            <option value="ALL">All Themes</option>
+            {availableDomains.map((d) => (
+              <option key={d.id} value={d.id}>{d.title}</option>
+            ))}
+          </select>
+
+          {/* Registration Approval Status */}
+          <select
+            value={approvalFilter}
+            onChange={(e) => { setApprovalFilter(e.target.value); setCurrentPage(1); }}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#004182] focus:ring-2 focus:ring-blue-100 bg-white"
+          >
+            <option value="ALL">All Approval Statuses</option>
+            <option value="pending">Approval Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        {/* Filter Summary & Export Filtered Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-2 text-slate-500 font-medium">
+            <span>
+              Showing <strong className="text-slate-800">{filteredRegistrations.length}</strong> of{' '}
+              <strong className="text-slate-800">{registrations.length}</strong> registrations
+            </span>
+            {hasActiveFilters && (
+              <button
+                onClick={resetAllFilters}
+                className="text-[#004182] hover:underline font-bold text-[11px] ml-1.5 cursor-pointer"
+              >
+                Reset filters
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportExcel}
+              disabled={loading || exportingExcel || filteredRegistrations.length === 0}
+              className="inline-flex items-center justify-center gap-2 bg-[#004182] hover:bg-[#003366] text-white font-bold px-4 py-2 rounded-xl text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title={hasActiveFilters ? "Export only matching filtered registrations to Excel (.xlsx)" : "Export all registrations to Excel (.xlsx)"}
+            >
+              {exportingExcel ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {exportingExcel
+                  ? 'Exporting...'
+                  : hasActiveFilters
+                    ? `Export Filtered Registrations (${filteredRegistrations.length})`
+                    : `Export All Registrations (${registrations.length})`}
+              </span>
+            </button>
+            <button
+              onClick={handleExportPaymentProofs}
+              disabled={loading || exportingProofs || filteredRegistrations.length === 0}
+              className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-2xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Download payment screenshots and manifest for filtered external participants"
+            >
+              {exportingProofs ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileArchive className="w-3.5 h-3.5" />
+              )}
+              <span>{exportingProofs ? 'Exporting Proofs...' : 'Export Payment Proofs (.zip)'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1207,8 +1550,13 @@ export const RegistrationsAdmin: React.FC = () => {
                 ? selectedReg.projects.map((p) => (
                   <div key={p.id} className="space-y-1.5">
                     <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Project Title</span><strong className="text-slate-900 text-xs sm:text-sm">{p.title}</strong></div>
-                    <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Domain / Track</span>
-                      <span className="inline-block bg-blue-50 text-[#004182] font-bold px-2 py-0.5 rounded border border-blue-100 text-[11px] mt-0.5">{p.category}</span>
+                    <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Canonical Domain / Track</span>
+                      <span className="inline-block bg-blue-50 text-[#004182] font-bold px-2 py-0.5 rounded border border-blue-100 text-[11px] mt-0.5">
+                        {resolveRegistrationCanonicalDomain(selectedReg, availableDomains, domainAliases).domainTitle}
+                      </span>
+                      {p.category && p.category !== resolveRegistrationCanonicalDomain(selectedReg, availableDomains, domainAliases).domainTitle && (
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Category: {p.category}</span>
+                      )}
                     </div>
                     {p.problem_statement && (
                       <div><span className="text-slate-400 text-[10px] uppercase font-bold block">Problem Statement</span>

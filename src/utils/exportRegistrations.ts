@@ -202,7 +202,232 @@ function getPaymentStatusLabel(r: JoinedRegistrationRecord): string {
     case 'not_required': return 'FREE (NOT REQUIRED)';
     case 'processing': return 'PROCESSING';
     case 'failed': return 'FAILED / REJECTED';
-    default: return (r.payment_status || 'N/A').toUpperCase();
+    default: return String(r.payment_status || 'N/A').toUpperCase();
+  }
+}
+
+/**
+ * Format authoritative team member names for Excel export.
+ * ONE TEAM = EXACTLY ONE CELL in the Team Members column.
+ * All authoritative member names appear inside this single cell,
+ * separated by newlines (\n) to render line-by-line.
+ * Leader is preserved as the first member if present in team_members.
+ * Never derives fake names, placeholders, or synthetic members.
+ */
+function buildTeamMembersExcel(r: JoinedRegistrationRecord): string {
+  const members = r.team_members || [];
+  if (members.length === 0) {
+    const leader = getLeader(r);
+    return leader.name?.trim() || '';
+  }
+
+  // Ensure leader is first, followed by other members
+  const sortedMembers = [...members].sort((a, b) => (b.is_team_leader ? 1 : 0) - (a.is_team_leader ? 1 : 0));
+
+  const names = sortedMembers
+    .map((m) => m.name?.trim())
+    .filter((name): name is string => Boolean(name && name.length > 0));
+
+  if (names.length === 0) {
+    const leader = getLeader(r);
+    return leader.name?.trim() || '';
+  }
+
+  return names.join('\n');
+}
+
+export function getApprovalStatusLabel(r: JoinedRegistrationRecord): 'Approved' | 'Approval Pending' | 'Rejected' {
+  const s = (r.registration_status || 'submitted').trim().toLowerCase();
+  if (s === 'approved' || s === 'confirmed' || s === 'verified') {
+    return 'Approved';
+  }
+  if (s === 'rejected' || s === 'failed') {
+    return 'Rejected';
+  }
+  return 'Approval Pending';
+}
+
+/**
+ * Export registrations to Microsoft Excel (.xlsx) format.
+ * - Operates on the complete filtered dataset (ignoring UI pagination)
+ * - ONE TEAM = EXACTLY ONE EXCEL ROW (no row duplication)
+ * - Team Members column: all authoritative member names in ONE CELL, separated by newlines (\n)
+ * - Cell text wrapping: enabled (wrapText: true)
+ * - Vertical alignment: top
+ * - Dynamic row height scaled to team member count so all names are visible
+ * - Resolves canonical domain titles dynamically
+ * - Never includes secrets or fabricated data
+ */
+export async function exportRegistrationsExcel(
+  registrations: JoinedRegistrationRecord[],
+  domainTitleResolver?: (r: JoinedRegistrationRecord) => string
+): Promise<void> {
+  if (!registrations || registrations.length === 0) {
+    throw new Error('No registrations match the current filters.');
+  }
+
+  const XLSX = await import('xlsx');
+
+  const headers = [
+    'Registration ID',
+    'Team Name',
+    'Project Title',
+    'Canonical Domain / Theme',
+    'Participant Type',
+    'Team Leader Name',
+    'Leader Email',
+    'Leader Phone / Mobile',
+    'Institution Name',
+    'Team Size',
+    'Team Members',
+    'Payment Status',
+    'Paid Amount (₹)',
+    'Transaction ID / Reference',
+    'Approval Status',
+    'Registration Date',
+  ];
+
+  const rows = registrations.map((r) => {
+    const leader = getLeader(r);
+    const domainTitle = domainTitleResolver
+      ? domainTitleResolver(r)
+      : (r.projects?.[0]?.category || 'N/A');
+    const projectTitle = r.projects?.[0]?.title || 'N/A';
+    const institution = getInstitutionName(r);
+    const participantType =
+      r.participant_type === 'sru_student' ? 'SR University Students' : 'External Participants';
+    const membersCell = buildTeamMembersExcel(r);
+    const paymentStatus = getPaymentStatusLabel(r);
+    const paidAmount = getPaidAmountCSV(r);
+    const transRef = getTransactionRef(r);
+    const approvalStatus = getApprovalStatusLabel(r);
+    const regDate = formatRegistrationDate(r.created_at);
+
+    return [
+      r.registration_id || 'N/A',
+      r.team_name || 'N/A',
+      projectTitle,
+      domainTitle,
+      participantType,
+      leader.name || 'N/A',
+      leader.email || 'N/A',
+      leader.phone || 'N/A',
+      institution,
+      r.team_size || (r.team_members?.length ?? 1),
+      membersCell,
+      paymentStatus,
+      paidAmount,
+      transRef,
+      approvalStatus,
+      regDate,
+    ];
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  // Suitable column widths
+  ws['!cols'] = [
+    { wch: 18 }, // Registration ID
+    { wch: 26 }, // Team Name
+    { wch: 32 }, // Project Title
+    { wch: 38 }, // Canonical Domain
+    { wch: 24 }, // Participant Type
+    { wch: 24 }, // Team Leader Name
+    { wch: 28 }, // Leader Email
+    { wch: 18 }, // Leader Phone
+    { wch: 32 }, // Institution Name
+    { wch: 12 }, // Team Size
+    { wch: 38 }, // Team Members (suitable width for full member names)
+    { wch: 18 }, // Payment Status
+    { wch: 14 }, // Paid Amount
+    { wch: 26 }, // Transaction ID
+    { wch: 18 }, // Registration Status
+    { wch: 16 }, // Registration Date
+  ];
+
+  // Suitable row heights: Header is 26pt; data rows scale based on member lines (18pt per line, min 24pt)
+  ws['!rows'] = [
+    { hpt: 26 }, // Header row
+    ...registrations.map((r) => {
+      const lineCount = Math.max(1, buildTeamMembersExcel(r).split('\n').filter(Boolean).length);
+      return { hpt: Math.max(24, lineCount * 18) };
+    }),
+  ];
+
+  // In-memory cell styles for consumers supporting SheetJS cell styles
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+      const cell = ws[cellRef];
+      if (!cell) continue;
+
+      if (R === 0) {
+        cell.s = {
+          font: { bold: true },
+          alignment: { vertical: 'center', horizontal: 'left' },
+        };
+      } else {
+        cell.s = {
+          alignment: {
+            vertical: 'top',
+            wrapText: C === 10 || String(cell.v || '').includes('\n'),
+          },
+        };
+      }
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registrations');
+
+  // Generate OpenXML package with wrapText="1" and vertical="top" explicitly configured
+  const arrayBuf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  const u8 = new Uint8Array(arrayBuf);
+  let finalData: ArrayBuffer | Uint8Array = u8;
+
+  try {
+    const cfb = XLSX.CFB.read(u8, { type: 'buffer' });
+    const stylesFile = cfb.FileIndex.find((f: any) => f.name.endsWith('styles.xml'));
+    if (stylesFile) {
+      const decoder = new TextDecoder('utf-8');
+      let stylesXml = decoder.decode(stylesFile.content);
+      // Append xf with vertical="top" and wrapText="1"
+      stylesXml = stylesXml.replace(
+        /<cellXfs count="(\d+)">([\s\S]*?)<\/cellXfs>/,
+        (_m: string, count: string, content: string) =>
+          `<cellXfs count="${parseInt(count, 10) + 1}">${content}<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs>`
+      );
+      stylesFile.content = new TextEncoder().encode(stylesXml);
+      stylesFile.size = stylesFile.content.length;
+    }
+
+    const sheetFile = cfb.FileIndex.find((f: any) => f.name.endsWith('sheet1.xml'));
+    if (sheetFile) {
+      const decoder = new TextDecoder('utf-8');
+      let sheetXml = decoder.decode(sheetFile.content);
+      // Apply style 1 (vertical="top", wrapText="1") to all data cells (row >= 2)
+      sheetXml = sheetXml.replace(/<c r="([A-Z]+)(\d+)"/g, (match: string, col: string, row: string) => {
+        const rowNum = parseInt(row, 10);
+        if (rowNum >= 2) {
+          return `<c r="${col}${row}" s="1"`;
+        }
+        return match;
+      });
+      sheetFile.content = new TextEncoder().encode(sheetXml);
+      sheetFile.size = sheetFile.content.length;
+    }
+
+    finalData = XLSX.CFB.write(cfb, { fileType: 'zip', type: 'array' });
+  } catch (err) {
+    console.warn('Could not post-process Excel styles via CFB, falling back to standard XLSX:', err);
+  }
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const blob = new Blob([finalData], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    downloadBlob(blob, 'Pragathi_Registrations_Export.xlsx');
   }
 }
 

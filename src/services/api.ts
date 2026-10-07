@@ -180,6 +180,7 @@ export const api = {
   },
   domains: {
     get: () => request<{ success: boolean; data: any[] }>('/api/domains'),
+    getAliases: () => request<{ success: boolean; data: any[] }>('/api/domain-aliases'),
     create: (data: any) =>
       request<{ success: boolean; data: any }>('/api/admin/domains', {
         method: 'POST',
@@ -366,6 +367,19 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
+    exportPaymentProofs: async (registrationIds?: string[]): Promise<Blob> => {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_BASE_URL}/api/admin/registrations/export-payment-proofs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registration_ids: registrationIds }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(err.detail || err.message || 'Payment proofs export failed.');
+      }
+      return await response.blob();
+    },
   },
 
   // Named Admin API Namespace

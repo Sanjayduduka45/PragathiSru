@@ -1,7 +1,10 @@
 from fastapi import HTTPException, UploadFile
+import io
 import time
 import re
+import zipfile
 from typing import List, Optional, Dict, Any
+from app.config import settings
 from app.database import db
 from app.schemas.registration import (
     RegistrationItem,
@@ -615,6 +618,190 @@ class RegistrationService:
             "payment_proof_path": proof_path,
             "expires_in": 600
         }
+
+    @staticmethod
+    def _build_manifest_xlsx(headers: List[str], rows: List[List[Any]]) -> bytes:
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('[Content_Types].xml', '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>''')
+            z.writestr('_rels/.rels', '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>''')
+            z.writestr('xl/_rels/workbook.xml.rels', '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>''')
+            z.writestr('xl/workbook.xml', '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Payment Proofs Manifest" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>''')
+            sheet_rows = []
+            h_cells = []
+            for c_idx, h in enumerate(headers):
+                col_letter = chr(65 + c_idx) if c_idx < 26 else f'A{chr(65 + c_idx - 26)}'
+                h_cells.append(f'<c r="{col_letter}1" t="inlineStr"><is><t>{h}</t></is></c>')
+            sheet_rows.append('<row r="1">' + ''.join(h_cells) + '</row>')
+
+            for r_idx, row in enumerate(rows, start=2):
+                r_cells = []
+                for c_idx, val in enumerate(row):
+                    col_letter = chr(65 + c_idx) if c_idx < 26 else f'A{chr(65 + c_idx - 26)}'
+                    clean_val = str(val if val is not None else '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    r_cells.append(f'<c r="{col_letter}{r_idx}" t="inlineStr"><is><t>{clean_val}</t></is></c>')
+                sheet_rows.append(f'<row r="{r_idx}">' + ''.join(r_cells) + '</row>')
+
+            sheet_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>{''.join(sheet_rows)}</sheetData>
+</worksheet>'''
+            z.writestr('xl/worksheets/sheet1.xml', sheet_xml)
+
+        return out.getvalue()
+
+    @staticmethod
+    async def export_payment_proofs_zip(registration_ids: Optional[List[str]] = None) -> bytes:
+        all_regs = await RegistrationService.get_registrations()
+        target_ids = set(registration_ids) if registration_ids else None
+
+        filtered = []
+        for r in all_regs:
+            p_type = (r.participant_type or "").strip().lower()
+            if p_type != "external_student":
+                continue
+            if target_ids is not None:
+                if r.id not in target_ids and r.registration_id not in target_ids:
+                    continue
+            filtered.append(r)
+
+        if not filtered:
+            raise HTTPException(
+                status_code=404,
+                detail="No external registrations match the current filter selection."
+            )
+
+        client = db.get_client()
+        key = settings.get_effective_key()
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+        }
+
+        zip_buf = io.BytesIO()
+        total_proof_files = 0
+        manifest_rows = []
+
+        domains_map = {}
+        try:
+            doms = await domain_service.get_all_domains()
+            for d in doms:
+                domains_map[d.id] = d.title
+        except Exception:
+            pass
+
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for reg in filtered:
+                reg_id = reg.registration_id or reg.id
+                team_name = reg.team_name or "Team"
+                safe_team = re.sub(r"[^a-zA-Z0-9_-]", "_", team_name)
+
+                theme_title = "N/A"
+                if reg.projects and len(reg.projects) > 0:
+                    cat = reg.projects[0].category or ""
+                    theme_title = domains_map.get(cat, cat.replace("-", " ").title())
+
+                s_stat = (reg.registration_status or "submitted").strip().lower()
+                if s_stat in ("approved", "confirmed", "verified"):
+                    appr_label = "Approved"
+                elif s_stat in ("rejected", "failed"):
+                    appr_label = "Rejected"
+                else:
+                    appr_label = "Approval Pending"
+
+                pay_stat = (reg.payment_status or "pending").upper()
+                amt_str = f"₹{reg.payment_amount}" if reg.payment_amount else "₹0"
+                txn_ref = reg.payment_reference or "N/A"
+                if reg.payments and len(reg.payments) > 0:
+                    txn_ref = reg.payments[0].transaction_id or reg.payments[0].gateway_reference or txn_ref
+
+                list_url = f"{settings.supabase_url}/storage/v1/object/list/payment-proofs"
+                reg_files = []
+                try:
+                    list_res = await client.post(
+                        list_url,
+                        headers={**headers, "Content-Type": "application/json"},
+                        json={"prefix": reg_id}
+                    )
+                    if list_res.status_code == 200:
+                        raw_items = list_res.json()
+                        if isinstance(raw_items, list):
+                            reg_files = [f["name"] for f in raw_items if f.get("name") and not f["name"].startswith(".")]
+                except Exception as e:
+                    print(f"[Export Proofs] Error listing files for {reg_id}: {e}")
+
+                added_filenames = []
+                for idx, fname in enumerate(reg_files):
+                    ext = fname.split(".")[-1] if "." in fname else "jpeg"
+                    out_filename = f"{reg_id}_{safe_team}.{ext}" if idx == 0 else f"{reg_id}_{safe_team}_{idx + 1}.{ext}"
+                    dl_url = f"{settings.supabase_url}/storage/v1/object/payment-proofs/{reg_id}/{fname}"
+                    try:
+                        dl_res = await client.get(dl_url, headers=headers)
+                        if dl_res.status_code == 200 and len(dl_res.content) > 0:
+                            z.writestr(f"Payment_Proofs/{out_filename}", dl_res.content)
+                            added_filenames.append(out_filename)
+                            total_proof_files += 1
+                    except Exception as e:
+                        print(f"[Export Proofs] Error downloading {fname}: {e}")
+
+                has_proof = "Yes" if len(added_filenames) > 0 else "No"
+                inst_name = reg.institution_name or (reg.institutions.name if reg.institutions else "N/A")
+                manifest_rows.append([
+                    reg_id,
+                    team_name,
+                    theme_title,
+                    "External Participants",
+                    inst_name,
+                    appr_label,
+                    pay_stat,
+                    amt_str,
+                    txn_ref,
+                    has_proof,
+                    len(added_filenames),
+                    ", ".join(added_filenames) if added_filenames else "N/A"
+                ])
+
+            if total_proof_files == 0:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No payment proofs found for the current filters."
+                )
+
+            headers_list = [
+                "Registration ID",
+                "Team Name",
+                "Theme",
+                "Participant Type",
+                "Institution",
+                "Registration Approval Status",
+                "Payment Status",
+                "Amount",
+                "Transaction ID",
+                "Payment Proof Available",
+                "Number of Payment Proof Files",
+                "Payment Proof Filename(s)"
+            ]
+            manifest_bytes = RegistrationService._build_manifest_xlsx(headers_list, manifest_rows)
+            z.writestr("Payment_Proofs_Manifest.xlsx", manifest_bytes)
+
+        return zip_buf.getvalue()
 
 registration_service = RegistrationService()
 

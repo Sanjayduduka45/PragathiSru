@@ -147,4 +147,12 @@ class DomainService:
         db.save_local(local)
         return supa_success or (len(filtered) < orig_len)
 
+    @staticmethod
+    async def get_domain_aliases():
+        res = await db.fetch_supabase("domain_aliases", "is_active=eq.true&select=domain_id,alias_text,is_active")
+        if res is not None and len(res) > 0:
+            return res
+        local = db.load_local()
+        return local.get("domain_aliases", [])
+
 domain_service = DomainService()
