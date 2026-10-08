@@ -1260,11 +1260,15 @@ class JuryService:
         )
 
     async def get_assigned_project_by_id(self, judge_user_id: str, registration_id: str) -> Optional[AssignedProjectItem]:
-        """Returns single project only if assigned to this jury member."""
+        """Returns single project only if explicitly assigned to this jury member."""
         all_assigned = await self.get_assigned_projects_for_jury(judge_user_id)
         clean_id = registration_id.strip().upper()
+        clean_alt = clean_id.replace("PRAGATHI-", "PRAGATHI26-") if ("PRAGATHI-" in clean_id and "PRAGATHI26-" not in clean_id) else clean_id
+        clean_bare = clean_id.replace("PRAGATHI26-", "").replace("PRAGATHI-", "")
         for p in all_assigned.projects:
-            if p.registration_id == clean_id:
+            p_reg = p.registration_id.upper()
+            p_bare = p_reg.replace("PRAGATHI26-", "").replace("PRAGATHI-", "")
+            if p_reg == clean_id or p_reg == clean_alt or (clean_bare and p_bare == clean_bare):
                 return p
         return None
 

@@ -12,16 +12,16 @@ import {
   ChevronRight,
   ArrowRight,
   Loader2,
+  Layers,
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
-import { Project, Evaluation, Judge, DomainAssignmentItem } from '../../types';
+import { Project, Evaluation, Judge, DomainAssignmentItem, AssignedProjectItem } from '../../types';
 import { EvaluationService } from '../../services/evaluationService';
 import { JuryService } from '../../services/juryService';
 import { QRScannerModal } from '../../components/judge/QRScannerModal';
 import { ProjectEvaluationModal } from '../../components/judge/ProjectEvaluationModal';
 import { ToastContainer } from '../../components/ui/Toast';
 import { useAdminToast } from '../../hooks/useAdminToast';
-import { EvaluationHistoryView } from './components/EvaluationHistoryView';
 import { sessionManager } from '../../services/sessionManager';
 
 const sruLogo = '/B4240911-4EF0-4DE3-8093-B50A0D0EA744_4_5005_c.jpeg';
@@ -146,32 +146,6 @@ const ProjectConfirmCard: React.FC<ProjectConfirmCardProps> = ({
   );
 };
 
-// ─── Recent Evaluation Row ────────────────────────────────────────────────────
-
-interface RecentEvalRowProps {
-  evaluation: Evaluation;
-  onClick: () => void;
-}
-
-const RecentEvalRow: React.FC<RecentEvalRowProps> = ({ evaluation, onClick }) => (
-  <button
-    onClick={onClick}
-    className="w-full text-left flex items-center gap-3 py-3 px-4 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors group"
-  >
-    <div className="flex-1 min-w-0">
-      <p className="text-xs font-bold text-slate-900 truncate">{evaluation.projectTitle}</p>
-      <p className="font-mono text-[11px] text-slate-400 mt-0.5">{evaluation.registrationId}</p>
-    </div>
-    <div className="text-right shrink-0">
-      <div className="flex items-center justify-end gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-        <span className="text-[11px] font-bold text-emerald-800">Evaluated</span>
-      </div>
-    </div>
-    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
-  </button>
-);
-
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export const JuryDashboard: React.FC = () => {
@@ -180,12 +154,39 @@ export const JuryDashboard: React.FC = () => {
   const { toasts, addToast, dismissToast } = useAdminToast();
 
   // ── Core data state ──────────────────────────────────────────────────────────
+  const [assignedProjects, setAssignedProjects] = useState<AssignedProjectItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [myEvaluations, setMyEvaluations] = useState<Evaluation[]>([]);
   const [assignedDomains, setAssignedDomains] = useState<DomainAssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const isFetchingRef = React.useRef(false);
+
+  // ── Assigned projects search and status filter ──────────────────────────────
+  const [projectSearch, setProjectSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'EVALUATED'>('ALL');
+
+  // ── Helper to convert AssignedProjectItem to Project interface ───────────────
+  const toProject = useCallback((ap: AssignedProjectItem): Project => ({
+    id: ap.registration_id,
+    registrationId: (ap.registration_id || '').toUpperCase(),
+    teamName: ap.team_name,
+    title: ap.project_title,
+    category: ap.category,
+    institutionName: ap.institution_name,
+    leaderName: ap.leader_name,
+    leaderEmail: ap.members?.find((m) => m.role === 'Leader')?.email || ap.members?.[0]?.email || '',
+    members: (ap.members || []).map((m) => ({
+      name: m.name,
+      email: m.email,
+      role: (m.role as 'Leader' | 'Member') || 'Member',
+    })),
+    problemStatement: ap.problem_statement || '',
+    proposedSolution: ap.proposed_solution || '',
+    innovation: ap.innovation || '',
+    expectedOutcomes: ap.expected_outcomes || '',
+    status: 'submitted',
+  }), []);
 
   // ── Lookup state ─────────────────────────────────────────────────────────────
   const [lookupId, setLookupId] = useState('');
@@ -200,10 +201,6 @@ export const JuryDashboard: React.FC = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [evalModalOpen, setEvalModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-  // ── History view ─────────────────────────────────────────────────────────────
-  const [showHistory, setShowHistory] = useState(false);
-  const [historySelectedEval, setHistorySelectedEval] = useState<Evaluation | null>(null);
 
   // ── Derived jury info ────────────────────────────────────────────────────────
   const juryEmail = user?.email || 'jury@sru.edu.in';
@@ -223,27 +220,8 @@ export const JuryDashboard: React.FC = () => {
     if (!bypassCache) {
       const cached = JuryService.getCachedBootstrap(user.id);
       if (cached && Array.isArray(cached.projects)) {
-        const mapped: Project[] = cached.projects.map((ap) => ({
-          id: ap.registration_id,
-          registrationId: (ap.registration_id || '').toUpperCase(),
-          teamName: ap.team_name,
-          title: ap.project_title,
-          category: ap.category,
-          institutionName: ap.institution_name,
-          leaderName: ap.leader_name,
-          leaderEmail: ap.members?.find((m) => m.role === 'Leader')?.email || ap.members?.[0]?.email || '',
-          members: (ap.members || []).map((m) => ({
-            name: m.name,
-            email: m.email,
-            role: m.role || 'Member',
-          })),
-          problemStatement: ap.problem_statement || '',
-          proposedSolution: ap.proposed_solution || '',
-          innovation: ap.innovation || '',
-          expectedOutcomes: ap.expected_outcomes || '',
-          status: 'submitted',
-        }));
-        setProjects(mapped);
+        setAssignedProjects(cached.projects);
+        setProjects(cached.projects.map(toProject));
         setMyEvaluations(cached.evaluations || []);
         if (Array.isArray(cached.assignments)) {
           setAssignedDomains(cached.assignments);
@@ -254,29 +232,17 @@ export const JuryDashboard: React.FC = () => {
 
     try {
       setLoadError(null);
-      const bootstrapRes = await JuryService.bootstrap(user.id);
-      if (bootstrapRes && Array.isArray(bootstrapRes.projects)) {
-        const mapped: Project[] = bootstrapRes.projects.map((ap) => ({
-          id: ap.registration_id,
-          registrationId: (ap.registration_id || '').toUpperCase(),
-          teamName: ap.team_name,
-          title: ap.project_title,
-          category: ap.category,
-          institutionName: ap.institution_name,
-          leaderName: ap.leader_name,
-          leaderEmail: ap.members?.find((m) => m.role === 'Leader')?.email || ap.members?.[0]?.email || '',
-          members: (ap.members || []).map((m) => ({
-            name: m.name,
-            email: m.email,
-            role: m.role || 'Member',
-          })),
-          problemStatement: ap.problem_statement || '',
-          proposedSolution: ap.proposed_solution || '',
-          innovation: ap.innovation || '',
-          expectedOutcomes: ap.expected_outcomes || '',
-          status: 'submitted',
-        }));
-        setProjects(mapped);
+      let bootstrapRes = await JuryService.bootstrap(user.id);
+      if (!bootstrapRes || !Array.isArray(bootstrapRes.projects)) {
+        // Fallback to direct assigned-projects query if bootstrap yielded no projects array
+        const directAssigned = await JuryService.getAssignedProjects();
+        if (directAssigned && Array.isArray(directAssigned.projects)) {
+          setAssignedProjects(directAssigned.projects);
+          setProjects(directAssigned.projects.map(toProject));
+        }
+      } else {
+        setAssignedProjects(bootstrapRes.projects);
+        setProjects(bootstrapRes.projects.map(toProject));
         setMyEvaluations(bootstrapRes.evaluations || []);
         if (Array.isArray(bootstrapRes.assignments)) {
           setAssignedDomains(bootstrapRes.assignments);
@@ -284,13 +250,26 @@ export const JuryDashboard: React.FC = () => {
       }
     } catch (err: any) {
       console.error('[JuryDashboard] Bootstrap failed:', err);
-      setLoadError(err.message || 'Unable to load jury dashboard');
-      addToast('error', 'Dashboard Notice', err.message || 'Unable to load jury dashboard.');
+      // Attempt secondary recovery via getAssignedProjects
+      try {
+        const directAssigned = await JuryService.getAssignedProjects();
+        if (directAssigned && Array.isArray(directAssigned.projects)) {
+          setAssignedProjects(directAssigned.projects);
+          setProjects(directAssigned.projects.map(toProject));
+          setLoadError(null);
+        } else {
+          setLoadError(err.message || 'Unable to load jury dashboard');
+          addToast('error', 'Dashboard Notice', err.message || 'Unable to load jury dashboard.');
+        }
+      } catch {
+        setLoadError(err.message || 'Unable to load jury dashboard');
+        addToast('error', 'Dashboard Notice', err.message || 'Unable to load jury dashboard.');
+      }
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [user?.id, addToast]);
+  }, [user?.id, addToast, toProject]);
 
   useEffect(() => {
     if (user?.id) {
@@ -332,12 +311,37 @@ export const JuryDashboard: React.FC = () => {
     return titles;
   }, [assignedDomains]);
 
-  // ── Stats ────────────────────────────────────────────────────────────────────
-  const totalProjects = projects.length;
-  const completedCount = myEvaluations.length;
+  // ── Stats (Authoritative: calculated strictly from assigned-projects list) ───
+  const totalProjects = assignedProjects.length;
+  const completedCount = useMemo(() => {
+    return assignedProjects.filter((p) => p.is_evaluated || myEvaluatedIds.has(p.registration_id.toUpperCase())).length;
+  }, [assignedProjects, myEvaluatedIds]);
   const pendingCount = Math.max(0, totalProjects - completedCount);
   const progressPercent =
     totalProjects > 0 ? Math.round((completedCount / totalProjects) * 100) : 0;
+
+  // ── Filtered assigned projects for the table/cards ───────────────────────────
+  const filteredAssignedProjects = useMemo(() => {
+    return assignedProjects.filter((item) => {
+      const isEval = item.is_evaluated || myEvaluatedIds.has(item.registration_id.toUpperCase());
+
+      // Status tab filter
+      if (statusFilter === 'PENDING' && isEval) return false;
+      if (statusFilter === 'EVALUATED' && !isEval) return false;
+
+      // Text search filter
+      if (projectSearch.trim()) {
+        const q = projectSearch.trim().toLowerCase();
+        const matchesRegId = item.registration_id.toLowerCase().includes(q);
+        const matchesTitle = (item.project_title || '').toLowerCase().includes(q);
+        const matchesTeam = (item.team_name || '').toLowerCase().includes(q);
+        const matchesDomain = (item.domain_title || item.category || '').toLowerCase().includes(q);
+        return matchesRegId || matchesTitle || matchesTeam || matchesDomain;
+      }
+
+      return true;
+    });
+  }, [assignedProjects, statusFilter, projectSearch, myEvaluatedIds]);
 
   // ── Recent evaluations (last 4) ───────────────────────────────────────────────
   const recentEvaluations = useMemo(() => myEvaluations.slice(0, 4), [myEvaluations]);
@@ -345,41 +349,37 @@ export const JuryDashboard: React.FC = () => {
   // ── Project lookup helper (Server Authoritative) ──────────────────────────────
   const resolveProject = useCallback(
     async (registrationId: string): Promise<Project | null> => {
-      const cleanId = registrationId.trim().toUpperCase();
+      let cleanId = registrationId.trim().toUpperCase();
+      if (cleanId.startsWith('PRAGATHI-') && !cleanId.startsWith('PRAGATHI26-')) {
+        cleanId = cleanId.replace('PRAGATHI-', 'PRAGATHI26-');
+      }
 
       // Authoritative check via assigned project endpoint (GET /api/jury/assigned-projects/{id})
       try {
         const item = await JuryService.getAssignedProjectById(cleanId);
         if (item) {
-          return {
-            id: item.registration_id,
-            registrationId: item.registration_id.toUpperCase(),
-            teamName: item.team_name,
-            title: item.project_title,
-            category: item.category,
-            institutionName: item.institution_name,
-            leaderName: item.leader_name,
-            leaderEmail: item.members?.find((m) => m.role === 'Leader')?.email || item.members?.[0]?.email || '',
-            members: (item.members || []).map((m) => ({
-              name: m.name,
-              email: m.email,
-              role: m.role || 'Member',
-            })),
-            problemStatement: item.problem_statement || '',
-            proposedSolution: item.proposed_solution || '',
-            innovation: item.innovation || '',
-            expectedOutcomes: item.expected_outcomes || '',
-            status: 'submitted',
-          };
+          return toProject(item);
         }
       } catch (err: any) {
         console.warn('[JuryDashboard] Project assignment verification:', err);
         throw err;
       }
 
+      // Check current in-memory assigned projects
+      const cleanBare = cleanId.replace('PRAGATHI26-', '').replace('PRAGATHI-', '');
+      const assignedItem = assignedProjects.find((p) => {
+        const pReg = p.registration_id.toUpperCase();
+        const pBare = pReg.replace('PRAGATHI26-', '').replace('PRAGATHI-', '');
+        return pReg === cleanId || (cleanBare && pBare === cleanBare);
+      });
+
+      if (assignedItem) {
+        return toProject(assignedItem);
+      }
+
       return null;
     },
-    []
+    [assignedProjects, toProject]
   );
 
   // ── Set found project with evaluation status ──────────────────────────────────
@@ -434,7 +434,7 @@ export const JuryDashboard: React.FC = () => {
     const raw = lookupId.trim();
     if (!raw) return;
 
-    // Accept bare 6-char codes or full PRAGATHI26-XXXXXX
+    // Accept bare codes or full PRAGATHI26-XXXXXX
     const cleanId = /^PRAGATHI(?:26)?-/i.test(raw)
       ? raw.toUpperCase()
       : `PRAGATHI26-${raw.toUpperCase()}`;
@@ -488,6 +488,24 @@ export const JuryDashboard: React.FC = () => {
       );
       return [newEval, ...filtered];
     });
+
+    // Synchronize authoritative assignedProjects status
+    setAssignedProjects((prev) =>
+      prev.map((item) => {
+        if (item.registration_id.toUpperCase() === newEval.registrationId.toUpperCase()) {
+          return {
+            ...item,
+            is_evaluated: true,
+            evaluation_status: 'EVALUATED',
+            total_score: newEval.totalScore,
+            submitted_at: newEval.submittedAt,
+            evaluation_id: newEval.id,
+          };
+        }
+        return item;
+      })
+    );
+
     // Update found project eval if the confirmation card is still visible
     if (
       foundProject &&
@@ -521,12 +539,6 @@ export const JuryDashboard: React.FC = () => {
     }),
     [user, juryName, juryEmail, completedCount]
   );
-
-  // ── Recent eval click — open history eval detail ──────────────────────────────
-  const handleRecentEvalClick = (ev: Evaluation) => {
-    setHistorySelectedEval(ev);
-    setShowHistory(true);
-  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -611,15 +623,6 @@ export const JuryDashboard: React.FC = () => {
               Retry
             </button>
           </div>
-        ) : showHistory ? (
-          /* ── HISTORY VIEW ─────────────────────────────────────────────────── */
-          <EvaluationHistoryView
-            evaluations={myEvaluations}
-            onBack={() => {
-              setShowHistory(false);
-              setHistorySelectedEval(null);
-            }}
-          />
         ) : (
           /* ── MAIN DASHBOARD ───────────────────────────────────────────────── */
           <>
@@ -799,69 +802,211 @@ export const JuryDashboard: React.FC = () => {
               />
             )}
 
-            {/* ── RECENT EVALUATIONS ───────────────────────────────────────────── */}
-            {myEvaluations.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+            {/* ── ASSIGNED PROJECTS & TEAMS LIST ────────────────────────────────── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {/* Section Header */}
+              <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <h3 className="text-sm font-extrabold text-slate-900">
-                      Evaluation History
+                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+                      Assigned Projects &amp; Teams
                     </h3>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-blue-50 text-[#004182] border border-blue-200">
+                      {totalProjects}
+                    </span>
                   </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Projects officially allocated to your jury panel for evaluation.
+                  </p>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl self-start sm:self-auto">
                   <button
-                    onClick={() => setShowHistory(true)}
-                    className="flex items-center gap-1 text-xs font-bold text-[#004182] hover:text-[#003366] transition-colors"
+                    onClick={() => setStatusFilter('ALL')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'ALL'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
                   >
-                    View All
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    All ({totalProjects})
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('PENDING')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'PENDING'
+                        ? 'bg-amber-100/80 text-amber-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Pending ({pendingCount})
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('EVALUATED')}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'EVALUATED'
+                        ? 'bg-emerald-100/80 text-emerald-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    Evaluated ({completedCount})
                   </button>
                 </div>
+              </div>
 
-                <div>
-                  {recentEvaluations.map((ev) => (
-                    <RecentEvalRow
-                      key={ev.id}
-                      evaluation={ev}
-                      onClick={() => handleRecentEvalClick(ev)}
+              {/* Search Bar (if more than 2 projects or active search) */}
+              {(totalProjects > 2 || projectSearch) && (
+                <div className="px-5 py-3 bg-slate-50/70 border-b border-slate-100">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={projectSearch}
+                      onChange={(e) => setProjectSearch(e.target.value)}
+                      placeholder="Filter by Registration ID, title, team, or domain..."
+                      className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#004182]/20 focus:border-[#004182] transition-all"
                     />
-                  ))}
-                </div>
-
-                {myEvaluations.length > 4 && (
-                  <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 text-center">
-                    <button
-                      onClick={() => setShowHistory(true)}
-                      className="text-xs font-bold text-[#004182] hover:text-[#003366] transition-colors"
-                    >
-                      + {myEvaluations.length - 4} more evaluations — View All History
-                    </button>
+                    {projectSearch && (
+                      <button
+                        onClick={() => setProjectSearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Loading skeleton placeholder rows while loading */}
-            {loading && projects.length === 0 && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
-                <div className="h-4 bg-slate-100 rounded w-1/3 animate-pulse" />
-                <div className="h-12 bg-slate-50 rounded-xl animate-pulse" />
-                <div className="h-12 bg-slate-50 rounded-xl animate-pulse" />
-              </div>
-            )}
-
-            {/* Empty state when no evals yet */}
-            {!loading && myEvaluations.length === 0 && (
-              <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                  <Clock className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="text-sm font-bold text-slate-600">No evaluations yet</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Scan a project QR code or enter a Registration ID above to begin.
-                </p>
-              </div>
-            )}
+              )}
+
+              {/* Content Area */}
+              {loading && assignedProjects.length === 0 ? (
+                <div className="p-8 space-y-3">
+                  <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
+                  <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
+                  <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
+                </div>
+              ) : assignedProjects.length === 0 ? (
+                <div className="p-10 text-center">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                    <Clock className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-700">No Projects Currently Assigned</h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    Your jury account does not have any assigned domains or projects yet. Please contact event administrators.
+                  </p>
+                </div>
+              ) : filteredAssignedProjects.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-xs font-semibold text-slate-500">
+                    No projects match your current search/filter.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setProjectSearch('');
+                      setStatusFilter('ALL');
+                    }}
+                    className="mt-2 text-xs font-bold text-[#004182] hover:underline cursor-pointer"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {filteredAssignedProjects.map((item) => {
+                    const isEval = item.is_evaluated || myEvaluatedIds.has(item.registration_id.toUpperCase());
+                    const existingEval = myEvalMap.get(item.registration_id.toUpperCase()) || null;
+                    const totalScore = existingEval ? existingEval.totalScore : item.total_score;
+
+                    return (
+                      <div
+                        key={item.registration_id}
+                        className={`p-4 sm:p-5 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                          isEval ? 'bg-emerald-50/20 hover:bg-emerald-50/40' : 'hover:bg-slate-50/80'
+                        }`}
+                      >
+                        {/* Left info */}
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Registration ID */}
+                            <span className="font-mono text-xs font-black text-[#004182] bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200">
+                              {item.registration_id}
+                            </span>
+
+                            {/* Domain Pill */}
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 max-w-[220px] truncate"
+                              title={item.domain_title || item.category}
+                            >
+                              {item.domain_title || item.category}
+                            </span>
+
+                            {/* Evaluation Status Badge */}
+                            {isEval ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                Evaluated
+                                {totalScore !== null && totalScore !== undefined && (
+                                  <span className="font-mono ml-0.5 font-black text-emerald-900">
+                                    ({totalScore}/100)
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                                <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                                Pending
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Title & Team */}
+                          <div>
+                            <h4 className="text-sm font-extrabold text-slate-900 leading-snug">
+                              {item.project_title}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Team: <span className="font-bold text-slate-800">{item.team_name}</span>
+                              {item.institution_name && (
+                                <span className="text-slate-400"> · {item.institution_name}</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right Action Button */}
+                        <div className="shrink-0 flex items-center gap-2">
+                          {isEval ? (
+                            <button
+                              onClick={() => {
+                                const proj = toProject(item);
+                                handleOpenEvaluation(proj);
+                              }}
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-white hover:bg-emerald-50 border border-emerald-300 rounded-xl transition-colors cursor-pointer shadow-2xs"
+                            >
+                              <Award className="w-3.5 h-3.5 text-emerald-600" />
+                              View Evaluation
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                const proj = toProject(item);
+                                handleOpenEvaluation(proj);
+                              }}
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#004182] hover:bg-[#003366] rounded-xl transition-colors cursor-pointer shadow-sm"
+                            >
+                              <Award className="w-3.5 h-3.5 text-amber-300" />
+                              Start Evaluation
+                              <ChevronRight className="w-3.5 h-3.5 text-blue-200" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </>
         )}
       </main>
