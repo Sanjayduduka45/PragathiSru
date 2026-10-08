@@ -165,6 +165,21 @@ export const JuryDashboard: React.FC = () => {
   // ── Assigned projects search and status filter ──────────────────────────────
   const [projectSearch, setProjectSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'EVALUATED'>('ALL');
+  const [isProjectsExpanded, setIsProjectsExpanded] = useState(false);
+  const assignedProjectsRef = React.useRef<HTMLDivElement>(null);
+
+  // ── Stat Card Click Handler (Toggle & Tab Selection) ─────────────────────────
+  const handleStatCardClick = useCallback((targetTab: 'ALL' | 'PENDING' | 'EVALUATED') => {
+    if (isProjectsExpanded && statusFilter === targetTab) {
+      setIsProjectsExpanded(false);
+    } else {
+      setIsProjectsExpanded(true);
+      setStatusFilter(targetTab);
+      setTimeout(() => {
+        assignedProjectsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }, [isProjectsExpanded, statusFilter]);
 
   // ── Helper to convert AssignedProjectItem to Project interface ───────────────
   const toProject = useCallback((ap: AssignedProjectItem): Project => ({
@@ -669,20 +684,55 @@ export const JuryDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Stats pills: show '—' while loading */}
+                    {/* Stats pills: interactive filter buttons */}
                     <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-center px-4 py-2 rounded-xl bg-slate-50 border border-slate-200">
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleStatCardClick('ALL')}
+                        title="Click to view all assigned projects"
+                        aria-label={`Assigned Projects: ${loading ? 'Loading' : totalProjects}. Click to view all assigned projects.`}
+                        className={`text-center px-4 py-2 rounded-xl border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#004182]/20 active:scale-98 disabled:opacity-60 disabled:cursor-not-allowed select-none ${
+                          isProjectsExpanded && statusFilter === 'ALL'
+                            ? 'bg-blue-50/80 border-[#004182] ring-2 ring-[#004182]/20 shadow-xs'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-xs'
+                        }`}
+                      >
                         <p className="text-lg font-black text-slate-800">{loading ? '—' : totalProjects}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Assigned Projects</p>
-                      </div>
-                      <div className="text-center px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleStatCardClick('EVALUATED')}
+                        title="Click to view evaluated projects"
+                        aria-label={`Evaluated: ${loading ? 'Loading' : completedCount}. Click to view evaluated projects.`}
+                        className={`text-center px-4 py-2 rounded-xl border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/20 active:scale-98 disabled:opacity-60 disabled:cursor-not-allowed select-none ${
+                          isProjectsExpanded && statusFilter === 'EVALUATED'
+                            ? 'bg-emerald-100/80 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                            : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100/60 hover:border-emerald-300 hover:shadow-xs'
+                        }`}
+                      >
                         <p className="text-lg font-black text-emerald-700">{loading ? '—' : completedCount}</p>
                         <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Evaluated</p>
-                      </div>
-                      <div className="text-center px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleStatCardClick('PENDING')}
+                        title="Click to view remaining/pending projects"
+                        aria-label={`Remaining: ${loading ? 'Loading' : pendingCount}. Click to view pending projects.`}
+                        className={`text-center px-4 py-2 rounded-xl border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/20 active:scale-98 disabled:opacity-60 disabled:cursor-not-allowed select-none ${
+                          isProjectsExpanded && statusFilter === 'PENDING'
+                            ? 'bg-amber-100/80 border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                            : 'bg-amber-50 border-amber-200 hover:bg-amber-100/60 hover:border-amber-300 hover:shadow-xs'
+                        }`}
+                      >
                         <p className="text-lg font-black text-amber-700">{loading ? '—' : pendingCount}</p>
                         <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">Remaining</p>
-                      </div>
+                      </button>
                     </div>
                   </div>
 
@@ -803,7 +853,11 @@ export const JuryDashboard: React.FC = () => {
             )}
 
             {/* ── ASSIGNED PROJECTS & TEAMS LIST ────────────────────────────────── */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            {isProjectsExpanded && (
+              <div
+                ref={assignedProjectsRef}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-20"
+              >
               {/* Section Header */}
               <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -1007,6 +1061,7 @@ export const JuryDashboard: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
           </>
         )}
       </main>
